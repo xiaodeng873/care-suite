@@ -3,6 +3,7 @@
   "buildCommand": "echo 'redirect-only deployment'",
   "outputDirectory": "public",
   "redirects": [
+    { "source": "/", "destination": "https://ehms-sand.vercel.app/", "permanent": true },
     { "source": "/:path*", "destination": "https://ehms-sand.vercel.app/:path*", "permanent": true }
   ]
 }
