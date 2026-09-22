@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, Crop } from 'lucide-react';
 import { detectDocumentBounds } from '../utils/ocrProcessor';
+import { warpPerspective, type Quad, type Point } from '../utils/perspectiveCrop';
 
 interface ImageCropModalProps {
   imageSrc: string;
@@ -8,7 +9,8 @@ interface ImageCropModalProps {
   onCancel: () => void;
   /**
    * 'square'（預設）：固定 1:1 裁剪框，拖曳圖片 + 滑桿縮放（院友相片）。
-   * 'free'：圖片固定顯示，自由比例裁剪矩形可拖曳移動、四角縮放（文件/工作紙去周邊）。
+   * 'free'：圖片固定顯示，四角透視裁剪——四隻角自由拖動點住文件四角，
+   * 確認後透視拉正成矩形（文件/工作紙去周邊兼修正透視變形）。
    */
   mode?: 'square' | 'free';
   /** 標題（預設「裁剪圖片」） */
@@ -19,11 +21,11 @@ interface ImageCropModalProps {
 
 // 正方形裁剪框邊長（CSS px，配合院友相片顯示比例）
 const BOX = 320;
-// free 模式裁剪矩形最小尺寸（顯示 px）
-const MIN_RECT = 24;
 
-interface Rect { x: number; y: number; w: number; h: number; }
-type Handle = 'nw' | 'ne' | 'sw' | 'se' | 'move';
+type CornerKey = keyof Quad; // 'tl' | 'tr' | 'br' | 'bl'
+type DragTarget = CornerKey | 'move';
+
+const CORNERS: CornerKey[] = ['tl', 'tr', 'br', 'bl'];
 
 const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, onCancel, mode = 'square', title = '裁剪圖片', maxOutput = 1600 }) => {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
@@ -34,10 +36,10 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, on
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
 
-  // free 模式 state：圖片顯示尺寸 + 裁剪矩形（顯示 px，相對圖片左上角）
+  // free 模式 state：圖片顯示尺寸 + 四角透視 quad（顯示 px，相對圖片左上角）
   const [disp, setDisp] = useState({ w: 0, h: 0 });
-  const [rect, setRect] = useState<Rect | null>(null);
-  const freeDragRef = useRef<{ handle: Handle; startX: number; startY: number; orig: Rect } | null>(null);
+  const [quad, setQuad] = useState<Quad | null>(null);
+  const freeDragRef = useRef<{ target: DragTarget; startX: number; startY: number; orig: Quad } | null>(null);
 
   useEffect(() => {
     const image = new Image();
@@ -54,9 +56,15 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, on
         const w = image.naturalWidth * s;
         const h = image.naturalHeight * s;
         setDisp({ w, h });
-        // 預設全圖裁剪（留少少 inset 等用戶見到四角手柄）
-        const fallback = { x: w * 0.02, y: h * 0.02, w: w * 0.96, h: h * 0.96 };
-        // 自動偵測文件邊界：偵測到就直接框住張紙，失敗先落返全圖
+        // 預設全圖四隻角（留少少 inset 等用戶見到角柄）
+        const insetX = w * 0.02, insetY = h * 0.02;
+        const fallback: Quad = {
+          tl: { x: insetX, y: insetY },
+          tr: { x: w - insetX, y: insetY },
+          br: { x: w - insetX, y: h - insetY },
+          bl: { x: insetX, y: h - insetY }
+        };
+        // 自動偵測文件邊界：偵測到就用 bounding box 四角做初始 quad，失敗先落返全圖
         let initial = fallback;
         try {
           const dc = document.createElement('canvas');
@@ -68,17 +76,17 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, on
             const bounds = detectDocumentBounds(dc);
             if (bounds) {
               initial = {
-                x: Math.max(0, bounds.x),
-                y: Math.max(0, bounds.y),
-                w: Math.min(bounds.w, w),
-                h: Math.min(bounds.h, h)
+                tl: { x: bounds.x, y: bounds.y },
+                tr: { x: bounds.x + bounds.w, y: bounds.y },
+                br: { x: bounds.x + bounds.w, y: bounds.y + bounds.h },
+                bl: { x: bounds.x, y: bounds.y + bounds.h }
               };
             }
           }
         } catch {
           // 偵測失敗（例如跨域圖片）→ 維持全圖預設
         }
-        setRect(initial);
+        setQuad(initial);
       }
     };
     image.src = imageSrc;
@@ -116,23 +124,18 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, on
   };
   const onSquarePointerUp = () => { dragRef.current = null; };
 
-  /* ==================== free 模式 ==================== */
+  /* ==================== free 模式（四角透視） ==================== */
 
-  const clampRect = (r: Rect): Rect => {
-    const w = Math.min(Math.max(r.w, MIN_RECT), disp.w);
-    const h = Math.min(Math.max(r.h, MIN_RECT), disp.h);
-    return {
-      w, h,
-      x: Math.min(Math.max(r.x, 0), disp.w - w),
-      y: Math.min(Math.max(r.y, 0), disp.h - h)
-    };
-  };
+  const clampPoint = (p: Point): Point => ({
+    x: Math.min(Math.max(p.x, 0), disp.w),
+    y: Math.min(Math.max(p.y, 0), disp.h)
+  });
 
-  const onFreePointerDown = (handle: Handle) => (e: React.PointerEvent) => {
-    if (!rect) return;
+  const onFreePointerDown = (target: DragTarget) => (e: React.PointerEvent) => {
+    if (!quad) return;
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    freeDragRef.current = { handle, startX: e.clientX, startY: e.clientY, orig: { ...rect } };
+    freeDragRef.current = { target, startX: e.clientX, startY: e.clientY, orig: { ...quad } };
   };
   const onFreePointerMove = (e: React.PointerEvent) => {
     const drag = freeDragRef.current;
@@ -140,28 +143,23 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, on
     const dx = e.clientX - drag.startX;
     const dy = e.clientY - drag.startY;
     const o = drag.orig;
-    let r: Rect;
-    switch (drag.handle) {
-      case 'move':
-        r = { ...o, x: o.x + dx, y: o.y + dy };
-        break;
-      case 'nw':
-        r = { x: o.x + dx, y: o.y + dy, w: o.w - dx, h: o.h - dy };
-        break;
-      case 'ne':
-        r = { x: o.x, y: o.y + dy, w: o.w + dx, h: o.h - dy };
-        break;
-      case 'sw':
-        r = { x: o.x + dx, y: o.y, w: o.w - dx, h: o.h + dy };
-        break;
-      case 'se':
-        r = { x: o.x, y: o.y, w: o.w + dx, h: o.h + dy };
-        break;
+    if (drag.target === 'move') {
+      // 成個 quad 移動：以最小包圍盒邊界做 clamp，避免推出圖外
+      const minX = Math.min(o.tl.x, o.tr.x, o.br.x, o.bl.x);
+      const maxX = Math.max(o.tl.x, o.tr.x, o.br.x, o.bl.x);
+      const minY = Math.min(o.tl.y, o.tr.y, o.br.y, o.bl.y);
+      const maxY = Math.max(o.tl.y, o.tr.y, o.br.y, o.bl.y);
+      const cdx = Math.min(Math.max(dx, -minX), disp.w - maxX);
+      const cdy = Math.min(Math.max(dy, -minY), disp.h - maxY);
+      setQuad({
+        tl: { x: o.tl.x + cdx, y: o.tl.y + cdy },
+        tr: { x: o.tr.x + cdx, y: o.tr.y + cdy },
+        br: { x: o.br.x + cdx, y: o.br.y + cdy },
+        bl: { x: o.bl.x + cdx, y: o.bl.y + cdy }
+      });
+    } else {
+      setQuad({ ...o, [drag.target]: clampPoint({ x: o[drag.target].x + dx, y: o[drag.target].y + dy }) });
     }
-    // 角落 resize 時 x/y 唔可以推過對面邊
-    if (r.w < MIN_RECT && (drag.handle === 'nw' || drag.handle === 'sw')) r.x = o.x + o.w - MIN_RECT;
-    if (r.h < MIN_RECT && (drag.handle === 'nw' || drag.handle === 'ne')) r.y = o.y + o.h - MIN_RECT;
-    setRect(clampRect(r));
   };
   const onFreePointerUp = () => { freeDragRef.current = null; };
 
@@ -169,11 +167,11 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, on
 
   const handleConfirm = () => {
     if (!img) return;
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
 
     if (mode === 'square') {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
       // 裁剪框映射返原圖像素座標
       const sx = -offset.x / scale;
       const sy = -offset.y / scale;
@@ -182,28 +180,32 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, on
       canvas.width = outSize;
       canvas.height = outSize;
       ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, outSize, outSize);
-    } else {
-      if (!rect || disp.w === 0) return;
-      const s = img.naturalWidth / disp.w; // 顯示 → 原圖比例
-      const sx = rect.x * s;
-      const sy = rect.y * s;
-      const sw = rect.w * s;
-      const sh = rect.h * s;
-      const outScale = Math.min(1, maxOutput / Math.max(sw, sh));
-      canvas.width = Math.max(1, Math.round(sw * outScale));
-      canvas.height = Math.max(1, Math.round(sh * outScale));
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      onConfirm(canvas.toDataURL('image/jpeg', 0.92));
+      return;
     }
-    onConfirm(canvas.toDataURL('image/jpeg', 0.92));
+
+    // free：四角 quad → 原圖像素座標 → 透視拉正成矩形
+    if (!quad || disp.w === 0) return;
+    const s = img.naturalWidth / disp.w; // 顯示 → 原圖比例
+    const srcCanvas = document.createElement('canvas');
+    srcCanvas.width = img.naturalWidth;
+    srcCanvas.height = img.naturalHeight;
+    const srcCtx = srcCanvas.getContext('2d');
+    if (!srcCtx) return;
+    srcCtx.drawImage(img, 0, 0);
+    const naturalQuad: Quad = {
+      tl: { x: quad.tl.x * s, y: quad.tl.y * s },
+      tr: { x: quad.tr.x * s, y: quad.tr.y * s },
+      br: { x: quad.br.x * s, y: quad.br.y * s },
+      bl: { x: quad.bl.x * s, y: quad.bl.y * s }
+    };
+    const out = warpPerspective(srcCanvas, naturalQuad, maxOutput);
+    onConfirm(out.toDataURL('image/jpeg', 0.92));
   };
 
-  const cornerHandle = (handle: Handle, style: React.CSSProperties) => (
-    <div
-      onPointerDown={onFreePointerDown(handle)}
-      className="absolute w-4 h-4 bg-white border-2 border-blue-500 rounded-sm z-10"
-      style={{ ...style, cursor: `${handle}-resize`, touchAction: 'none' }}
-    />
-  );
+  const quadPath = quad
+    ? `${quad.tl.x},${quad.tl.y} ${quad.tr.x},${quad.tr.y} ${quad.br.x},${quad.br.y} ${quad.bl.x},${quad.bl.y}`
+    : '';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[70]" onClick={onCancel}>
@@ -282,30 +284,48 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, on
                     className="absolute inset-0 w-full h-full"
                   />
                 )}
-                {rect && (
-                  <div
-                    className="absolute border-2 border-blue-500 cursor-move"
-                    style={{
-                      left: rect.x, top: rect.y, width: rect.w, height: rect.h,
-                      boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
-                      touchAction: 'none'
-                    }}
-                    onPointerDown={onFreePointerDown('move')}
-                  >
-                    {cornerHandle('nw', { left: -8, top: -8 })}
-                    {cornerHandle('ne', { right: -8, top: -8 })}
-                    {cornerHandle('sw', { left: -8, bottom: -8 })}
-                    {cornerHandle('se', { right: -8, bottom: -8 })}
-                  </div>
+                {quad && disp.w > 0 && (
+                  <>
+                    {/* 遮罩：quad 以外變暗 + quad 邊線；點擊 polygon 可成個拖移 */}
+                    <svg
+                      className="absolute inset-0 w-full h-full"
+                      viewBox={`0 0 ${disp.w} ${disp.h}`}
+                      style={{ touchAction: 'none' }}
+                    >
+                      <defs>
+                        <mask id="crop-mask">
+                          <rect x="0" y="0" width={disp.w} height={disp.h} fill="white" />
+                          <polygon points={quadPath} fill="black" />
+                        </mask>
+                      </defs>
+                      <rect x="0" y="0" width={disp.w} height={disp.h} fill="rgba(0,0,0,0.5)" mask="url(#crop-mask)" pointerEvents="none" />
+                      <polygon
+                        points={quadPath}
+                        fill="transparent"
+                        stroke="#3b82f6"
+                        strokeWidth="2"
+                        className="cursor-move"
+                        onPointerDown={onFreePointerDown('move')}
+                      />
+                    </svg>
+                    {CORNERS.map((key) => (
+                      <div
+                        key={key}
+                        onPointerDown={onFreePointerDown(key)}
+                        className="absolute w-4 h-4 bg-white border-2 border-blue-500 rounded-sm z-10 cursor-grab"
+                        style={{ left: quad[key].x - 8, top: quad[key].y - 8, touchAction: 'none' }}
+                      />
+                    ))}
+                  </>
                 )}
               </div>
             </div>
-            <p className="text-xs text-gray-500 mt-3">已自動框住文件範圍；拖曳四角或框內微調，去除周邊無關像素可提升識別準確度同速度。</p>
+            <p className="text-xs text-gray-500 mt-3">已自動框住文件範圍；拖動四隻角點齊文件四角，確認後會透視拉正，去除周邊無關像素可提升識別準確度同速度。</p>
           </>
         )}
 
         <div className="flex flex-col sm:flex-row gap-2 mt-4">
-          <button onClick={handleConfirm} disabled={!img || (mode === 'free' && !rect)} className="btn-primary flex-1">
+          <button onClick={handleConfirm} disabled={!img || (mode === 'free' && !quad)} className="btn-primary flex-1">
             確認裁剪
           </button>
           <button onClick={onCancel} className="btn-secondary flex-1">
