@@ -9,3 +9,5 @@ export const DEFAULT_FACILITY_SETTINGS: FacilitySettings = {
   facilityAddressZh: '', facilityAddressEn: '', facilityPhone: '', facilityFax: '', logoDataUri: null,
 };
 export const getFacilitySettings = async () => DEFAULT_FACILITY_SETTINGS;
+export const getCurrentFacilityId = async () => 1;
+export const clearFacilitySettingsCache = () => {};

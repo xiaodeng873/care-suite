@@ -54,33 +54,67 @@ const RULE_RE = /([^{}@][^{}]*)\{([^{}]*)\}/g;
  * 將 @media print {...} 拆殼成無條件規則（其他 media 唔郁）。
  * 合併文件嘅 iframe 只用作列印，但雙面補頁嘅頁高量度喺 screen media 進行；
  * 拆殼後量度所見版面 = 列印版面（否則如「print 先 padding:0」嘅範本會度高咗）。
+ * 注意：掃描時會跳過註解同字串——註解入面提到「@media print」唔可以當係規則，
+ * 否則會連帶刪走下一條規則嘅選擇器（曾令範本 body 字體規則被吃掉）。
  */
 export const unwrapPrintMedia = (css: string): string => {
   let out = '';
   let i = 0;
   const n = css.length;
   while (i < n) {
-    const m = /@media[^{}]*\{/gi;
-    m.lastIndex = i;
-    const match = m.exec(css);
-    if (!match) {
-      out += css.slice(i);
-      break;
+    const ch = css[i];
+    // 註解：原樣保留
+    if (ch === '/' && css[i + 1] === '*') {
+      const end = css.indexOf('*/', i + 2);
+      const stop = end === -1 ? n : end + 2;
+      out += css.slice(i, stop);
+      i = stop;
+      continue;
     }
-    out += css.slice(i, match.index);
-    // 搵平衡嘅右 braces
-    let depth = 0;
-    let j = match.index + match[0].length - 1;
-    for (; j < n; j++) {
-      if (css[j] === '{') depth++;
-      else if (css[j] === '}') {
-        depth--;
-        if (depth === 0) break;
+    // 字串：原樣保留
+    if (ch === '"' || ch === "'") {
+      let j = i + 1;
+      while (j < n) {
+        if (css[j] === '\\') j += 2;
+        else if (css[j] === ch) { j++; break; }
+        else j++;
       }
+      out += css.slice(i, j);
+      i = j;
+      continue;
     }
-    const inner = css.slice(match.index + match[0].length, j);
-    out += /\bprint\b/i.test(match[0]) && !/\bscreen\b/i.test(match[0]) ? inner : match[0] + inner + '}';
-    i = j + 1;
+    // 真正的 @media 規則
+    if (ch === '@' && /^@media\b/i.test(css.slice(i, i + 10))) {
+      const braceIdx = css.indexOf('{', i);
+      if (braceIdx === -1) { out += css.slice(i); break; }
+      const prelude = css.slice(i, braceIdx + 1);
+      let depth = 0;
+      let j = braceIdx;
+      let quote = '';
+      for (; j < n; j++) {
+        const c = css[j];
+        if (quote) {
+          if (c === '\\') j++;
+          else if (c === quote) quote = '';
+        } else if (c === '"' || c === "'") {
+          quote = c;
+        } else if (c === '/' && css[j + 1] === '*') {
+          const e = css.indexOf('*/', j + 2);
+          j = e === -1 ? n - 1 : e + 1;
+        } else if (c === '{') {
+          depth++;
+        } else if (c === '}') {
+          depth--;
+          if (depth === 0) break;
+        }
+      }
+      const inner = css.slice(braceIdx + 1, j);
+      out += /\bprint\b/i.test(prelude) && !/\bscreen\b/i.test(prelude) ? inner : prelude + inner + '}';
+      i = j + 1;
+      continue;
+    }
+    out += ch;
+    i++;
   }
   return out;
 };
@@ -891,6 +925,11 @@ ${parts.map((p) => p.body).join('\n')}
     } catch {
       // 量度失敗就照印（行為同未補頁一樣）
     }
+    // 模板自帶嘅列印前微調 hook（如約束同意書 __fitRestraintP1）：佢哋只靠
+    // iframe load 事件自動跑，同 doPrint 有競爭——print 快過 load 就會印出
+    // 未縮放嘅版面（內容超頁被 break-inside:avoid 斬開）。print 前明確再叫一次，
+    // 同各生成器嘅獨立列印路徑睇齊；hook 本身係冪等（先重置再量度）。
+    try { (win as unknown as { __fitRestraintP1?: () => void }).__fitRestraintP1?.(); } catch { /* noop */ }
     win.focus();
     win.print();
   };
@@ -1021,6 +1060,10 @@ ${parts.map((p) => p.body).join('\n')}
           printNext();
         }
       }, 5000);
+      // 模板自帶嘅列印前微調 hook（如約束同意書 __fitRestraintP1）：
+      // 唔可以靠 iframe load 事件自動跑（同 doPrint 競爭，print 快過 load
+      // 就會印出未縮放嘅斬段版面），print 前明確再叫一次（hook 冪等）。
+      try { (win as unknown as { __fitRestraintP1?: () => void }).__fitRestraintP1?.(); } catch { /* noop */ }
       win.focus();
       win.print();
     };
