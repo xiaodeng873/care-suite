@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Calendar, AlertTriangle, CheckCircle, User, Pill, Clock } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from './DateInput';
 import InstitutionAutocomplete from './InstitutionAutocomplete';
-import { getMedicationSettings } from '../utils/medicationSettings';
+import { getMedicationSettings, getMedicationSettingsFromDB, type MedicationSettingsData } from '../utils/medicationSettings';
 
 
 interface BatchPrescriptionDateUpdateModalProps {
@@ -25,8 +25,9 @@ const BatchPrescriptionDateUpdateModal: React.FC<BatchPrescriptionDateUpdateModa
   const [newMedicationSourceSpecialty, setNewMedicationSourceSpecialty] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 讀取真實藥物設定，以取得機構與專科清單
-  const medSettings = useMemo(() => getMedicationSettings(), []);
+  // 讀取真實藥物設定，以取得機構與專科清單（開啟時拉 DB 最新）
+  const [medSettings, setMedSettings] = useState<MedicationSettingsData>(() => getMedicationSettings());
+  useEffect(() => { getMedicationSettingsFromDB().then(setMedSettings).catch(() => {}); }, []);
   const specialtyOptions = useMemo(
     () => medSettings.專科.map((name) => ({ name, abbr: medSettings.專科簡稱?.[name] })),
     [medSettings]

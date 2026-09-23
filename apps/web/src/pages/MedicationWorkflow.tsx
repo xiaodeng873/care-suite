@@ -45,7 +45,7 @@ import { Portal } from '../components/Portal';
 import { generateDailyWorkflowRecords, generateBatchWorkflowRecords, generateWorkflowRecordsClient } from '../utils/workflowGenerator';
 import { diagnoseWorkflowDisplayIssue } from '../utils/diagnoseTool';
 import { isPrescriptionScheduledOnDate } from '../utils/prescriptionSchedule';
-import { formatMealTiming } from '../utils/mealTiming';
+import { formatMealTimingFrom } from '../utils/mealTiming';
 import DrugAdjustmentReminderModal from '../components/DrugAdjustmentReminderModal';
 import { type DrugAdjustmentReminderItem } from '../utils/drugAdjustmentCheck';
 import { isPrescriptionExpired, isPrescriptionValidAt, normalizeTime, prescriptionOverlapsDateRange } from '../utils/prescriptionExpiry';
@@ -3171,7 +3171,7 @@ const MedicationWorkflow: React.FC = () => {
                                         <div className="text-orange-600 dark:text-orange-400 font-medium">
                                           {`服藥前檢測：${prescription.inspection_rules.map((r: any) => {
                                             const OPERATOR_LABELS: Record<string, string> = { gt: '>', lt: '<', gte: '≥', lte: '≤' };
-                                            const ACTION_LABELS: Record<string, string> = { block_dispensing: '停服' };
+                                            const ACTION_LABELS: Record<string, string> = { block_dispensing: '停服一次', warning_only: '注意', dispense_if_met: '才需服用' };
                                             const condition = `${r.vital_sign_type ?? ''}${OPERATOR_LABELS[r.condition_operator] ?? ''}${r.condition_value ?? ''}`;
                                             const action = ACTION_LABELS[r.action_if_met ?? ''] ?? '';
                                             return action ? `${condition} ${action}` : condition;
@@ -3233,8 +3233,8 @@ const MedicationWorkflow: React.FC = () => {
                                         }
                                       })()}
                                     </div>
-                                    {formatMealTiming(prescription.meal_timing, prescription.meal_timing_2, prescription.meal_timing_connector) && (
-                                      <div>{formatMealTiming(prescription.meal_timing, prescription.meal_timing_2, prescription.meal_timing_connector)}</div>
+                                    {formatMealTimingFrom(prescription) && (
+                                      <div>{formatMealTimingFrom(prescription)}</div>
                                     )}
                                     {(() => {
                                       const parts: string[] = [];

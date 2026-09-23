@@ -32,6 +32,11 @@ type SortKey =
   | 'participant_count';
 type SortDir = 'asc' | 'desc';
 
+type FormState = Omit<HomeActivityInput, 'volunteer_count' | 'participant_count'> & {
+  volunteer_count: number | string;
+  participant_count: number | string;
+};
+
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const monthRange = (offset: number): [string, string] => {
   const now = new Date();
@@ -116,7 +121,7 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [editing, setEditing] = useState<HomeActivity | 'new' | null>(null);
-  const [form, setForm] = useState<HomeActivityInput>(emptyForm());
+  const [form, setForm] = useState<FormState>(emptyForm());
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -218,16 +223,21 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     }
     setSaving(true);
     try {
+      const payload: HomeActivityInput = {
+        ...form,
+        volunteer_count: Math.max(0, Number(form.volunteer_count) || 0),
+        participant_count: Math.max(0, Number(form.participant_count) || 0),
+      };
       if (editing === 'new') {
         const tempId = `tmp-${Date.now()}`;
         const optimistic: HomeActivity = {
           id: tempId,
-          ...form,
-          start_time: form.start_time || null,
-          end_time: form.end_time || null,
-          organizer: form.organizer?.trim() || null,
-          activity_name: form.activity_name.trim(),
-          location: form.location?.trim() || null,
+          ...payload,
+          start_time: payload.start_time || null,
+          end_time: payload.end_time || null,
+          organizer: payload.organizer?.trim() || null,
+          activity_name: payload.activity_name.trim(),
+          location: payload.location?.trim() || null,
           facility_id: null,
           created_at: '',
           updated_at: '',
@@ -235,7 +245,7 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
         setRecords(prev => [optimistic, ...prev]);
         setEditing(null);
         try {
-          const created = await addHomeActivity(form);
+          const created = await addHomeActivity(payload);
           setRecords(prev => prev.map(r => (r.id === tempId ? created : r)));
         } catch (err: any) {
           setRecords(prev => prev.filter(r => r.id !== tempId));
@@ -245,11 +255,11 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
         const editingId = editing.id;
         const previous = records.find(r => r.id === editingId);
         setRecords(prev =>
-          prev.map(r => (r.id === editingId ? { ...r, ...form, start_time: form.start_time || null, end_time: form.end_time || null } : r))
+          prev.map(r => (r.id === editingId ? { ...r, ...payload, start_time: payload.start_time || null, end_time: payload.end_time || null } : r))
         );
         setEditing(null);
         try {
-          await updateHomeActivity(editingId, form);
+          await updateHomeActivity(editingId, payload);
         } catch (err: any) {
           if (previous) setRecords(prev => prev.map(r => (r.id === editingId ? previous : r)));
           throw err;
@@ -283,7 +293,7 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     }
   };
 
-  const updateForm = (patch: Partial<HomeActivityInput>) => setForm(prev => ({ ...prev, ...patch }));
+  const updateForm = (patch: Partial<FormState>) => setForm(prev => ({ ...prev, ...patch }));
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
@@ -382,7 +392,7 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                     type="number"
                     min={0}
                     value={form.volunteer_count}
-                    onChange={e => updateForm({ volunteer_count: Math.max(0, parseInt(e.target.value) || 0) })}
+                    onChange={e => updateForm({ volunteer_count: e.target.value })}
                     className="form-input"
                   />
                 </div>
@@ -392,7 +402,7 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                     type="number"
                     min={0}
                     value={form.participant_count}
-                    onChange={e => updateForm({ participant_count: Math.max(0, parseInt(e.target.value) || 0) })}
+                    onChange={e => updateForm({ participant_count: e.target.value })}
                     className="form-input"
                   />
                 </div>

@@ -563,8 +563,8 @@ table.main-table th, table.main-table td {
       </table>
       <table class="layout-table" style="margin-top:5px;">
         <colgroup>
-          <col style="width:70px;"><col style="width:230px;">
-          <col style="width:80px;"><col style="width:230px;">
+          <col style="width:70px;"><col style="width:auto;">
+          <col style="width:80px;"><col style="width:auto;">
           <col style="width:45px;"><col style="width:auto;">
         </colgroup>
         <tr>
@@ -596,7 +596,7 @@ table.main-table th, table.main-table td {
           </table>
         </div>
         <div class="split-right">
-          <div style="font-weight:bold; margin-bottom:2px;">若住客未能明白使用約束措施事宜則只填寫此部分</div>
+          <div style="font-weight:bold; margin-bottom:2px; font-size:13px; white-space:nowrap;">若住客未能明白使用約束措施事宜則只填寫此部分</div>
           <table class="layout-table">
             <colgroup><col style="width:50px;"><col style="width:auto;"><col style="width:100px;"></colgroup>
             <tr><td>本人乃</td><td><input type="text" class="db-input"${val(patientName)}></td><td>(住客姓名) 的</td></tr>
@@ -654,7 +654,7 @@ table.main-table th, table.main-table td {
     <div class="section-block">
       <div class="section-title">（七）主管確認</div>
       <table class="layout-table">
-        <colgroup><col style="width:40px;"><col style="width:150px;"><col style="width:175px;"><col style="width:70px;"><col style="width:160px;"><col style="width:45px;"><col style="width:auto;"></colgroup>
+        <colgroup><col style="width:40px;"><col style="width:150px;"><col style="width:175px;"><col style="width:70px;"><col style="width:auto;"><col style="width:45px;"><col style="width:auto;"></colgroup>
         <tr>
           <td>本人</td><td><input type="text" class="db-input"></td>
           <td>確認上述資料均屬真確。</td>

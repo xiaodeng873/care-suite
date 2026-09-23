@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase';
 import { withHdPatientPhotos } from '../lib/database';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
 import BedNumberImprint from './BedNumberImprint';
-import { formatMealTiming } from '../utils/mealTiming';
+import { formatMealTimingFrom } from '../utils/mealTiming';
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import DateInput from './DateInput';
 
@@ -973,10 +973,10 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                                           </span>
                                         </div>
                                 }
-                                      {formatMealTiming(prescription.meal_timing, prescription.meal_timing_2, prescription.meal_timing_connector) &&
+                                      {formatMealTimingFrom(prescription) &&
                                 <div className="flex items-baseline">
                                           <span className="font-medium text-gray-900 mr-1.5">用法：</span>
-                                          <span className="text-gray-800">{formatMealTiming(prescription.meal_timing, prescription.meal_timing_2, prescription.meal_timing_connector)}</span>
+                                          <span className="text-gray-800">{formatMealTimingFrom(prescription)}</span>
                                         </div>
                                 }
                                       {prescription.preparation_method &&

@@ -51,10 +51,10 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
     medication_pickup_arrangement: src?.medication_pickup_arrangement ?? '每次詢問' as '家人前往' | '院舍代勞' | '每次詢問',
     // 費用結算
     fee_exempted: src?.fee_exempted ?? false,
-    consultation_fee: src?.consultation_fee ?? 100,
-    medication_fee_per_item: src?.medication_fee_per_item ?? 20,
-    prescription_count: src?.prescription_count ?? undefined as number | undefined,
-    treatment_weeks: src?.treatment_weeks ?? undefined as number | undefined,
+    consultation_fee: (src?.consultation_fee ?? 100) as number | string,
+    medication_fee_per_item: (src?.medication_fee_per_item ?? 20) as number | string,
+    prescription_count: src?.prescription_count ?? undefined as number | string | undefined,
+    treatment_weeks: src?.treatment_weeks ?? undefined as number | string | undefined,
     remarks: src?.remarks ?? ''
   });
   const [form, setForm] = useState(() => buildForm(source));
@@ -68,8 +68,9 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
   const [renewIsDerived, setRenewIsDerived] = useState(false);
 
   // 藥完日期 = 到診日期 + 療程周數 × 7；療程留空或到診未知 → 唔郁
-  const deriveAndSetEndDate = (visitDate: string, weeks: number | undefined, unknown: boolean) => {
-    const derived = calcEstimatedMedicationEndDate(visitDate, weeks, unknown);
+  const deriveAndSetEndDate = (visitDate: string, weeks: number | string | undefined, unknown: boolean) => {
+    const w = weeks === '' || weeks === undefined ? undefined : Number(weeks);
+    const derived = calcEstimatedMedicationEndDate(visitDate, w, unknown);
     if (derived) set({ medication_end_date: derived });
   };
 
@@ -98,8 +99,8 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
     medicationPickupArrangement: form.medication_pickup_arrangement,
     consultationFee: Number(form.consultation_fee) || 0,
     medicationFeePerItem: Number(form.medication_fee_per_item) || 0,
-    prescriptionCount: form.prescription_count,
-    treatmentWeeks: form.treatment_weeks
+    prescriptionCount: form.prescription_count === '' || form.prescription_count === undefined ? undefined : Number(form.prescription_count),
+    treatmentWeeks: form.treatment_weeks === '' || form.treatment_weeks === undefined ? undefined : Number(form.treatment_weeks)
   }), [patient, form.fee_exempted, form.medication_pickup_arrangement, form.consultation_fee, form.medication_fee_per_item, form.prescription_count, form.treatment_weeks]);
 
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
@@ -148,8 +149,8 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
         fee_exempted: form.fee_exempted,
         consultation_fee: Number(form.consultation_fee) || 0,
         medication_fee_per_item: Number(form.medication_fee_per_item) || 0,
-        prescription_count: form.prescription_count ?? undefined,
-        treatment_weeks: form.treatment_weeks ?? undefined,
+        prescription_count: form.prescription_count === '' || form.prescription_count === undefined ? undefined : Number(form.prescription_count),
+        treatment_weeks: form.treatment_weeks === '' || form.treatment_weeks === undefined ? undefined : Number(form.treatment_weeks),
         total_fee: feeResult.skipped ? 0 : feeResult.total,
         remarks: form.remarks || undefined
       };
@@ -160,7 +161,7 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
       }
       // 儲存時有療程 → 彈出提醒：顯示推算藥完日期，問用戶要唔要另存新列
       if (form.treatment_weeks) {
-        const derived = calcEstimatedMedicationEndDate(form.cgat_visit_date, form.treatment_weeks, form.cgat_visit_unknown);
+        const derived = calcEstimatedMedicationEndDate(form.cgat_visit_date, Number(form.treatment_weeks), form.cgat_visit_unknown);
         setRenewEndDate(derived ?? (form.medication_end_date || undefined));
         setRenewIsDerived(!!derived);
         setShowRenewPrompt(true);
@@ -268,7 +269,7 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
                   <input
                     type="number" min={0} className="form-input" value={form.treatment_weeks ?? ''}
                     onChange={(e) => {
-                      const weeks = e.target.value === '' ? undefined : parseInt(e.target.value) || 0;
+                      const weeks = e.target.value === '' ? undefined : e.target.value;
                       set({ treatment_weeks: weeks });
                       // 有到診日期就自動推算藥完日期（到診未知 / 療程留空 → 唔郁）
                       if (!manualEndDate) deriveAndSetEndDate(form.cgat_visit_date, weeks, form.cgat_visit_unknown);
@@ -419,17 +420,17 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
                   <div>
                     <label className="form-label text-xs">診金</label>
                     <input type="number" className="form-input" value={form.consultation_fee}
-                  onChange={(e) => set({ consultation_fee: parseFloat(e.target.value) || 0 })} />
+                  onChange={(e) => set({ consultation_fee: e.target.value })} />
                   </div>
                   <div>
                     <label className="form-label text-xs">藥費（每處方）</label>
                     <input type="number" className="form-input" value={form.medication_fee_per_item}
-                  onChange={(e) => set({ medication_fee_per_item: parseFloat(e.target.value) || 0 })} />
+                  onChange={(e) => set({ medication_fee_per_item: e.target.value })} />
                   </div>
                   <div>
                     <label className="form-label text-xs">處方數量</label>
                     <input type="number" min={0} className="form-input" value={form.prescription_count ?? ''}
-                  onChange={(e) => set({ prescription_count: e.target.value === '' ? undefined : parseInt(e.target.value) || 0 })} />
+                  onChange={(e) => set({ prescription_count: e.target.value === '' ? undefined : e.target.value })} />
                   </div>
                 </div>
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Trash2, Plus, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { formatDisplayDate } from '../utils/dateFormat';
-import { formatMealTiming } from '../utils/mealTiming';
+import { formatMealTimingFrom, getMealTimings, toMealTimingPayload, type MealTimingConnector } from '../utils/mealTiming';
 import { getMedicationSettings, getMedicationSettingsFromDB, INSTITUTION_GROUPS, type MedicationSettingsData } from '../utils/medicationSettings';
 import DrugAutocomplete from './DrugAutocomplete';
 import DateInput from './DateInput';
@@ -81,7 +81,7 @@ const PREPARATION_MAP: Record<string, string> = {
 
 const INSPECTION_SIGNS = ['上壓', '下壓', '脈搏', '血糖值', '呼吸', '血含氧量', '體溫'];
 const OP_MAP: Record<string, string> = { gt: '>', lt: '<', gte: '≥', lte: '≤' };
-const ACTION_MAP: Record<string, string> = { block_dispensing: '停服', warning_only: '注意' };
+const ACTION_MAP: Record<string, string> = { block_dispensing: '停服一次', warning_only: '注意', dispense_if_met: '才需服用' };
 
 /** 份量 + 單位（純數字先合併單位） */
 const dosageText = (p: any): string => {
@@ -99,7 +99,7 @@ const inspectionText = (p: any): string => {
   if (rules.length === 0) return '';
   return rules
     .map((r: any) => {
-      const cond = `${r.vital_sign_type}${OP_MAP[r.condition_operator] || ''}${r.condition_value}`;
+      const cond = `${r.vital_sign_type}${OP_MAP[r.condition_operator] || ''}${r.condition_value ?? ''}`;
       const action = ACTION_MAP[r.action_if_met] || r.action_if_met || '';
       return action ? `${cond} ${action}` : cond;
     })
@@ -382,17 +382,43 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
         const n = p.daily_frequency || (p.medication_time_slots?.length ?? 0);
         return n ? dailyCode(n) : '—';
       },
-      editor: (p, commit, done, c) => (
-        <SelectEditor
-          value={String(p.daily_frequency || '')}
-          onCommit={(v) => commit({ daily_frequency: v ? parseInt(v) : null })}
-          close={done}
-        >
-          <option value="">—</option>
-          {[...(c.settings.每日次數 || [])].sort((a, b) => a - b).map((n) => (
-            <option key={n} value={n}>{dailyCode(n)}（{n}次）</option>
-          ))}
-        </SelectEditor>
+      editor: (p, commit, done) => (
+        <CompositeBox close={done}>
+          <button
+            type="button"
+            className="text-gray-600 hover:text-gray-900 px-1"
+            title="減少一次"
+            onClick={() => commit({ daily_frequency: Math.max(0, (p.daily_frequency || 0) - 1) })}
+          >
+            −
+          </button>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            defaultValue={p.daily_frequency ?? ''}
+            autoFocus
+            className={`${inputCls} w-14 text-center`}
+            onBlur={(e) => {
+              const n = parseInt(e.target.value, 10);
+              commit({ daily_frequency: Number.isNaN(n) ? null : Math.max(0, Math.round(n)) });
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const n = parseInt((e.target as HTMLInputElement).value, 10);
+                commit({ daily_frequency: Number.isNaN(n) ? null : Math.max(0, Math.round(n)) });
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="text-gray-600 hover:text-gray-900 px-1"
+            title="增加一次"
+            onClick={() => commit({ daily_frequency: (p.daily_frequency || 0) + 1 })}
+          >
+            ＋
+          </button>
+        </CompositeBox>
       ),
     },
     {
@@ -422,36 +448,75 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
     { key: 'special', label: '特殊', render: (p) => p.special_dosage_instruction || '—', editor: selectFromList('special_dosage_instruction', '特殊用法') },
     {
       key: 'timing', label: '時段',
-      render: (p) => formatMealTiming(p.meal_timing, p.meal_timing_2, p.meal_timing_connector) || '—',
-      editor: (p, commit, done, c) => (
-        <CompositeBox close={done}>
-          <select
-            value={p.meal_timing || ''}
-            autoFocus
-            className={inputCls}
-            onChange={(e) => commit({ meal_timing: e.target.value || null })}
-          >
-            <option value="">時段1</option>
-            {((c.settings.服用時段 as string[]) || []).map((v) => <option key={v} value={v}>{v}</option>)}
-          </select>
-          <select
-            value={p.meal_timing_connector || '或'}
-            className={inputCls}
-            onChange={(e) => commit({ meal_timing_connector: e.target.value || null })}
-          >
-            <option value="或">或</option>
-            <option value="及">及</option>
-          </select>
-          <select
-            value={p.meal_timing_2 || ''}
-            className={inputCls}
-            onChange={(e) => commit({ meal_timing_2: e.target.value || null })}
-          >
-            <option value="">時段2</option>
-            {((c.settings.服用時段 as string[]) || []).map((v) => <option key={v} value={v}>{v}</option>)}
-          </select>
-        </CompositeBox>
-      ),
+      render: (p) => formatMealTimingFrom(p) || '—',
+      editor: (p, commit, done, c) => {
+        // 可增減時段：每次改動都一次過提交 meal_timings jsonb + 舊三欄同步
+        const mt = getMealTimings(p);
+        const slots = mt.slots.length ? [...mt.slots] : [''];
+        const connectors: MealTimingConnector[] = Array.from(
+          { length: Math.max(0, slots.length - 1) },
+          (_, i) => mt.connectors[i] ?? '或'
+        );
+        const commitMt = (newSlots: string[], newConnectors: MealTimingConnector[]) =>
+          commit(toMealTimingPayload({ slots: newSlots, connectors: newConnectors }));
+        return (
+          <CompositeBox close={done}>
+            {slots.map((slot, idx) => (
+              <React.Fragment key={idx}>
+                {idx > 0 && (
+                  <select
+                    value={connectors[idx - 1]}
+                    className={inputCls}
+                    title="時段連接詞"
+                    onChange={(e) => {
+                      const next = [...connectors];
+                      next[idx - 1] = e.target.value as MealTimingConnector;
+                      commitMt(slots, next);
+                    }}
+                  >
+                    <option value="或">或</option>
+                    <option value="及">及</option>
+                  </select>
+                )}
+                <select
+                  value={slot}
+                  autoFocus={idx === 0}
+                  className={inputCls}
+                  onChange={(e) => {
+                    const next = [...slots];
+                    next[idx] = e.target.value;
+                    commitMt(next, connectors);
+                  }}
+                >
+                  <option value="">時段{idx + 1}</option>
+                  {((c.settings.服用時段 as string[]) || []).map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+                {idx > 0 && (
+                  <button
+                    type="button"
+                    className="text-red-600 hover:text-red-800"
+                    title="移除此時段"
+                    onClick={() => commitMt(
+                      slots.filter((_, i) => i !== idx),
+                      connectors.filter((_, i) => i !== idx - 1)
+                    )}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </React.Fragment>
+            ))}
+            <button
+              type="button"
+              className="text-blue-600 hover:text-blue-800"
+              title="新增時段"
+              onClick={() => commitMt([...slots, ''], [...connectors, '或'])}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </CompositeBox>
+        );
+      },
     },
     {
       key: 'prn', label: 'PRN',
@@ -496,7 +561,10 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
                 type="number" min="1"
                 defaultValue={p.frequency_value ?? 1}
                 className={`${inputCls} w-14`}
-                onBlur={(e) => commit({ frequency_value: parseInt(e.target.value) || 1 })}
+                onBlur={(e) => {
+                  const v = e.target.value;
+                  commit({ frequency_value: v === '' ? null : parseInt(v, 10) || null });
+                }}
               />
             )}
             {type === 'weekly_days' && (
@@ -587,15 +655,20 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
                   type="number" step="0.1"
                   defaultValue={r.condition_value}
                   className={`${inputCls} w-16`}
-                  onBlur={(e) => setRules(rules.map((x, j) => (j === i ? { ...x, condition_value: parseFloat(e.target.value) || 0 } : x)))}
+                  onBlur={(e) => {
+                    const v = e.target.value;
+                    const n = v === '' ? null : parseFloat(v);
+                    setRules(rules.map((x, j) => (j === i ? { ...x, condition_value: n === null || Number.isNaN(n) ? null : n } : x)));
+                  }}
                 />
                 <select
                   value={r.action_if_met}
                   className={inputCls}
                   onChange={(e) => setRules(rules.map((x, j) => (j === i ? { ...x, action_if_met: e.target.value } : x)))}
                 >
-                  <option value="block_dispensing">停服</option>
+                  <option value="block_dispensing">停服一次</option>
                   <option value="warning_only">注意</option>
+                  <option value="dispense_if_met">才需服用</option>
                 </select>
                 <button
                   type="button"
@@ -651,7 +724,7 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
       return isNaN(n) ? null : n;
     },
     special: (p) => p.special_dosage_instruction || null,
-    timing: (p) => p.meal_timing || null,
+    timing: (p) => formatMealTimingFrom(p) || null,
     prn: (p) => (p.is_prn ? 1 : 0),
     prep: (p) => PREPARATION_MAP[p.preparation_method] || p.preparation_method || null,
     frequency: (p) => freqCode(p),

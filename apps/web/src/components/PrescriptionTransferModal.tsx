@@ -5,6 +5,7 @@ import { type PrescriptionActivityActionType } from '../lib/database';
 import BedNumberImprint from './BedNumberImprint';
 import PrescriptionEndDateModal from './PrescriptionEndDateModal';
 import { getHongKongNow } from '../utils/prescriptionExpiry';
+import { formatMealTimingFrom } from '../utils/mealTiming';
 
 interface PrescriptionTransferModalProps {
   prescription: any;
@@ -63,11 +64,13 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
           });
         }
         
-        if (existingActivePrescription.meal_timing !== prescription.meal_timing) {
+        const existingMealTiming = formatMealTimingFrom(existingActivePrescription);
+        const newMealTiming = formatMealTimingFrom(prescription);
+        if (existingMealTiming !== newMealTiming) {
           differences.push({
             field: '服用時段',
-            old: existingActivePrescription.meal_timing || '未設定',
-            new: prescription.meal_timing || '未設定'
+            old: existingMealTiming || '未設定',
+            new: newMealTiming || '未設定'
           });
         }
         

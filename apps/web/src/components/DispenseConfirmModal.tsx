@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, CheckCircle, Hospital, Home, XCircle, AlertTriangle, Pause, AlertCircle, Syringe } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import { formatDisplayDate } from '../utils/dateFormat';
-import { formatMealTiming } from '../utils/mealTiming';
+import { formatMealTimingFrom } from '../utils/mealTiming';
 import BedNumberImprint from './BedNumberImprint';
 
 
@@ -208,10 +208,10 @@ const DispenseConfirmModal: React.FC<DispenseConfirmModalProps> = ({
                   {formatDisplayDate(workflowRecord.scheduled_date)} {workflowRecord.scheduled_time}
                 </div>
               </div>
-              {formatMealTiming(prescription?.meal_timing, prescription?.meal_timing_2, prescription?.meal_timing_connector) && (
+              {formatMealTimingFrom(prescription) && (
                 <div>
                   <div className="text-gray-500 mb-1">用藥時機</div>
-                  <div className="font-medium text-gray-900">{formatMealTiming(prescription?.meal_timing, prescription?.meal_timing_2, prescription?.meal_timing_connector)}</div>
+                  <div className="font-medium text-gray-900">{formatMealTimingFrom(prescription)}</div>
                 </div>
               )}
               {isImmediatePreparation && (

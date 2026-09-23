@@ -4,7 +4,7 @@ import { usePatientData, type FollowUpAppointment } from '../context/PatientCont
 import PatientAutocomplete from './PatientAutocomplete';
 import OCRDocumentBlock from './OCRDocumentBlock';
 import InstitutionAutocomplete from './InstitutionAutocomplete';
-import { getMedicationSettings } from '../utils/medicationSettings';
+import { getMedicationSettings, getMedicationSettingsFromDB, type MedicationSettingsData } from '../utils/medicationSettings';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from './DateInput';
 
@@ -78,8 +78,9 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
     setOcrError(error);
   };
 
-  // 醫院／機構選項：重用藥物來源機構清單（藥物設定），可輸入中文名或英文簡稱搜索
-  const medSettings = useMemo(() => getMedicationSettings(), []);
+  // 醫院／機構選項：重用藥物來源機構清單（藥物設定），可輸入中文名或英文簡稱搜索（開啟時拉 DB 最新）
+  const [medSettings, setMedSettings] = useState<MedicationSettingsData>(() => getMedicationSettings());
+  useEffect(() => { getMedicationSettingsFromDB().then(setMedSettings).catch(() => {}); }, []);
 
   // 交通安排選項
   const transportOptions = [

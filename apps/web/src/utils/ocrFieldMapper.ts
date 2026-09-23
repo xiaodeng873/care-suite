@@ -46,6 +46,8 @@ export interface PrescriptionFormData {
   is_odd_even_day: string;
   medication_time_slots: string[];
   meal_timing: string;
+  // 可增減時段結構（由 meal_timing 單欄轉換，見 PrescriptionModal handleOCRComplete）
+  meal_timings?: { slots: string[]; connectors: ('或' | '及')[] };
   is_prn: boolean;
   preparation_method: string;
   status: string;

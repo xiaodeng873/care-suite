@@ -94,6 +94,9 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     nursing_assessment_json: patient?.nursing_assessment_json || {}
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(patient?.院友相片 || null);
+  // 相片有冇被用戶郁過（上傳/拍攝/移除）；冇郁過就唔好寫返 DB，
+  // 否則初始載入未完成背景補載時 patient.院友相片 係空，一儲存就會洗走 DB 入面嘅相
+  const photoTouchedRef = useRef(false);
   const [isUploading, setIsUploading] = useState(false);
   // 上傳照片裁剪步驟：揀咗檔案先入裁剪 modal，確認先壓縮寫入
   const [cropSrc, setCropSrc] = useState<string | null>(null);
@@ -393,6 +396,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       // 雙版本：400px 壓縮版（日常頭像）+ 1600px 高清版（匯出餐卡/藥紙等文件）
       const compressedBase64 = await compressDataUrl(croppedDataUrl, 400, 0.85);
       const hdBase64 = await compressDataUrl(croppedDataUrl, 1600, 0.9);
+      photoTouchedRef.current = true;
       setPhotoPreview(compressedBase64);
       setFormData((prev) => ({
         ...prev,
@@ -408,6 +412,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   };
 
   const handleRemovePhoto = () => {
+    photoTouchedRef.current = true;
     setPhotoPreview(null);
     setFormData((prev) => ({
       ...prev,
@@ -492,6 +497,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
         const dataURL = drawScaled(400);
         const hdURL = drawScaled(1600);
 
+        photoTouchedRef.current = true;
         setPhotoPreview(dataURL);
         setFormData((prev) => ({
           ...prev,
@@ -618,10 +624,16 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       const patientIdToUse = patient?.院友id;
 
       if (patient) {
-        await updatePatient({
+        const updatePayload: any = {
           院友id: patient.院友id,
           ...sanitizedFormData
-        });
+        };
+        // 相片欄今次冇郁過就唔送出，保留 DB 原值（背景補載未完成時 formData 係空字串，送咗會洗走 DB 嘅相）
+        if (!photoTouchedRef.current) {
+          delete updatePayload.院友相片;
+          delete updatePayload.院友相片高清;
+        }
+        await updatePatient(updatePayload);
       } else {
         const newPatient = await addPatient({
           ...sanitizedFormData,

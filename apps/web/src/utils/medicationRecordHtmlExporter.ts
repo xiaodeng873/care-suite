@@ -15,7 +15,7 @@ import {
 } from './facilitySettings';
 import { isPrescriptionScheduledOnDate } from './prescriptionSchedule';
 import { isPrescriptionExpired, isPrescriptionAboutToExpire } from './prescriptionExpiry';
-import { formatMealTiming } from './mealTiming';
+import { formatMealTimingFrom } from './mealTiming';
 
 import { formatDisplayDate } from './dateFormat';
 import { getPrintBedNumber } from './bedTransferUtils';
@@ -445,7 +445,7 @@ const summaryRowCount = (blocks: PrescriptionBlock[]): number => {
 // ---- 服藥前檢測項 ----
 
 const INSPECTION_OPERATOR_LABELS: Record<string, string> = { gt: '>', lt: '<', gte: '≥', lte: '≤' };
-const INSPECTION_ACTION_LABELS: Record<string, string> = { block_dispensing: '停服' };
+const INSPECTION_ACTION_LABELS: Record<string, string> = { block_dispensing: '停服一次', warning_only: '注意', dispense_if_met: '才需服用' };
 
 const prescriptionHasInspection = (prescription: MedicationPrescription): boolean =>
   Array.isArray(prescription.inspection_rules) && prescription.inspection_rules.length > 0;
@@ -674,7 +674,7 @@ export const orderPrescriptionsForSignatureEfficiency = <T>(prescriptions: T[]):
 };
 
 const getMealTimingLabel = (prescription: MedicationPrescription): string => {
-  const combined = formatMealTiming(prescription.meal_timing, prescription.meal_timing_2, prescription.meal_timing_connector);
+  const combined = formatMealTimingFrom(prescription);
   if (combined) return combined;
 
   const rawSlots = Array.isArray(prescription.medication_time_slots)

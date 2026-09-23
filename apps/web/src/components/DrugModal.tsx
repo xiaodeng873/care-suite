@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Pill, Upload, Camera, Trash2 } from 'lucide-react';
+import { X, Pill, Upload, Camera, Trash2, Plus } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
-import { getMedicationSettings } from '../utils/medicationSettings';
+import { getMedicationSettings, getMedicationSettingsFromDB, type MedicationSettingsData } from '../utils/medicationSettings';
+import { getMealTimings, toMealTimingPayload, type MealTimingConnector } from '../utils/mealTiming';
 
 interface DrugModalProps {
   drug?: any;
@@ -24,9 +25,10 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
     cannot_crush: drug?.cannot_crush || false,
     no_antacid: drug?.no_antacid || false,
     special_dosage_instruction: drug?.special_dosage_instruction || '',
-    meal_timing_1: drug?.meal_timing_1 || '',
-    meal_timing_2: drug?.meal_timing_2 || '',
-    meal_timing_connector: drug?.meal_timing_connector || '或',
+    meal_timings: (() => {
+      const mt = getMealTimings(drug);
+      return mt.slots.length ? mt : { slots: [] as string[], connectors: [] as MealTimingConnector[] };
+    })(),
     is_diabetic_drug: drug?.is_diabetic_drug || false,
     is_antihypertensive_drug: drug?.is_antihypertensive_drug || false
   });
@@ -34,8 +36,9 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(drug?.photo_url || null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // 藥物設定：使用途徑 / 藥物單位選項與「藥物設定」頁同步
-  const medSettings = useMemo(() => getMedicationSettings(), []);
+  // 藥物設定：使用途徑 / 藥物單位選項與「藥物設定」頁同步（開啟時拉 DB 最新）
+  const [medSettings, setMedSettings] = useState<MedicationSettingsData>(() => getMedicationSettings());
+  useEffect(() => { getMedicationSettingsFromDB().then(setMedSettings).catch(() => {}); }, []);
   const routeOptions = useMemo(() => {
     const routes: string[] = [...medSettings.服用途徑];
     if (formData.administration_route && !routes.includes(formData.administration_route)) {
@@ -146,9 +149,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
         cannot_crush: formData.cannot_crush,
         no_antacid: formData.no_antacid,
         special_dosage_instruction: formData.special_dosage_instruction || null,
-        meal_timing_1: formData.meal_timing_1 || null,
-        meal_timing_2: formData.meal_timing_2 || null,
-        meal_timing_connector: formData.meal_timing_connector || '或',
+        ...toMealTimingPayload(formData.meal_timings, 'meal_timing_1'),
         is_diabetic_drug: formData.is_diabetic_drug,
         is_antihypertensive_drug: formData.is_antihypertensive_drug
       };
@@ -331,47 +332,86 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
               </select>
             </div>
 
-            <div>
-              <label className="form-label">服用時段1（新增處方時預填）</label>
-              <select
-                name="meal_timing_1"
-                value={formData.meal_timing_1}
-                onChange={handleChange}
-                className="form-input"
-              >
-                <option value="">無</option>
-                {medSettings.服用時段.map((v) => (
-                  <option key={v} value={v}>{v}</option>
+            <div className="md:col-span-2">
+              <label className="form-label">服用時段（新增處方時預填，可增減；「或」=任一時段給服，「及」=兩時段皆需給服）</label>
+              <div className="space-y-2">
+                {(formData.meal_timings.slots.length ? formData.meal_timings.slots : ['']).map((slot, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    {idx > 0 && (
+                      <select
+                        value={formData.meal_timings.connectors[idx - 1] ?? '或'}
+                        onChange={(e) => {
+                          const value = e.target.value as MealTimingConnector;
+                          setFormData(prev => {
+                            const connectors = [...prev.meal_timings.connectors];
+                            connectors[idx - 1] = value;
+                            return { ...prev, meal_timings: { slots: [...prev.meal_timings.slots], connectors } };
+                          });
+                        }}
+                        className="form-input w-20"
+                        title="時段連接詞"
+                      >
+                        <option value="或">或</option>
+                        <option value="及">及</option>
+                      </select>
+                    )}
+                    <select
+                      value={slot}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData(prev => {
+                          const slots = prev.meal_timings.slots.length ? [...prev.meal_timings.slots] : [''];
+                          slots[idx] = value;
+                          return { ...prev, meal_timings: { slots, connectors: [...prev.meal_timings.connectors] } };
+                        });
+                      }}
+                      className="form-input flex-1"
+                    >
+                      <option value="">時段{idx + 1}</option>
+                      {medSettings.服用時段.map((v) => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
+                    {idx > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            meal_timings: {
+                              slots: prev.meal_timings.slots.filter((_, i) => i !== idx),
+                              connectors: prev.meal_timings.connectors.filter((_, i) => i !== idx - 1),
+                            },
+                          }));
+                        }}
+                        className="text-red-600 hover:text-red-800"
+                        title="移除此時段"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="form-label">服用時段2（新增處方時預填）</label>
-              <select
-                name="meal_timing_2"
-                value={formData.meal_timing_2}
-                onChange={handleChange}
-                className="form-input"
-              >
-                <option value="">無</option>
-                {medSettings.服用時段.map((v) => (
-                  <option key={v} value={v}>{v}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="form-label">時段連接詞（新增處方時預填）</label>
-              <select
-                name="meal_timing_connector"
-                value={formData.meal_timing_connector}
-                onChange={handleChange}
-                className="form-input"
-              >
-                <option value="或">或（任一時段給服皆合處方要求）</option>
-                <option value="及">及（兩時段皆需給服）</option>
-              </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData(prev => {
+                      const mt = prev.meal_timings.slots.length ? prev.meal_timings : { slots: [''], connectors: [] as MealTimingConnector[] };
+                      return {
+                        ...prev,
+                        meal_timings: {
+                          slots: [...mt.slots, ''],
+                          connectors: [...mt.connectors, '或' as MealTimingConnector],
+                        },
+                      };
+                    });
+                  }}
+                  className="btn-secondary flex flex-wrap items-center gap-1 text-sm h-8"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>新增時段</span>
+                </button>
+              </div>
             </div>
           </div>
 

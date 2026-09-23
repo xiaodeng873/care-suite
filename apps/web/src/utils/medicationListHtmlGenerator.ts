@@ -1,5 +1,5 @@
 import { formatDisplayDate } from './dateFormat';
-import { formatMealTiming } from './mealTiming';
+import { formatMealTimingFrom } from './mealTiming';
 import shortTermTemplate from '../../../../upload/doc_html/院友服用藥物一覽表（短期藥）.html?raw';
 import longTermTemplate from '../../../../upload/doc_html/院友服用藥物一覽表（長期藥）.html?raw';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
@@ -23,6 +23,7 @@ interface MedicationPrescription {
   meal_timing?: string;
   meal_timing_2?: string;
   meal_timing_connector?: '或' | '及';
+  meal_timings?: { slots: string[]; connectors: ('或' | '及')[] } | null;
   special_dosage_instruction?: string;
   is_prn?: boolean;
   cannot_crush?: boolean;
@@ -152,7 +153,7 @@ function formatDrugCell(p: MedicationPrescription): string {
   if (p.medication_name) parts.push(escapeHtml(p.medication_name));
   if (p.administration_route) parts.push(escapeHtml(p.administration_route));
   if (p.dosage_form) parts.push(escapeHtml(p.dosage_form));
-  const mealTimingLabel = formatMealTiming(p.meal_timing, p.meal_timing_2, p.meal_timing_connector);
+  const mealTimingLabel = formatMealTimingFrom(p);
   if (mealTimingLabel) parts.push(escapeHtml(mealTimingLabel));
   if (p.special_dosage_instruction) parts.push(escapeHtml(p.special_dosage_instruction));
   if (p.is_prn) parts.push('需要時');
@@ -174,8 +175,9 @@ function formatInspectionRules(p: MedicationPrescription): string {
     lte: '小於或等於',
   };
   const actionMap: Record<string, string> = {
-    block_dispensing: '停服',
+    block_dispensing: '停服一次',
     warning_only: '注意',
+    dispense_if_met: '才需服用',
   };
   const unitMap: Record<string, string> = {
     上壓: 'mmHg',

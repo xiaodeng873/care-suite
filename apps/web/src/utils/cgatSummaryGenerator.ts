@@ -435,7 +435,7 @@ function buildInspectionHoldSection(
         date: r.scheduled_date,
         drugName: p?.medication_name || '未知藥物',
         dose: [p?.dosage_amount, p?.dosage_unit].filter(Boolean).join(' ') || '',
-        reason: rule.action_if_met === 'block_dispensing' ? '檢測數值不合格' : '檢測規則觸發',
+        reason: rule.action_if_met === 'dispense_if_met' ? '檢測數值未達服用條件' : rule.action_if_met === 'block_dispensing' ? '檢測數值不合格' : '檢測規則觸發',
         valueText: `${rule.vital_sign_type}: ${rule.actual_value}（條件 ${rule.condition_operator} ${rule.condition_value}）`,
       });
     }

@@ -2,6 +2,7 @@
  * 處方日誌工具：欄位中文標籤、值格式化、逐欄差異計算
  */
 import type { PrescriptionFieldChange } from '../lib/database';
+import { formatMealTimingFrom } from './mealTiming';
 
 export const PRESCRIPTION_STATUS_LABELS: Record<string, string> = {
   active: '在服處方',
@@ -42,8 +43,9 @@ const INSPECTION_OP_LABELS: Record<string, string> = {
   lte: '小於或等於',
 };
 const INSPECTION_ACTION_LABELS: Record<string, string> = {
-  block_dispensing: '停服',
+  block_dispensing: '停服一次',
   warning_only: '注意',
+  dispense_if_met: '才需服用',
 };
 const INSPECTION_UNIT_LABELS: Record<string, string> = {
   上壓: 'mmHg',
@@ -96,7 +98,7 @@ const FIELD_DEFINITIONS: { field: string; label: string }[] = [
   { field: 'is_odd_even_day', label: '單雙日' },
   { field: 'is_prn', label: '需要時 (PRN)' },
   { field: 'medication_time_slots', label: '服用時段' },
-  { field: 'meal_timing', label: '餐次' },
+  { field: 'meal_timings', label: '餐次' },
   { field: 'preparation_method', label: '備藥方式' },
   { field: 'medication_quantity', label: '藥物數量' },
   { field: 'medication_days', label: '藥物日數' },
@@ -134,6 +136,8 @@ export function formatFieldValue(field: string, value: any): string {
         return value.length === 0 ? '（空）' : value.join('、');
       }
       return String(value);
+    case 'meal_timings':
+      return formatMealTimingFrom({ meal_timings: value }) || '（空）';
     default:
       return String(value);
   }
@@ -149,6 +153,7 @@ function normalizeForCompare(field: string, value: any): string {
       ? JSON.stringify(value)
       : JSON.stringify([...value].sort());
   }
+  if (typeof value === 'object') return JSON.stringify(value); // meal_timings 等 jsonb 物件
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   return String(value);
 }

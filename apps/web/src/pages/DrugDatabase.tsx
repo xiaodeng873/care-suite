@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { 
   Pill, 
@@ -19,7 +19,7 @@ import { usePatientData } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import DrugModal from '../components/DrugModal';
 import { fuzzyMatch, drugSearchScore } from '../utils/searchUtils';
-import { getMedicationSettings } from '../utils/medicationSettings';
+import { getMedicationSettings, getMedicationSettingsFromDB, type MedicationSettingsData } from '../utils/medicationSettings';
 
 type SortField = 'drug_name' | 'drug_code' | 'dosage_form' | 'administration_route' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -35,7 +35,8 @@ interface AdvancedFilters {
 
 const DrugDatabase: React.FC = () => {
   const { drugDatabase, deleteDrug, loading } = usePatientData();
-  const medSettings = useMemo(() => getMedicationSettings(), []);
+  const [medSettings, setMedSettings] = useState<MedicationSettingsData>(() => getMedicationSettings());
+  useEffect(() => { getMedicationSettingsFromDB().then(setMedSettings).catch(() => {}); }, []);
   const [showModal, setShowModal] = useState(false);
   const [selectedDrug, setSelectedDrug] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');

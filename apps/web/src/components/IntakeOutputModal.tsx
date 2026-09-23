@@ -96,12 +96,12 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
   // 新增攝入項目臨時表單
   const [newIntakeItemType, setNewIntakeItemType] = useState('');
   const [newIntakeAmount, setNewIntakeAmount] = useState('');
-  const [newIntakeVolume, setNewIntakeVolume] = useState<number>(0);
+  const [newIntakeVolume, setNewIntakeVolume] = useState<number | string>(0);
   
   // 新增排出項目臨時表單
   const [newOutputColor, setNewOutputColor] = useState('');
-  const [newOutputVolume, setNewOutputVolume] = useState<number>(0);
-  const [newOutputPH, setNewOutputPH] = useState<number>(7);
+  const [newOutputVolume, setNewOutputVolume] = useState<number | string>(0);
+  const [newOutputPH, setNewOutputPH] = useState<number | string>(7);
   const [isNoOutput, setIsNoOutput] = useState(false);
 
   // 載入已有記錄
@@ -297,8 +297,9 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
       };
       newItem.amount_numeric = fractionMap[newIntakeAmount] || 0;
     } else if (category === 'beverage' || category === 'tube_feeding') {
-      newItem.amount = `${newIntakeVolume}ml`;
-      newItem.amount_numeric = newIntakeVolume; // 飲料和鼻胃飼的數值就是容量
+      const volume = Number(newIntakeVolume) || 0;
+      newItem.amount = `${volume}ml`;
+      newItem.amount_numeric = volume; // 飲料和鼻胃飼的數值就是容量
     } else if (category === 'other') {
       newItem.amount = newIntakeAmount;
       // 其他類別：從字符串中提取數字（如 "3塊" -> 3）
@@ -323,9 +324,9 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
       newItem.amount_ml = 0;
     } else {
       newItem.color = newOutputColor;
-      newItem.amount_ml = newOutputVolume;
+      newItem.amount_ml = Number(newOutputVolume) || 0;
       if (category === 'gastric') {
-        newItem.ph_value = newOutputPH;
+        newItem.ph_value = Number(newOutputPH) || 0;
       }
     }
 
@@ -764,10 +765,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
                   <input
                     type="number"
                     value={newIntakeVolume}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 0;
-                      setNewIntakeVolume(value);
-                    }}
+                    onChange={(e) => setNewIntakeVolume(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     min="0"
                   />
@@ -859,7 +857,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
                     <input
                       type="number"
                       value={newOutputVolume}
-                      onChange={(e) => setNewOutputVolume(parseInt(e.target.value) || 0)}
+                      onChange={(e) => setNewOutputVolume(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                     />
@@ -871,7 +869,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
                       <input
                         type="number"
                         value={newOutputPH}
-                        onChange={(e) => setNewOutputPH(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => setNewOutputPH(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         min="0"
                         max="14"

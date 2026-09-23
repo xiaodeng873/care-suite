@@ -710,7 +710,7 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
           case 'lte': isBlocked = value > conditionValue; break;
         }
         if (isBlocked) {
-          blockedRules.push({ vital_sign_type: rule.vital_sign_type, actual_value: value, condition_operator: rule.condition_operator, condition_value: conditionValue });
+          blockedRules.push({ vital_sign_type: rule.vital_sign_type, actual_value: value, condition_operator: rule.condition_operator, condition_value: conditionValue, action_if_met: rule.action_if_met });
         }
       }
       return { canDispense: blockedRules.length === 0 && missingVitalSigns.length === 0, blockedRules, usedVitalSignData, missingVitalSigns };

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, matchPatientBedNumber} from '../utils/searchUtils';
-import { formatMealTiming } from '../utils/mealTiming';
+import { formatMealTimingFrom } from '../utils/mealTiming';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useSearchParams } from 'react-router-dom';
 import { Pill, Plus, Trash2, Search, Filter, Download, User, Calendar, AlertTriangle, CheckCircle, ArrowRight, X, ChevronUp, ChevronDown, Settings, FileText, Activity, ChevronRight, ChevronLeft, Heart, Shield, History, Copy } from 'lucide-react';
@@ -1307,10 +1307,10 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
                   <span className="font-medium">{formatDisplayDate(prescription.prescription_date)}</span>
                 </div>
               )}
-              {formatMealTiming(prescription.meal_timing, prescription.meal_timing_2, prescription.meal_timing_connector) && (
+              {formatMealTimingFrom(prescription) && (
                 <div className="flex items-center space-x-1">
                   <span className="text-gray-500">時段:</span>
-                  <span className="font-medium">{formatMealTiming(prescription.meal_timing, prescription.meal_timing_2, prescription.meal_timing_connector)}</span>
+                  <span className="font-medium">{formatMealTimingFrom(prescription)}</span>
                 </div>
               )}
               {prescription.preparation_method && (

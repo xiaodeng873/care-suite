@@ -10,7 +10,7 @@ import {
   type MedicationSettingsData,
 } from '../utils/medicationSettings';
 
-type StringKey = Exclude<keyof MedicationSettingsData, '每日次數' | '機構簡稱' | '專科簡稱'>;
+type StringKey = Exclude<keyof MedicationSettingsData, '機構簡稱' | '專科簡稱'>;
 type AbbrKey = '機構簡稱' | '專科簡稱';
 
 // 邊啲清單要有「英文簡稱」欄：醫管局三個機構組 + 專科
@@ -37,18 +37,21 @@ const SOURCE_FIELDS: { key: StringKey; label: string }[] = [
 const MedicationSettingsPanel: React.FC = () => {
   const [settings, setSettings] = useState<MedicationSettingsData>(getMedicationSettings);
   const [newValues, setNewValues] = useState<Record<string, string>>({});
-  const [newFreq, setNewFreq] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const dragKey = useRef<string | null>(null);
   const dragIdx = useRef<number>(-1);
 
+  // 用戶一郁過（新增/刪除/排序/重設）就唔准 mount fetch 嘅舊結果冚返
+  const dirtyRef = useRef(false);
+
   useEffect(() => {
-    getMedicationSettingsFromDB().then(s => setSettings(s)).catch(() => {});
+    getMedicationSettingsFromDB().then(s => { if (!dirtyRef.current) setSettings(s); }).catch(() => {});
   }, []);
 
   // 用戶操作（新增/刪除/重設/排序）後主動儲存，不在每次 state 變更自動儲存
   const persistSettings = useCallback(async (nextSettings: MedicationSettingsData, successText = '藥物設定已儲存至資料庫') => {
+    dirtyRef.current = true;
     setSettings(nextSettings);
     setSaving(true);
     setMessage(null);
@@ -115,25 +118,6 @@ const MedicationSettingsPanel: React.FC = () => {
     const nextSettings = { ...settings, [key]: [...list, ...toAdd] };
     setNewValues(prev => ({ ...prev, [key]: '' }));
     persistSettings(nextSettings, '藥物設定已儲存至資料庫');
-  };
-
-  // ── number list helpers ───────────────────────────────────────────────────
-  const removeFreqItem = (val: number) => {
-    const nextSettings = { ...settings, 每日次數: settings.每日次數.filter(n => n !== val) };
-    persistSettings(nextSettings, '藥物設定已儲存至資料庫');
-  };
-  const addFreqItem = () => {
-    const n = parseInt(newFreq);
-    if (isNaN(n) || n < 1 || n > 24) { setMessage({ type: 'error', text: '請輸入 1–24 的整數' }); return; }
-    if (settings.每日次數.includes(n)) { setMessage({ type: 'error', text: `「${n}」已存在` }); return; }
-    const nextSettings = { ...settings, 每日次數: [...settings.每日次數, n].sort((a, b) => a - b) };
-    setNewFreq('');
-    persistSettings(nextSettings, '藥物設定已儲存至資料庫');
-  };
-
-  const freqLabel = (n: number) => {
-    const labels: Record<number, string> = { 1: 'QD', 2: 'BD', 3: 'TDS', 4: 'QID' };
-    return labels[n] ? `${labels[n]} (每日${n}次)` : `每日${n}次`;
   };
 
   // ── 英文簡稱 helpers ──────────────────────────────────────────────────────
@@ -270,40 +254,6 @@ const MedicationSettingsPanel: React.FC = () => {
         <p className="text-xs text-gray-400 mb-3">機構依「醫管局 / 衛生署 / 其他」分組；系統以此判定是否須輸入藥物數量。專科為選填。</p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {SOURCE_FIELDS.map(({ key, label }) => renderDraggableList(key, label, ABBR_KEY_MAP[key]))}
-        </div>
-      </div>
-
-      {/* 服用頻率 */}
-      <div>
-        <h3 className="text-base font-medium text-gray-700 mb-3 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block" />服用頻率
-        </h3>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <h4 className="text-sm font-semibold text-gray-800 mb-1">每日服用次數</h4>
-          <p className="text-xs text-gray-400 mb-3">QD / BD / TDS / QID 等標籤由系統自動對應；指施藥當日應施次數，邊日施藥由處方頻率類型決定</p>
-          <div className="mb-3 flex gap-2 max-w-xs">
-            <input type="number" min={1} max={24} value={newFreq}
-              onChange={e => setNewFreq(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addFreqItem(); } }}
-              className="w-24 px-3 py-1.5 border border-blue-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="次數" />
-            <button type="button" onClick={addFreqItem}
-              className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
-              新增
-            </button>
-          </div>
-          <ul className="space-y-1">
-            {settings.每日次數.sort((a, b) => a - b).map(n => (
-              <li key={n} className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-100 hover:bg-gray-100 group">
-                <span className="flex-1 text-sm text-gray-700">{freqLabel(n)}</span>
-                <button type="button" onClick={() => removeFreqItem(n)}
-                  className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100" title="刪除">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </li>
-            ))}
-            {settings.每日次數.length === 0 && <li className="text-xs text-gray-400 italic py-1">（清單為空）</li>}
-          </ul>
         </div>
       </div>
     </div>

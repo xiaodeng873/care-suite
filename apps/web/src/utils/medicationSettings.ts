@@ -10,7 +10,6 @@ export interface MedicationSettingsData {
   服用單位: string[];
   特殊用法: string[];
   服用時段: string[];
-  每日次數: number[];       // 對應 daily_frequency 的可選值
   藥物來源: string[];       // 舊版平面來源清單（保留向後相容，新版改用機構分組）
   機構_醫管局醫院: string[]; // 藥物來源機構：醫管局醫院
   機構_醫管局門診: string[]; // 藥物來源機構：醫管局普通科門診
@@ -43,7 +42,6 @@ export const DEFAULT_MEDICATION_SETTINGS: MedicationSettingsData = {
     '晚餐前', '晚餐時', '晚餐後',
     '早上', '中午', '下午', '晚上', '睡前',
   ],
-  每日次數: [1, 2, 3, 4, 5, 6, 8],
   // 舊版平面清單保留（不再於 modal 使用）
   藥物來源: [],
   機構_醫管局醫院: [
@@ -138,6 +136,10 @@ export const DEFAULT_MEDICATION_SETTINGS: MedicationSettingsData = {
 
 // localStorage 按院舍分鍵，避免 A 院快取流落 B 院
 const STORAGE_KEY_BASE = 'care_suite_medication_settings';
+// 本地最近一次用戶儲存時間：DB fetch 若早過呢個時間起飛，結果可能係舊資料，唔准覆蓋 localStorage
+let lastLocalSaveAt = 0;
+// 進行中嘅 DB 寫入數：>0 時 fetch 結果可能係 commit 前嘅舊資料
+let savesInFlight = 0;
 function storageKey(): string {
   const fid = getCurrentFacilityId();
   return fid != null ? `${STORAGE_KEY_BASE}_fac${fid}` : STORAGE_KEY_BASE;
@@ -186,6 +188,7 @@ export function resetMedicationSettings(): MedicationSettingsData {
  * 從 DB 讀取藥物設定。失敗時退回 localStorage 快取，再退回預設值。
  */
 export async function getMedicationSettingsFromDB(): Promise<MedicationSettingsData> {
+  const fetchStartedAt = Date.now();
   try {
     const facilityId = getCurrentFacilityId();
     let q = supabase
@@ -198,6 +201,10 @@ export async function getMedicationSettingsFromDB(): Promise<MedicationSettingsD
         ...DEFAULT_MEDICATION_SETTINGS,
         ...(data.medication_settings as Partial<MedicationSettingsData>),
       };
+      // fetch 起飛後有用戶儲存（本地更新過），或而家仲有寫入進行中 → 呢份結果可能係舊資料，唔准覆蓋本地快取
+      if (lastLocalSaveAt > fetchStartedAt || savesInFlight > 0) {
+        return getMedicationSettings();
+      }
       // 同步更新 localStorage 快取
       localStorage.setItem(storageKey(), JSON.stringify(merged));
       return merged;
@@ -217,50 +224,60 @@ export async function saveMedicationSettingsToDB(settings: MedicationSettingsDat
   console.log('[medicationSettings] saveMedicationSettingsToDB called');
   const now = new Date().toISOString();
 
-  // 1. 先嘗試只更新 medication_settings（不覆蓋其他院舍欄位）
-  const facilityId = getCurrentFacilityId();
-  let upd = supabase
-    .from('facility_settings')
-    .update({ medication_settings: settings, updated_at: now });
-  upd = facilityId != null ? upd.eq('facility_id', facilityId) : upd.eq('id', 1);
-  const { data: updated, error: updateError } = await upd.select();
-
-  console.log('[medicationSettings] update result:', { updated, updateError });
-
-  if (updateError) {
-    throw new Error(`儲存藥物設定失敗：${updateError.message}`);
-  }
-
-  if (updated && updated.length > 0) {
-    localStorage.setItem(storageKey(), JSON.stringify(settings));
-    console.log('[medicationSettings] existing row updated, localStorage updated');
-    return;
-  }
-
-  // 2. 沒有該院舍的列，才插入新列（帶上所有 NOT NULL 預設值；不寫死 id）
-  const { data: inserted, error: insertError } = await supabase
-    .from('facility_settings')
-    .insert({
-      ...(facilityId != null ? { facility_id: facilityId } : { id: 1 }),
-      facility_name_zh: DEFAULT_FACILITY_SETTINGS.facilityNameZh,
-      facility_name_en: DEFAULT_FACILITY_SETTINGS.facilityNameEn,
-      facility_phone: '',
-      facility_address_zh: '',
-      facility_address_en: '',
-      facility_fax: '',
-      medication_settings: settings,
-      updated_at: now,
-    })
-    .select();
-
-  console.log('[medicationSettings] insert result:', { inserted, insertError });
-
-  if (insertError) {
-    throw new Error(`儲存藥物設定失敗：${insertError.message}`);
-  }
-
+  // 樂觀寫入：用戶改動即時落 localStorage，等所有讀取端即刻見到新順序；
+  // 之後 DB 寫入期間嘅任何 fetch 都唔准覆蓋（見 getMedicationSettingsFromDB 嘅守衛）
+  lastLocalSaveAt = Date.now();
+  savesInFlight++;
   localStorage.setItem(storageKey(), JSON.stringify(settings));
-  console.log('[medicationSettings] new row inserted, localStorage updated');
+
+  // 1. 先嘗試只更新 medication_settings（不覆蓋其他院舍欄位）
+  try {
+    const facilityId = getCurrentFacilityId();
+    let upd = supabase
+      .from('facility_settings')
+      .update({ medication_settings: settings, updated_at: now });
+    upd = facilityId != null ? upd.eq('facility_id', facilityId) : upd.eq('id', 1);
+    const { data: updated, error: updateError } = await upd.select();
+
+    console.log('[medicationSettings] update result:', { updated, updateError });
+
+    if (updateError) {
+      throw new Error(`儲存藥物設定失敗：${updateError.message}`);
+    }
+
+    if (updated && updated.length > 0) {
+      localStorage.setItem(storageKey(), JSON.stringify(settings));
+      console.log('[medicationSettings] existing row updated, localStorage updated');
+      return;
+    }
+
+    // 2. 沒有該院舍的列，才插入新列（帶上所有 NOT NULL 預設值；不寫死 id）
+    const { data: inserted, error: insertError } = await supabase
+      .from('facility_settings')
+      .insert({
+        ...(facilityId != null ? { facility_id: facilityId } : { id: 1 }),
+        facility_name_zh: DEFAULT_FACILITY_SETTINGS.facilityNameZh,
+        facility_name_en: DEFAULT_FACILITY_SETTINGS.facilityNameEn,
+        facility_phone: '',
+        facility_address_zh: '',
+        facility_address_en: '',
+        facility_fax: '',
+        medication_settings: settings,
+        updated_at: now,
+      })
+      .select();
+
+    console.log('[medicationSettings] insert result:', { inserted, insertError });
+
+    if (insertError) {
+      throw new Error(`儲存藥物設定失敗：${insertError.message}`);
+    }
+
+    localStorage.setItem(storageKey(), JSON.stringify(settings));
+    console.log('[medicationSettings] new row inserted, localStorage updated');
+  } finally {
+    savesInFlight--;
+  }
 }
 
 // 依所選機構判定所屬類別（HA=醫管局 / DH=衛生署 / other=其他）。未知來源視為 other。

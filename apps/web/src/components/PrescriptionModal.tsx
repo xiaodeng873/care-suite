@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Pill, Calendar, Clock, User, AlertTriangle, Plus, Trash2, Sparkles, History } from 'lucide-react';
+import { X, Pill, Calendar, Clock, User, AlertTriangle, Plus, Minus, Trash2, Sparkles, History } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import DrugAutocomplete from './DrugAutocomplete';
@@ -13,6 +13,7 @@ import PrescriptionLogModal from './PrescriptionLogModal';
 import DateInput from './DateInput';
 import InstitutionAutocomplete from './InstitutionAutocomplete';
 import { type MedicationInspectionRule } from '../lib/database';
+import { getMealTimings, toMealTimingPayload, formatMealTimings, type MealTimings, type MealTimingConnector } from '../utils/mealTiming';
 import { getDrugAdjustmentTriggersForSave, type DrugAdjustmentReminderItem } from '../utils/drugAdjustmentCheck';
 
 interface PrescriptionModalProps {
@@ -91,9 +92,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       specific_weekdays: prescription?.specific_weekdays || [],
       is_odd_even_day: prescription?.is_odd_even_day || 'none',
       medication_time_slots: prescription?.medication_time_slots || [],
-      meal_timing: prescription?.meal_timing || '',
-      meal_timing_2: prescription?.meal_timing_2 || '',
-      meal_timing_connector: prescription?.meal_timing_connector || '或',
+      meal_timings: (() => {
+        const mt = getMealTimings(prescription);
+        return mt.slots.length ? mt : { slots: [''], connectors: [] } as MealTimings;
+      })(),
       is_prn: prescription?.is_prn || false,
       preparation_method: prescription?.preparation_method || 'advanced',
       status: prescription?.status || 'pending_change',
@@ -156,11 +158,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         [name]: checked
       }));
     } else if (type === 'number') {
+      // 保留 raw string，容許清空輸入；數值化留待儲存時處理
       setFormData(prev => ({
         ...prev,
-        [name]: (name === 'dosage_amount' || name === 'medication_quantity')
-          ? (parseFloat(value) || 1)
-          : (parseInt(value) || 1)
+        [name]: value
       }));
     } else {
       setFormData(prev => {
@@ -275,13 +276,13 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
 
   useEffect(() => {
     if (formData.daily_frequency && formData.medication_time_slots.length === 0 && !prescription) {
-      const autoTimes = getAutoTimeSlots(formData.daily_frequency, formData.meal_timing);
+      const autoTimes = getAutoTimeSlots(formData.daily_frequency, formData.meal_timings?.slots?.[0] || '');
       setFormData(prev => ({
         ...prev,
         medication_time_slots: autoTimes
       }));
     }
-  }, [formData.daily_frequency, formData.meal_timing]);
+  }, [formData.daily_frequency, formData.meal_timings]);
 
   useEffect(() => {
     if (startDateMode !== 'admission') return;
@@ -352,6 +353,12 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       mappedData.preparation_method = 'immediate';
     } else if (mappedData.dosage_form && advancedPreparationForms.includes(mappedData.dosage_form)) {
       mappedData.preparation_method = 'advanced';
+    }
+
+    // OCR 只得單一時段欄：轉做可增減結構先合併
+    if (mappedData.meal_timing) {
+      mappedData.meal_timings = { slots: [mappedData.meal_timing], connectors: [] };
+      delete mappedData.meal_timing;
     }
 
     setFormData(prev => ({
@@ -439,17 +446,17 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       return;
     }
 
-    if (formData.frequency_type === 'every_x_days' && formData.frequency_value < 1) {
+    if (formData.frequency_type === 'every_x_days' && Number(formData.frequency_value) < 1) {
       setValidationError('隔日服的天數必須大於0');
       return;
     }
 
-    if (formData.frequency_type === 'every_x_weeks' && formData.frequency_value < 1) {
+    if (formData.frequency_type === 'every_x_weeks' && Number(formData.frequency_value) < 1) {
       setValidationError('隔星期服的星期數必須大於0');
       return;
     }
 
-    if (formData.frequency_type === 'every_x_months' && formData.frequency_value < 1) {
+    if (formData.frequency_type === 'every_x_months' && Number(formData.frequency_value) < 1) {
       setValidationError('隔月服的月數必須大於0');
       return;
     }
@@ -532,7 +539,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         medication_name: formData.medication_name,
         medication_source: formData.medication_source,
         medication_source_specialty: formData.medication_source_specialty || null,
-        medication_quantity: formData.medication_quantity,
+        medication_quantity: formData.medication_quantity === '' ? null : String(formData.medication_quantity),
         estimated_end_date: estimatedEndDate || null,
         prescription_date: formData.prescription_date,
         start_date: formData.start_date,
@@ -544,26 +551,29 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         duration_days: formData.duration_days === '' ? null : (typeof formData.duration_days === 'string' ? parseInt(formData.duration_days) : formData.duration_days),
         dosage_form: formData.dosage_form,
         administration_route: formData.administration_route,
-        dosage_amount: formData.dosage_amount,
+        dosage_amount: formData.dosage_amount === '' ? null : String(formData.dosage_amount),
         dosage_unit: formData.dosage_unit,
         special_dosage_instruction: formData.special_dosage_instruction,
         daily_frequency: formData.daily_frequency,
         frequency_type: formData.frequency_type,
-        frequency_value: formData.frequency_value,
+        frequency_value: formData.frequency_value === '' ? null : parseInt(String(formData.frequency_value), 10),
         specific_weekdays: formData.specific_weekdays,
         is_odd_even_day: formData.is_odd_even_day,
         medication_time_slots: formData.medication_time_slots,
-        meal_timing: formData.meal_timing,
-        meal_timing_2: formData.meal_timing_2,
-        meal_timing_connector: formData.meal_timing_connector,
+        ...toMealTimingPayload(formData.meal_timings),
         is_prn: formData.is_prn,
         preparation_method: formData.preparation_method,
         status: formData.status,
         notes: formData.notes,
         is_long_term: prescription && prescription.id ? (prescription.is_long_term ?? !prescription.end_date) : !formData.end_date,
-        inspection_rules: inspectionRules.filter((rule: MedicationInspectionRule) =>
-          rule.vital_sign_type && rule.condition_operator && rule.condition_value
-        )
+        inspection_rules: inspectionRules
+          .filter((rule: MedicationInspectionRule) =>
+            rule.vital_sign_type && rule.condition_operator && String(rule.condition_value ?? '') !== ''
+          )
+          .map((rule: MedicationInspectionRule) => ({
+            ...rule,
+            condition_value: parseFloat(String(rule.condition_value)),
+          }))
       };
 
       // Clean up undefined fields and empty strings for numeric fields
@@ -742,9 +752,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                       dosage_unit: drugData?.unit || prev.dosage_unit,
                       administration_route: drugData?.administration_route || prev.administration_route,
                       special_dosage_instruction: drugData?.special_dosage_instruction || prev.special_dosage_instruction,
-                      meal_timing: drugData?.meal_timing_1 || prev.meal_timing,
-                      meal_timing_2: drugData?.meal_timing_2 || prev.meal_timing_2,
-                      meal_timing_connector: drugData?.meal_timing_connector || prev.meal_timing_connector
+                      meal_timings: (() => {
+                        const mt = getMealTimings(drugData);
+                        return mt.slots.length ? mt : prev.meal_timings;
+                      })()
                     }));
                   }}
                   placeholder="搜索或輸入藥物名稱..."
@@ -998,7 +1009,9 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
           <div className="bg-green-50 rounded-lg p-4">
             <h3 className="text-lg font-medium text-gray-900 mb-4">服用資訊</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 左欄：劑型、服用途徑、服用時段、需要時(PRN) */}
+              <div className="space-y-4">
               <div>
                 <label className="form-label">
                   劑型
@@ -1032,27 +1045,100 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
               </div>
 
               <div>
-                <label className="form-label">當日服用次數</label>
-                <select
-                  name="daily_frequency"
-                  value={formData.daily_frequency}
-                  onChange={(e) => {
-                    const newFrequency = parseInt(e.target.value);
-                    setFormData(prev => ({
-                      ...prev,
-                      daily_frequency: newFrequency
-                    }));
-                  }}
-                  className="form-input"
-                >
-                  <option value={0}>無</option>
-                  {medSettings.每日次數.map(n => {
-                    const labels: Record<number,string> = {1:'QD',2:'BD',3:'TDS',4:'QID'};
-                    return <option key={n} value={n}>{labels[n] ? `${labels[n]} (當日${n}次)` : `當日${n}次`}</option>;
-                  })}
-                </select>
+                <label className="form-label">服用時段</label>
+                <div className="space-y-2">
+                  {(formData.meal_timings?.slots?.length ? formData.meal_timings.slots : ['']).map((slot: string, idx: number) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      {idx > 0 && (
+                        <select
+                          value={formData.meal_timings.connectors[idx - 1] ?? '或'}
+                          onChange={(e) => {
+                            const value = e.target.value as MealTimingConnector;
+                            setFormData(prev => {
+                              const connectors = [...(prev.meal_timings?.connectors || [])];
+                              connectors[idx - 1] = value;
+                              return { ...prev, meal_timings: { slots: [...prev.meal_timings.slots], connectors } };
+                            });
+                          }}
+                          className="form-input w-20"
+                          title="時段連接詞（「或」=任一時段給服；「及」=兩時段皆需給服）"
+                        >
+                          <option value="或">或</option>
+                          <option value="及">及</option>
+                        </select>
+                      )}
+                      <select
+                        value={slot}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData(prev => {
+                            const slots = [...(prev.meal_timings?.slots?.length ? prev.meal_timings.slots : [''])];
+                            slots[idx] = value;
+                            return { ...prev, meal_timings: { slots, connectors: [...(prev.meal_timings?.connectors || [])] } };
+                          });
+                        }}
+                        className="form-input flex-1"
+                      >
+                        <option value="">時段{idx + 1}</option>
+                        {medSettings.服用時段.map(v => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                      {idx > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => {
+                              const slots = prev.meal_timings.slots.filter((_: string, i: number) => i !== idx);
+                              const connectors = prev.meal_timings.connectors.filter((_: string, i: number) => i !== idx - 1);
+                              return { ...prev, meal_timings: { slots, connectors } };
+                            });
+                          }}
+                          className="text-red-600 hover:text-red-800"
+                          title="移除此時段"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => {
+                        const mt = prev.meal_timings?.slots?.length ? prev.meal_timings : { slots: [''], connectors: [] };
+                        return {
+                          ...prev,
+                          meal_timings: {
+                            slots: [...mt.slots, ''],
+                            connectors: [...mt.connectors, '或' as MealTimingConnector],
+                          },
+                        };
+                      });
+                    }}
+                    className="btn-secondary flex flex-wrap items-center gap-1 text-sm h-8"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>新增時段</span>
+                  </button>
                 </div>
+              </div>
 
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="is_prn"
+                  name="is_prn"
+                  checked={formData.is_prn}
+                  onChange={handleChange}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="is_prn" className="text-sm font-medium text-gray-700">
+                  需要時 (PRN)
+                </label>
+              </div>
+              </div>{/* /左欄 */}
+
+              {/* 右欄：服用份量/單位、特殊用法、備藥方式 */}
+              <div className="space-y-4">
               {/* 服用份量/單位 與 特殊用法 可同時並存 */}
               <div className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1098,54 +1184,6 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
               </div>
 
               <div>
-                <label className="form-label">服用時段</label>
-                <div className="flex items-center gap-2">
-                  <select
-                    name="meal_timing"
-                    value={formData.meal_timing}
-                    onChange={handleChange}
-                    className="form-input flex-1"
-                  >
-                    <option value="">時段1</option>
-                    {medSettings.服用時段.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                  <select
-                    name="meal_timing_connector"
-                    value={formData.meal_timing_connector}
-                    onChange={handleChange}
-                    className="form-input w-20"
-                    title="時段連接詞"
-                  >
-                    <option value="或">或</option>
-                    <option value="及">及</option>
-                  </select>
-                  <select
-                    name="meal_timing_2"
-                    value={formData.meal_timing_2}
-                    onChange={handleChange}
-                    className="form-input flex-1"
-                  >
-                    <option value="">時段2</option>
-                    {medSettings.服用時段.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="is_prn"
-                  name="is_prn"
-                  checked={formData.is_prn}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="is_prn" className="text-sm font-medium text-gray-700">
-                  需要時 (PRN)
-                </label>
-              </div>
-
-              <div>
                 <label className="form-label">備藥方式</label>
                 <select
                   name="preparation_method"
@@ -1158,14 +1196,15 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   <option value="custom">自理</option>
                 </select>
               </div>
+              </div>{/* /右欄 */}
             </div>
           </div>
 
           {/* 服用頻率 */}
           <div className="bg-yellow-50 rounded-lg p-4">
             <h3 className="text-lg font-medium text-gray-900 mb-4">服用頻率</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="form-label">頻率類型 *</label>
                 <select
@@ -1210,7 +1249,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
               )}
 
               {formData.frequency_type === 'weekly_days' && (
-                <div className="md:col-span-2">
+                <div className="md:col-span-3">
                   <label className="form-label">選擇星期幾 *</label>
                   <div className="grid grid-cols-7 gap-2">
                     {dayNames.map((dayName, index) => (
@@ -1242,81 +1281,110 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   </select>
                 </div>
               )}
+
+              <div>
+                <label className="form-label">當日服用次數</label>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, daily_frequency: Math.max(0, (prev.daily_frequency || 0) - 1) }))}
+                    disabled={(formData.daily_frequency || 0) <= 0}
+                    className="btn-secondary h-9 w-9 flex items-center justify-center px-0"
+                    title="減少一次"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <input
+                    type="number"
+                    name="daily_frequency"
+                    value={formData.daily_frequency}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      setFormData(prev => ({
+                        ...prev,
+                        daily_frequency: Number.isNaN(n) ? 0 : Math.max(0, Math.round(n))
+                      }));
+                    }}
+                    className="form-input text-center"
+                    min="0"
+                    step="1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, daily_frequency: (prev.daily_frequency || 0) + 1 }))}
+                    className="btn-secondary h-9 w-9 flex items-center justify-center px-0"
+                    title="增加一次"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* 服用時間點 - 移到服用頻率區塊 */}
             <div className="mt-6 pt-4 border-t border-yellow-200">
-              <label className="form-label">服用時間點</label>
-                       
-              {/* 自動分配時間按鈕 */}
-              <div className="mb-3">
+              <div className="flex items-center justify-between mb-2">
+                <label className="form-label mb-0">服用時間點</label>
                 <button
                   type="button"
                   onClick={() => {
                     const frequency = formData.daily_frequency || 1;
-                    const autoTimes = getAutoTimeSlots(frequency, formData.meal_timing);
+                    const autoTimes = getAutoTimeSlots(frequency, formData.meal_timings?.slots?.[0] || '');
 
                     setFormData(prev => ({
                       ...prev,
                       medication_time_slots: autoTimes
                     }));
                   }}
-                  className="btn-secondary flex flex-wrap items-center gap-2 text-sm h-8"
+                  className="btn-secondary flex flex-wrap items-center gap-1 text-sm h-8"
                   title="根據服用次數和服用時段智能分配時間點"
                 >
                   <Clock className="h-4 w-4" />
-                  <span>智能分配時間 {formData.meal_timing && `(${formData.meal_timing})`}</span>
+                  <span>智能分配時間 {formData.meal_timings?.slots?.[0] && `(${formatMealTimings(formData.meal_timings)})`}</span>
                 </button>
               </div>
-              
-              <div className="flex flex-wrap gap-2 mb-3">
+
+              {formData.medication_time_slots.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                  {formData.medication_time_slots.map((timeSlot: string) => (
+                    <div
+                      key={timeSlot}
+                      className="flex items-center justify-between p-2 bg-white border border-yellow-300 rounded-lg"
+                    >
+                      <span className="text-sm font-medium text-gray-900">{timeSlot}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeTimeSlot(timeSlot)}
+                        className="text-red-600 hover:text-red-800 ml-2"
+                        title="移除此時間"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 mb-3">尚未設定服用時間</p>
+              )}
+
+              <div className="flex items-center gap-2">
                 <input
                   type="time"
                   value={newTimeSlot}
                   onChange={(e) => setNewTimeSlot(e.target.value)}
-                  className="form-input h-8"
+                  className="form-input h-8 w-36"
                   placeholder="選擇時間"
                 />
                 <button
                   type="button"
                   onClick={addTimeSlot}
                   disabled={!newTimeSlot || formData.medication_time_slots.includes(newTimeSlot)}
-                  className="btn-secondary flex flex-wrap items-center gap-2 h-8 px-3 text-sm"
+                  className="btn-secondary flex flex-wrap items-center gap-1 h-8 px-3 text-sm"
                 >
                   <Plus className="h-4 w-4" />
                   <span>新增時間</span>
                 </button>
               </div>
-              
-              {formData.medication_time_slots.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-gray-600">已設定的服用時間：</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {formData.medication_time_slots.map((timeSlot: string, index: number) => (
-                      <div
-                        key={timeSlot}
-                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-2 bg-white border border-yellow-300 rounded-lg"
-                      >
-                        <span className="text-sm font-medium text-gray-900">{timeSlot}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeTimeSlot(timeSlot)}
-                          className="text-red-600 hover:text-red-800 ml-2"
-                          title="移除此時間"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4 text-gray-500">
-                  <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                  <p className="text-sm">尚未設定服用時間</p>
-                  <p className="text-xs">請在上方選擇時間並點擊「新增時間」</p>
-                </div>
-              )}
             </div>
           </div>
 
@@ -1389,7 +1457,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                         <input
                           type="number"
                           value={rule.condition_value}
-                          onChange={(e) => updateInspectionRule(index, 'condition_value', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateInspectionRule(index, 'condition_value', e.target.value)}
                           className="form-input"
                           placeholder="輸入數值"
                           step="0.1"
@@ -1403,8 +1471,9 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                           onChange={(e) => updateInspectionRule(index, 'action_if_met', e.target.value)}
                           className="form-input"
                         >
-                          <option value="block_dispensing">停服</option>
+                          <option value="block_dispensing">停服一次</option>
                           <option value="warning_only">注意</option>
+                          <option value="dispense_if_met">才需服用</option>
                         </select>
                       </div>
                     </div>

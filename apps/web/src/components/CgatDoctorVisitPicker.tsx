@@ -32,7 +32,7 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ visit_date: getHongKongDate(), doctor_name: '', available_slots: 20 });
+  const [form, setForm] = useState<{ visit_date: string; doctor_name: string; available_slots: number | string }>({ visit_date: getHongKongDate(), doctor_name: '', available_slots: 20 });
   const [showForm, setShowForm] = useState(false);
 
   const load = useCallback(async () => {
@@ -56,7 +56,8 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
   const handleSave = async () => {
     if (!form.visit_date) { alert('請選擇到診日期'); return; }
     if (!form.doctor_name.trim()) { alert('請輸入醫生姓名'); return; }
-    if (!form.available_slots || form.available_slots < 1) { alert('名額必須大於 0'); return; }
+    const availableSlots = form.available_slots === '' ? NaN : Number(form.available_slots);
+    if (!Number.isInteger(availableSlots) || availableSlots < 1) { alert('名額必須大於 0'); return; }
     // 同一到診日期不能重複（排除正在編輯的紀錄本身）
     const duplicate = visits.find(v => v.visit_date === form.visit_date && v.id !== editingId);
     if (duplicate) { alert('此到診日期已存在，請選擇其他日期或編輯現有紀錄'); return; }
@@ -65,13 +66,13 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
       if (editingId) {
         const { error } = await supabase
           .from('doctor_visit_schedule')
-          .update({ visit_date: form.visit_date, doctor_name: form.doctor_name.trim(), available_slots: form.available_slots })
+          .update({ visit_date: form.visit_date, doctor_name: form.doctor_name.trim(), available_slots: availableSlots })
           .eq('id', editingId);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('doctor_visit_schedule')
-          .insert([{ visit_date: form.visit_date, doctor_name: form.doctor_name.trim(), available_slots: form.available_slots }]);
+          .insert([{ visit_date: form.visit_date, doctor_name: form.doctor_name.trim(), available_slots: availableSlots }]);
         if (error) throw error;
       }
       resetForm();
@@ -145,7 +146,7 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
                 <div>
                   <label className="form-label text-xs">名額（同日最大覆診人數）</label>
                   <input type="number" min={1} className="form-input" value={form.available_slots}
-                    onChange={(e) => setForm(f => ({ ...f, available_slots: parseInt(e.target.value) || 1 }))} />
+                    onChange={(e) => setForm(f => ({ ...f, available_slots: e.target.value }))} />
                 </div>
               </div>
               <div className="flex gap-2">

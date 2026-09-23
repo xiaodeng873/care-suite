@@ -39,7 +39,7 @@ const PgtModal: React.FC<PgtModalProps> = ({ record, renewFrom, onClose }) => {
     pgt_visit_date: src?.pgt_visit_date ?? '',
     pgt_visit_unknown: src?.pgt_visit_unknown ?? false,
     medication_pickup_arrangement: src?.medication_pickup_arrangement ?? '每次詢問' as '家人前往' | '院舍代勞' | '每次詢問',
-    treatment_weeks: src?.treatment_weeks ?? undefined as number | undefined,
+    treatment_weeks: src?.treatment_weeks ?? undefined as number | string | undefined,
     remarks: src?.remarks ?? ''
   });
   const [form, setForm] = useState(() => buildForm(source));
@@ -53,8 +53,9 @@ const PgtModal: React.FC<PgtModalProps> = ({ record, renewFrom, onClose }) => {
   const [renewIsDerived, setRenewIsDerived] = useState(false);
 
   // 藥完日期 = 到診日期 + 療程周數 × 7；療程留空或到診未知 → 唔郁
-  const deriveAndSetEndDate = (visitDate: string, weeks: number | undefined, unknown: boolean) => {
-    const derived = calcEstimatedMedicationEndDate(visitDate, weeks, unknown);
+  const deriveAndSetEndDate = (visitDate: string, weeks: number | string | undefined, unknown: boolean) => {
+    const w = weeks === '' || weeks === undefined ? undefined : Number(weeks);
+    const derived = calcEstimatedMedicationEndDate(visitDate, w, unknown);
     if (derived) set({ medication_end_date: derived });
   };
 
@@ -106,7 +107,7 @@ const PgtModal: React.FC<PgtModalProps> = ({ record, renewFrom, onClose }) => {
         pgt_visit_date: form.pgt_visit_unknown ? undefined : form.pgt_visit_date || undefined,
         pgt_visit_unknown: form.pgt_visit_unknown,
         medication_pickup_arrangement: form.medication_pickup_arrangement as '家人前往' | '院舍代勞' | '每次詢問',
-        treatment_weeks: form.treatment_weeks ?? undefined,
+        treatment_weeks: form.treatment_weeks === '' || form.treatment_weeks === undefined ? undefined : Number(form.treatment_weeks),
         remarks: form.remarks || undefined
       };
       if (editingRecord) {
@@ -116,7 +117,7 @@ const PgtModal: React.FC<PgtModalProps> = ({ record, renewFrom, onClose }) => {
       }
       // 儲存時有療程 → 彈出提醒：顯示推算藥完日期，問用戶要唔要另存新列
       if (form.treatment_weeks) {
-        const derived = calcEstimatedMedicationEndDate(form.pgt_visit_date, form.treatment_weeks, form.pgt_visit_unknown);
+        const derived = calcEstimatedMedicationEndDate(form.pgt_visit_date, Number(form.treatment_weeks), form.pgt_visit_unknown);
         setRenewEndDate(derived ?? (form.medication_end_date || undefined));
         setRenewIsDerived(!!derived);
         setShowRenewPrompt(true);
@@ -199,7 +200,7 @@ const PgtModal: React.FC<PgtModalProps> = ({ record, renewFrom, onClose }) => {
                   <input
                     type="number" min={0} className="form-input" value={form.treatment_weeks ?? ''}
                     onChange={(e) => {
-                      const weeks = e.target.value === '' ? undefined : parseInt(e.target.value) || 0;
+                      const weeks = e.target.value === '' ? undefined : e.target.value;
                       set({ treatment_weeks: weeks });
                       // 有到診日期就自動推算藥完日期（到診未知 / 療程留空 → 唔郁）
                       if (!manualEndDate) deriveAndSetEndDate(form.pgt_visit_date, weeks, form.pgt_visit_unknown);
