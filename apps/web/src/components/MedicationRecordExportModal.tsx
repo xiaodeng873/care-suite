@@ -976,7 +976,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                                       {formatMealTimingFrom(prescription) &&
                                 <div className="flex items-baseline">
                                           <span className="font-medium text-gray-900 mr-1.5">用法：</span>
-                                          <span className="text-gray-800">{formatMealTimingFrom(prescription)}</span>
+                                          <span className="text-gray-800 whitespace-pre-line">{formatMealTimingFrom(prescription)}</span>
                                         </div>
                                 }
                                       {prescription.preparation_method &&

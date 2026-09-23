@@ -887,7 +887,7 @@ export interface DrugData {
   // 預設時段連接詞（「或」/「及」，新增處方時自動帶入）
   meal_timing_connector?: '或' | '及';
   // 預設服用時段（可增減，jsonb：{slots:[...], connectors:[...]}，優先於舊三欄）
-  meal_timings?: { slots: string[]; connectors: ('或' | '及')[] } | null;
+  meal_timings?: { slots: string[]; connectors: ('或' | '及' | '')[] } | null;
   // 糖尿病藥物標籤（新增/調整劑量後提醒新增血糖值監測任務）
   is_diabetic_drug?: boolean;
   // 降血壓藥物標籤（新增/調整劑量後提醒新增生命表徵監測任務）
@@ -941,7 +941,7 @@ export interface MedicationPrescription {
   // 服用時段連接詞（「或」=任一時段給服皆合處方要求；「及」=兩時段皆需給服）
   meal_timing_connector?: '或' | '及';
   // 服用時段（可增減，jsonb：{slots:[...], connectors:[...]}，優先於舊三欄）
-  meal_timings?: { slots: string[]; connectors: ('或' | '及')[] } | null;
+  meal_timings?: { slots: string[]; connectors: ('或' | '及' | '')[] } | null;
   notes?: string;
   preparation_method: PreparationMethodType;
   status: PrescriptionStatusType;

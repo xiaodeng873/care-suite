@@ -1315,7 +1315,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
               {formatMealTimingFrom(prescription) && (
                 <div className="flex items-center space-x-1">
                   <span className="text-gray-500">時段:</span>
-                  <span className="font-medium">{formatMealTimingFrom(prescription)}</span>
+                  <span className="font-medium whitespace-pre-line">{formatMealTimingFrom(prescription)}</span>
                 </div>
               )}
               {prescription.preparation_method && (

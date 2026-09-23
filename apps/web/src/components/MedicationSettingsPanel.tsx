@@ -79,19 +79,20 @@ const MedicationSettingsPanel: React.FC = () => {
     dragKey.current = key;
     dragIdx.current = idx;
   };
+  // 注意：setState 嘅 updater 係 defer 執行，唔可以靠佢嘅副作用攞最新值；
+  // 用呢個同步 ref 計算，否則最後一下 dragover 冇記入，onDragEnd 會儲存舊一格嘅順序
   const onDragOver = (e: React.DragEvent, key: string, idx: number) => {
     e.preventDefault();
     if (dragKey.current !== key || dragIdx.current === idx) return;
     const from = dragIdx.current;
-    let nextSettings: MedicationSettingsData | null = null;
-    setSettings(prev => {
-      const arr = [...(prev[key as StringKey] as string[])];
-      const [item] = arr.splice(from, 1);
-      arr.splice(idx, 0, item);
-      nextSettings = { ...prev, [key]: arr };
-      return nextSettings;
-    });
-    if (nextSettings) dragSettingsRef.current = nextSettings;
+    const prev = latestSettings.current;
+    const arr = [...(prev[key as StringKey] as string[])];
+    const [item] = arr.splice(from, 1);
+    arr.splice(idx, 0, item);
+    const nextSettings = { ...prev, [key]: arr };
+    latestSettings.current = nextSettings;
+    dragSettingsRef.current = nextSettings;
+    setSettings(nextSettings);
     dragIdx.current = idx;
   };
   const onDragEnd = () => {

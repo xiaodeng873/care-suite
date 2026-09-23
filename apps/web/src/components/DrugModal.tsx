@@ -349,10 +349,11 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
                           });
                         }}
                         className="form-input w-20"
-                        title="時段連接詞"
+                        title="時段連接詞（「無」=顯示時換新行）"
                       >
                         <option value="或">或</option>
                         <option value="及">及</option>
+                        <option value="">（換行）</option>
                       </select>
                     )}
                     <select

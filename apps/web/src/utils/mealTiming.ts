@@ -1,6 +1,6 @@
 // 服用時段（可增減）：slots 為時段清單，connectors 為相鄰時段之間嘅連接詞
-// （「或」=任一時段給服皆合處方要求；「及」=該縫位兩時段皆需給服），長度 = slots.length - 1
-export type MealTimingConnector = '或' | '及';
+// （「或」=任一時段給服皆合處方要求；「及」=該縫位兩時段皆需給服；''=無連接詞，顯示時換新行），長度 = slots.length - 1
+export type MealTimingConnector = '或' | '及' | '';
 
 export interface MealTimings {
   slots: string[];
@@ -26,7 +26,7 @@ export function getMealTimings(source: MealTimingSource | null | undefined): Mea
     if (slots.length) {
       const need = slots.length - 1;
       const connectors: MealTimingConnector[] = Array.isArray(raw.connectors)
-        ? (raw.connectors as unknown[]).slice(0, need).map((c) => (c === '及' ? '及' : '或'))
+        ? (raw.connectors as unknown[]).slice(0, need).map((c) => (c === '及' ? '及' : c === '' || c == null ? '' : '或'))
         : [];
       while (connectors.length < need) connectors.push('或');
       return { slots, connectors };
@@ -39,12 +39,34 @@ export function getMealTimings(source: MealTimingSource | null | undefined): Mea
   };
 }
 
-/** 顯示格式：時段1 或 時段2 及 時段3 …（每個縫位用自己嘅連接詞） */
+/** 顯示格式：時段1或時段2及時段3 …（每個縫位用自己嘅連接詞，唔加空格；無連接詞='' → 換行 \n） */
 export function formatMealTimings(t: MealTimings): string {
   if (!t.slots.length) return '';
   let out = t.slots[0];
-  for (let i = 1; i < t.slots.length; i++) out += ` ${t.connectors[i - 1] ?? '或'} ${t.slots[i]}`;
+  for (let i = 1; i < t.slots.length; i++) {
+    const conn = t.connectors[i - 1] ?? '或';
+    out += conn === '' ? `\n${t.slots[i]}` : `${conn}${t.slots[i]}`;
+  }
   return out;
+}
+
+const escapeHtml = (s: string): string =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** HTML 文件用：同 formatMealTimings（連接詞前後唔加空格），但已 escape，且無連接詞嘅縫位輸出 <br> */
+export function formatMealTimingsHtml(t: MealTimings): string {
+  if (!t.slots.length) return '';
+  let out = escapeHtml(t.slots[0]);
+  for (let i = 1; i < t.slots.length; i++) {
+    const conn = t.connectors[i - 1] ?? '或';
+    out += conn === '' ? `<br>${escapeHtml(t.slots[i])}` : `${conn}${escapeHtml(t.slots[i])}`;
+  }
+  return out;
+}
+
+/** HTML 文件用捷徑（getMealTimings + formatMealTimingsHtml） */
+export function formatMealTimingHtmlFrom(source: MealTimingSource | null | undefined): string {
+  return formatMealTimingsHtml(getMealTimings(source));
 }
 
 /** 舊介面（時段1/時段2/單一連接詞）；新代碼請用 formatMealTimings(getMealTimings(x)) */
@@ -52,7 +74,7 @@ export function formatMealTiming(mealTiming?: string | null, mealTiming2?: strin
   const parts = [mealTiming, mealTiming2]
     .map((s) => String(s ?? '').trim())
     .filter(Boolean);
-  return parts.join(` ${connector} `);
+  return parts.join(connector);
 }
 
 /** 由來源直接組顯示字串（getMealTimings + formatMealTimings 嘅捷徑） */
@@ -78,6 +100,7 @@ export function toMealTimingPayload(
     meal_timings: slots.length ? { slots, connectors } : null,
     [slot1Key]: slots[0] || null,
     meal_timing_2: slots[1] || null,
-    meal_timing_connector: slots.length > 1 ? (connectors[0] ?? '或') : null,
+    // 舊欄只識 或/及；無連接詞（''）喺舊欄存 null，完整結構以 meal_timings jsonb 為準
+    meal_timing_connector: slots.length > 1 ? (connectors[0] === '' ? null : (connectors[0] ?? '或')) : null,
   };
 }

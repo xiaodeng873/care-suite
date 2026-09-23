@@ -186,7 +186,7 @@ const PrescriptionDetailModal: React.FC<PrescriptionDetailModalProps> = ({ presc
               {infoRow(<Stethoscope className="h-4 w-4" />, '服用途徑', prescription.administration_route)}
               {infoRow(<Beaker className="h-4 w-4" />, '劑量 / 單位', `${prescription.dosage_amount || ''} ${prescription.dosage_unit || ''}`.trim() || '-')}
               {infoRow(<Clock className="h-4 w-4" />, '頻次', frequencyDesc)}
-              {infoRow(<Clock className="h-4 w-4" />, '服用時段', formatMealTimingFrom(prescription))}
+              {infoRow(<Clock className="h-4 w-4" />, '服用時段', <span className="whitespace-pre-line">{formatMealTimingFrom(prescription)}</span>)}
               {infoRow(<FlaskConical className="h-4 w-4" />, '備藥方式', prescription.preparation_method ? preparationLabels[prescription.preparation_method] : '-')}
               {infoRow(<CheckCircle className="h-4 w-4" />, '需要時 (PRN)', prescription.is_prn ? '是' : '否')}
             </div>

@@ -448,7 +448,10 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
     { key: 'special', label: '特殊', render: (p) => p.special_dosage_instruction || '—', editor: selectFromList('special_dosage_instruction', '特殊用法') },
     {
       key: 'timing', label: '時段',
-      render: (p) => formatMealTimingFrom(p) || '—',
+      render: (p) => {
+        const s = formatMealTimingFrom(p);
+        return s ? <span className="whitespace-pre-line">{s}</span> : '—';
+      },
       editor: (p, commit, done, c) => {
         // 可增減時段：每次改動都一次過提交 meal_timings jsonb + 舊三欄同步
         const mt = getMealTimings(p);
@@ -476,6 +479,7 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
                   >
                     <option value="或">或</option>
                     <option value="及">及</option>
+                    <option value="">（換行）</option>
                   </select>
                 )}
                 <select

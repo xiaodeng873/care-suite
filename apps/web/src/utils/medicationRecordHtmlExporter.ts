@@ -998,7 +998,7 @@ const renderPrescriptionBlock = (
     dosageLine,
   ]
     .filter((line) => line != null && String(line).trim() !== '')
-    .map((line) => `<div>${escapeHtml(String(line))}</div>`)
+    .map((line) => `<div>${escapeHtml(String(line)).replace(/\n/g, '<br>')}</div>`)
     .join('');
   const isImmediate = prescription.preparation_method === 'immediate';
   const diagClass = isImmediate ? 'mr-diag-prn' : 'mr-diag';

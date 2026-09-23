@@ -211,7 +211,7 @@ const DispenseConfirmModal: React.FC<DispenseConfirmModalProps> = ({
               {formatMealTimingFrom(prescription) && (
                 <div>
                   <div className="text-gray-500 mb-1">用藥時機</div>
-                  <div className="font-medium text-gray-900">{formatMealTimingFrom(prescription)}</div>
+                  <div className="font-medium text-gray-900 whitespace-pre-line">{formatMealTimingFrom(prescription)}</div>
                 </div>
               )}
               {isImmediatePreparation && (

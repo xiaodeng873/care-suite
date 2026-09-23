@@ -3234,7 +3234,7 @@ const MedicationWorkflow: React.FC = () => {
                                       })()}
                                     </div>
                                     {formatMealTimingFrom(prescription) && (
-                                      <div>{formatMealTimingFrom(prescription)}</div>
+                                      <div className="whitespace-pre-line">{formatMealTimingFrom(prescription)}</div>
                                     )}
                                     {(() => {
                                       const parts: string[] = [];

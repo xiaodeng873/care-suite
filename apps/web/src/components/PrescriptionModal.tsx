@@ -1061,10 +1061,11 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                             });
                           }}
                           className="form-input w-20"
-                          title="時段連接詞（「或」=任一時段給服；「及」=兩時段皆需給服）"
+                          title="時段連接詞（「或」=任一時段給服；「及」=兩時段皆需給服；「無」=顯示時換新行）"
                         >
                           <option value="或">或</option>
                           <option value="及">及</option>
+                          <option value="">（換行）</option>
                         </select>
                       )}
                       <select
