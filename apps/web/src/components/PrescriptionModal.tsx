@@ -461,8 +461,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       return;
     }
 
-    // 「無」每日次數只適用於 PRN（需要時服）藥物
-    if (!formData.daily_frequency && !formData.is_prn) {
+    // 「無」每日次數只適用於 PRN（需要時服）藥物；「每次」處方無頻率概念，豁免
+    if (formData.frequency_type !== 'each_time' && !formData.daily_frequency && !formData.is_prn) {
       setValidationError('每日服用次數選擇「無」時，必須勾選「需要時 (PRN)」');
       return;
     }
@@ -470,7 +470,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     // 驗證服用時間點數量與每日服用次數的一致性（矛盾時以 Modal 提醒）
     const freqLabel = (n: number): string => (n === 0 ? '無' : ({ 1: 'QD（每日1次）', 2: 'BID（每日2次）', 3: 'TID（每日3次）', 4: 'QID（每日4次）' }[n] ?? `每日${n}次`));
 
-    if (!formData.is_prn) {
+    if (!formData.is_prn && formData.frequency_type !== 'each_time') {
       const expectedTimeSlots = formData.daily_frequency || 1;
       const actualTimeSlots = formData.medication_time_slots.length;
       if (actualTimeSlots !== expectedTimeSlots) {
@@ -480,7 +480,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         setShowContradictionModal(true);
         return;
       }
-    } else {
+    } else if (formData.frequency_type !== 'each_time') {
       if (formData.medication_time_slots.length > formData.daily_frequency) {
         setContradictionDetails(
           `需要時服（PRN）的時間點數量超過每日次數上限。\n\n每日次數上限：${freqLabel(formData.daily_frequency)}\n已設時間點：${formData.medication_time_slots.length} 個\n\n請移除多餘的時間點，或將每日次數上限調高。`
@@ -554,12 +554,12 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         dosage_amount: formData.dosage_amount === '' ? null : String(formData.dosage_amount),
         dosage_unit: formData.dosage_unit,
         special_dosage_instruction: formData.special_dosage_instruction,
-        daily_frequency: formData.daily_frequency,
+        daily_frequency: formData.frequency_type === 'each_time' ? null : formData.daily_frequency,
         frequency_type: formData.frequency_type,
         frequency_value: formData.frequency_value === '' ? null : parseInt(String(formData.frequency_value), 10),
         specific_weekdays: formData.specific_weekdays,
         is_odd_even_day: formData.is_odd_even_day,
-        medication_time_slots: formData.medication_time_slots,
+        medication_time_slots: formData.frequency_type === 'each_time' ? [] : formData.medication_time_slots,
         ...toMealTimingPayload(formData.meal_timings),
         is_prn: formData.is_prn,
         preparation_method: formData.preparation_method,
@@ -1216,11 +1216,11 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 >
                   <option value="daily">每日服</option>
                   <option value="every_x_days">每N日服</option>
-                  <option value="every_x_weeks">每N週服</option>
-                  <option value="every_x_months">每N月服</option>
-                  <option value="weekly_days">逢週N服</option>
                   <option value="odd_even_days">單日/雙日服</option>
-                  <option value="hourly">每小時</option>
+                  <option value="every_x_weeks">每N週服</option>
+                  <option value="weekly_days">逢週N服</option>
+                  <option value="every_x_months">每N月服</option>               
+                  <option value="hourly">每N小時</option>
                   <option value="each_time">每次</option>
                 </select>
               </div>
@@ -1232,9 +1232,9 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 <div>
                   <label className="form-label">
                     {formData.frequency_type === 'every_x_days' && '間隔天數'}
-                    {formData.frequency_type === 'every_x_weeks' && '週數'}
-                    {formData.frequency_type === 'every_x_months' && '月數'}
-                    {formData.frequency_type === 'hourly' && '服用次數'}
+                    {formData.frequency_type === 'every_x_weeks' && '間隔週數'}
+                    {formData.frequency_type === 'every_x_months' && '間隔月數'}
+                    {formData.frequency_type === 'hourly' && '間隔時數'}
                   </label>
                   <input
                     type="number"
@@ -1282,6 +1282,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 </div>
               )}
 
+              {/* 「每次」處方無服用頻率概念（只有每次劑量），唔顯示當日服用次數，避免矛盾 */}
+              {formData.frequency_type !== 'each_time' && (
               <div>
                 <label className="form-label">當日服用次數</label>
                 <div className="flex items-center gap-1">
@@ -1319,9 +1321,11 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   </button>
                 </div>
               </div>
+              )}
             </div>
 
-            {/* 服用時間點 - 移到服用頻率區塊 */}
+            {/* 服用時間點 - 移到服用頻率區塊；「每次」處方無頻率概念，唔顯示 */}
+            {formData.frequency_type !== 'each_time' && (
             <div className="mt-6 pt-4 border-t border-yellow-200">
               <div className="flex items-center justify-between mb-2">
                 <label className="form-label mb-0">服用時間點</label>
@@ -1386,6 +1390,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 </button>
               </div>
             </div>
+            )}
           </div>
 
           {/* 檢測項設定 */}

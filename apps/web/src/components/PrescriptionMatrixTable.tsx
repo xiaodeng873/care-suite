@@ -554,7 +554,7 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
               <option value="every_x_months">每N月服</option>
               <option value="weekly_days">逢星期N服</option>
               <option value="odd_even_days">單日/雙日服</option>
-              <option value="hourly">每小時</option>
+              <option value="hourly">每N小時</option>
             </select>
             {(type === 'every_x_days' || type === 'every_x_weeks' || type === 'every_x_months' || type === 'hourly') && (
               <input

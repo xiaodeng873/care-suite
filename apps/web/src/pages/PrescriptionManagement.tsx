@@ -178,6 +178,8 @@ const PrescriptionManagement: React.FC = () => {
   const [showDrugAdjustReminder, setShowDrugAdjustReminder] = useState(false);
   const drugAdjustRemindedRef = useRef(false);
   const [drugAdjustDismissed, setDrugAdjustDismissed] = useState<Set<string>>(new Set());
+  // 壓制紀錄未載完前唔准彈提醒，否則已「不再提醒」嘅項目會閃現先消失
+  const [drugAdjustDismissedLoaded, setDrugAdjustDismissedLoaded] = useState(false);
   // 藥物安全資訊：新增藥物敏感／不良藥物反應彈窗
   const [drugSafetyModal, setDrugSafetyModal] = useState<{ type: 'allergy' | 'adr' } | null>(null);
   // 由伺服器載入壓制紀錄；舊版 localStorage 紀錄一次性遷移上伺服器後清除
@@ -200,6 +202,8 @@ const PrescriptionManagement: React.FC = () => {
       setDrugAdjustDismissed(await getDrugAdjustmentReminderDismissals());
     } catch (err) {
       console.error('載入藥物調節提醒壓制紀錄失敗:', err);
+    } finally {
+      setDrugAdjustDismissedLoaded(true);
     }
   }, []);
   useEffect(() => {
@@ -211,18 +215,19 @@ const PrescriptionManagement: React.FC = () => {
     [prescriptions, patientHealthTasks, drugDatabase, drugAdjustDismissed]
   );
   // 每次進入頁面（loading 完成時）有欠缺即彈——用戶只撳取消的話，下次進入照樣提醒
+  // 前提係壓制紀錄已載完（drugAdjustDismissedLoaded），否則已壓制項目會閃現
   useEffect(() => {
-    if (!loading && drugAdjustItems.length > 0) {
+    if (!loading && drugAdjustDismissedLoaded && drugAdjustItems.length > 0) {
       setShowDrugAdjustReminder(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]);
+  }, [loading, drugAdjustDismissedLoaded]);
   // 頁內資料變化（新增/調劑量）後嘅重檢：用 ref 防止同一事件重複彈
   useEffect(() => {
-    if (loading || drugAdjustItems.length === 0 || drugAdjustRemindedRef.current) return;
+    if (loading || !drugAdjustDismissedLoaded || drugAdjustItems.length === 0 || drugAdjustRemindedRef.current) return;
     drugAdjustRemindedRef.current = true;
     setShowDrugAdjustReminder(true);
-  }, [loading, drugAdjustItems]);
+  }, [loading, drugAdjustDismissedLoaded, drugAdjustItems]);
   const [showMedicationRecordExportModal, setShowMedicationRecordExportModal] = useState(false);
 
   // 掛載時自動刷新處方資料，確保匯入後最新資料可見
