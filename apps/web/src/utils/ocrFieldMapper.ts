@@ -15,6 +15,7 @@ export interface OCRExtractedData {
   需要時?: boolean;
   備註?: string;
   服用時間?: string[];
+  服用時段?: string | string[];
   檢測項?: Array<{
     項目?: string;
     條件?: string;
@@ -61,7 +62,8 @@ export interface FieldConfidence {
 export function mapOCRDataToPrescriptionForm(
   ocrData: OCRExtractedData,
   confidenceScores: Record<string, number>,
-  patients: any[]
+  patients: any[],
+  mealTimingOptions?: string[]
 ): { formData: Partial<PrescriptionFormData>; confidences: FieldConfidence } {
   const mappedData: Partial<PrescriptionFormData> = {};
   const confidences: FieldConfidence = {};
@@ -190,6 +192,34 @@ export function mapOCRDataToPrescriptionForm(
     }
   }
 
+  if (ocrData.服用時段) {
+    const raw = ocrData.服用時段;
+    let slots: string[] = [];
+    let connectors: ('或' | '及' | '')[] = [];
+    if (Array.isArray(raw)) {
+      slots = raw.map(String).map(s => s.trim()).filter(Boolean);
+      connectors = Array(Math.max(0, slots.length - 1)).fill('或');
+    } else if (typeof raw === 'string') {
+      // 保留「或／及」連接詞順序拆開，例如「進餐時或餐後」→ slots + connectors
+      const parts = raw.split(/(或|及)/).map(s => s.trim()).filter(Boolean);
+      for (const part of parts) {
+        if (part === '或' || part === '及') {
+          if (slots.length > connectors.length) connectors.push(part);
+        } else {
+          slots.push(part);
+        }
+      }
+      while (connectors.length < Math.max(0, slots.length - 1)) connectors.push('或');
+    }
+    if (slots.length > 0) {
+      mappedData.meal_timings = {
+        slots: slots.map(s => snapMealTiming(s, mealTimingOptions)),
+        connectors,
+      };
+      confidences.meal_timings = confidenceScores['服用時段'] || 0.8;
+    }
+  }
+
   if (typeof ocrData.需要時 === 'boolean') {
     mappedData.is_prn = ocrData.需要時;
     confidences.is_prn = confidenceScores['需要時'] || 0.85;
@@ -293,6 +323,21 @@ function parseDate(dateString: string): string | null {
   }
 
   return null;
+}
+
+function snapMealTiming(value: string, options?: string[]): string {
+  if (!options || options.length === 0) return value;
+  const v = value.replace(/\s+/g, '');
+  const exact = options.find(o => o === v || o === value);
+  if (exact) return exact;
+  // 常見異體：飯→餐（飯後→餐後、飯前→餐前）
+  const normalized = v.replace(/飯/g, '餐');
+  const exactNorm = options.find(o => o === normalized);
+  if (exactNorm) return exactNorm;
+  const included = options.find(o =>
+    o.includes(v) || v.includes(o) || o.includes(normalized) || normalized.includes(o)
+  );
+  return included || value;
 }
 
 function parseTimeSlots(value: unknown): string[] {

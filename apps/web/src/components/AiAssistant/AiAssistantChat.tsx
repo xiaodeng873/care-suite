@@ -11,6 +11,7 @@ import PatientModal from '../PatientModal';
 import BatchHealthRecordOCRModal from '../BatchHealthRecordOCRModal';
 import ImageSourcePicker from '../ImageSourcePicker';
 import { mapOCRDataToPrescriptionForm } from '../../utils/ocrFieldMapper';
+import { getMedicationSettings } from '../../utils/medicationSettings';
 import { supabase } from '../../lib/supabase';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -299,7 +300,8 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
     const { formData: mapped } = mapOCRDataToPrescriptionForm(
       ed || {},
       {},
-      prefill.matchedPatient ? [prefill.matchedPatient] : []
+      prefill.matchedPatient ? [prefill.matchedPatient] : [],
+      getMedicationSettings().服用時段
     );
     return {
       ...mapped,

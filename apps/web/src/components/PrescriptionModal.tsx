@@ -336,7 +336,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     const { formData: mappedData, confidences } = mapOCRDataToPrescriptionForm(
       extractedData,
       confidenceScores,
-      patients
+      patients,
+      medSettings.服用時段
     );
 
     const filledFields = new Set<string>();
