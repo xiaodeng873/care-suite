@@ -487,6 +487,10 @@ ul, ol {
   .navbar-toggle {
     display: none;
   }
+  /* 桌面版用 navbar-actions 嘅登入掣，手機頂欄嗰個收埋 */
+  .navbar-mobile-login {
+    display: none;
+  }
 }
 
 /* Mobile menu */
@@ -500,6 +504,8 @@ ul, ol {
   padding: var(--space-4);
   transform: translateX(100%);
   transition: transform 0.3s ease-in-out;
+  /* 連結多過一個螢幕高度時，底部登入/WhatsApp 按鈕要捽到先得 */
+  overflow-y: auto;
 }
 
 .mobile-menu.open {

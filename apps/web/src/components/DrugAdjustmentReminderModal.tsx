@@ -12,8 +12,8 @@ import { dismissDrugAdjustmentReminder } from '../lib/database';
 interface DrugAdjustmentReminderModalProps {
   items: DrugAdjustmentReminderItem[];
   onClose: () => void;
-  // 用戶選「不再提醒」後通知上層重算 items
-  onDismissed?: () => void;
+  // 用戶選「不再提醒」後通知上層重算 items（帶上被壓制嘅嗰項）
+  onDismissed?: (item: DrugAdjustmentReminderItem) => void;
   // 任務建成後通知上層重載任務列表（items 會自動重算）
   onTaskCreated?: () => void | Promise<void>;
 }
@@ -49,7 +49,7 @@ const DrugAdjustmentReminderModal: React.FC<DrugAdjustmentReminderModalProps> = 
     } catch (err) {
       console.error('儲存「不再提醒」失敗:', err);
     }
-    onDismissed?.();
+    onDismissed?.(item);
   };
 
   return (

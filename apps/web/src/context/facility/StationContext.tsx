@@ -43,8 +43,8 @@ interface SeniorCareontextType {
   deleteBed: (id: string) => Promise<void>;
   
   // 床位分配操作
-  assignPatientToBed: (patientId: number, bedId: string, transferType?: BedTransferType, opts?: { originalBedId?: string }) => Promise<void>;
-  swapPatientBeds: (patientId1: number, patientId2: number, transferType?: BedTransferType) => Promise<void>;
+  assignPatientToBed: (patientId: number, bedId: string, transferType?: BedTransferType, opts?: { originalBedId?: string; transferDate?: string }) => Promise<void>;
+  swapPatientBeds: (patientId1: number, patientId2: number, transferType?: BedTransferType, transferDate?: string) => Promise<void>;
   changeOriginalBed: (patientId: number, newOriginalBedId: string) => Promise<void>;
   endTemporaryTransfer: (patientId: number) => Promise<void>;
   cancelTemporaryTransfer: (patientId: number) => Promise<{ success: boolean; reason?: string }>;
@@ -203,6 +203,8 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     transferSubtype?: string | null;
     notes?: string | null;
     groupId?: string | null;
+    transferDate?: string | null;
+    transferNature?: '常規' | '暫時';
   }) => {
     try {
       const entry = buildBedTransferLogEntry({
@@ -219,6 +221,27 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
         actor,
       });
       await db.createBedTransferLogEntry(entry);
+
+      // 用戶確認調床時揀咗轉床日期：另外寫一筆入住記錄（patient_stay_log）
+      if (payload.transferDate) {
+        try {
+          await db.createPatientStayLog({
+            patient_id: payload.patientId,
+            event_type: '床位調動',
+            event_date: payload.transferDate,
+            bed_action: payload.actionType,
+            from_bed_number: payload.fromBedNumber || null,
+            to_bed_number: payload.toBedNumber || null,
+            notes: payload.transferNature ? `調動性質：${payload.transferNature}` : null,
+            applied: true,
+            actor_user_id: actor.user_id || null,
+            actor_username: actor.username || null,
+            actor_name: actor.name || null,
+          });
+        } catch (stayErr) {
+          console.error('寫入入住記錄（床位調動）失敗:', stayErr);
+        }
+      }
     } catch (err) {
       console.error('寫入床位調動日誌失敗:', err);
     }
@@ -228,7 +251,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     patientId: number,
     bedId: string,
     transferType: BedTransferType = 'routine',
-    opts?: { originalBedId?: string }
+    opts?: { originalBedId?: string; transferDate?: string }
   ) => {
     try {
       const { data: patient } = await rawSupabase
@@ -255,6 +278,8 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
         toBedId: bed?.id || null,
         fromBedNumber: patient?.床號 || null,
         toBedNumber: bed?.bed_number || null,
+        transferDate: opts?.transferDate || null,
+        transferNature: transferType === 'temporary' ? '暫時' : '常規',
       });
     } catch (error) {
       console.error('Error assigning patient to bed:', error);
@@ -265,7 +290,8 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
   const swapPatientBeds = useCallback(async (
     patientId1: number,
     patientId2: number,
-    transferType: BedTransferType = 'routine'
+    transferType: BedTransferType = 'routine',
+    transferDate?: string
   ) => {
     try {
       const { data: patients } = await rawSupabase
@@ -286,6 +312,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
       await refreshStationData();
 
       const groupId = generateGroupId();
+      const transferNature = transferType === 'temporary' ? '暫時' : '常規';
       await logTransfer({
         patientId: patientId1,
         patientName: p1?.中文姓名 || null,
@@ -295,6 +322,8 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
         fromBedNumber: bed1?.bed_number || null,
         toBedNumber: bed2?.bed_number || null,
         groupId,
+        transferDate: transferDate || null,
+        transferNature,
       });
       await logTransfer({
         patientId: patientId2,
@@ -305,6 +334,8 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
         fromBedNumber: bed2?.bed_number || null,
         toBedNumber: bed1?.bed_number || null,
         groupId,
+        transferDate: transferDate || null,
+        transferNature,
       });
     } catch (error) {
       console.error('Error swapping patient beds:', error);

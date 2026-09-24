@@ -34,7 +34,7 @@ function compareBed(a: string, b: string): number {
 function getIdCode(patient: Patient | undefined, record: CgatRecord): string {
   if (!patient) return 'EP1';
 
-  if (patient.入住類型 === '院舍卷級別0' || patient.入住類型 === '院舍卷級別1-7') return 'TPA';
+  if (patient.入住類型 === '院舍券級別0' || patient.入住類型 === '院舍券級別1-7') return 'TPA';
   if (patient.社會福利?.type === '綜合社會保障援助') return 'TPA';
 
   const age = calcAge(patient.出生日期);

@@ -3,6 +3,7 @@ import { X, ArrowRightLeft, User, Bed, Search } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import PatientTooltip from './PatientTooltip';
 import BedNumberImprint from './BedNumberImprint';
+import DateInput from './DateInput';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
 import type { BedTransferType } from '../lib/database';
 
@@ -16,6 +17,7 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
   const [selectedPatient1, setSelectedPatient1] = useState<any>(null);
   const [selectedPatient2, setSelectedPatient2] = useState<any>(null);
   const [transferType, setTransferType] = useState<BedTransferType>('routine');
+  const [transferDate, setTransferDate] = useState('');
   const [searchTerm1, setSearchTerm1] = useState('');
   const [searchTerm2, setSearchTerm2] = useState('');
   const deferredSearch1 = useDeferredValue(searchTerm1);
@@ -66,6 +68,11 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
       return;
     }
 
+    if (!transferDate) {
+      alert('請選擇轉床日期');
+      return;
+    }
+
     const patient1BedInfo = getPatientBedInfo(selectedPatient1);
     const patient2BedInfo = getPatientBedInfo(selectedPatient2);
 
@@ -81,7 +88,7 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
     }
 
     try {
-      await swapPatientBeds(selectedPatient1.院友id, selectedPatient2.院友id, transferType);
+      await swapPatientBeds(selectedPatient1.院友id, selectedPatient2.院友id, transferType, transferDate);
       alert('床位互換成功！');
       onClose();
     } catch (error) {
@@ -283,6 +290,18 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
             </div>
           </div>
 
+          {/* 轉床日期（必填）：會寫入雙方院友嘅入住記錄 */}
+          <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <label className="form-label">轉床日期 <span className="text-red-500">*</span></label>
+            <DateInput
+              name="轉床日期"
+              value={transferDate}
+              className="form-input max-w-xs"
+              onChange={(value) => setTransferDate(value)}
+            />
+            <p className="text-xs text-gray-500 mt-1">此日期會寫入兩位院友嘅入住記錄作為床位調動日期。</p>
+          </div>
+
           {/* 互換預覽 */}
           {selectedPatient1 && selectedPatient2 && (
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -313,7 +332,7 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
           <div className="flex flex-col sm:flex-row gap-2 pt-6 border-t border-gray-200">
             <button
               onClick={handleSwap}
-              disabled={!selectedPatient1 || !selectedPatient2}
+              disabled={!selectedPatient1 || !selectedPatient2 || !transferDate}
               className="btn-primary flex-1 flex flex-wrap items-center justify-center gap-2"
             >
               <ArrowRightLeft className="h-4 w-4" />

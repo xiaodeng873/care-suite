@@ -13,11 +13,12 @@ import {
 type StringKey = Exclude<keyof MedicationSettingsData, '機構簡稱' | '專科簡稱'>;
 type AbbrKey = '機構簡稱' | '專科簡稱';
 
-// 邊啲清單要有「英文簡稱」欄：醫管局三個機構組 + 專科
+// 邊啲清單要有「英文簡稱」欄：醫管局三個機構組 + 衛生署診所 + 專科
 const ABBR_KEY_MAP: Partial<Record<StringKey, AbbrKey>> = {
   機構_醫管局醫院: '機構簡稱',
   機構_醫管局門診: '機構簡稱',
   機構_醫管局精神科: '機構簡稱',
+  機構_衛生署: '機構簡稱',
   專科: '專科簡稱',
 };
 

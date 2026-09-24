@@ -317,13 +317,13 @@ const Reports: React.FC = () => {
 
     const 買位Patients = activePatients.filter(p => p.入住類型 === '買位');
     const 私位Patients = activePatients.filter(p => p.入住類型 === '私位');
-    const 院舍劵Patients = activePatients.filter(p => p.入住類型 === '院舍卷級別0' || p.入住類型 === '院舍卷級別1-7');
+    const 院舍券Patients = activePatients.filter(p => p.入住類型 === '院舍券級別0' || p.入住類型 === '院舍券級別1-7');
     const 暫住Patients = activePatients.filter(p => p.入住類型 === '暫住');
 
     const admissionTypeStats = {
       買位: { count: 買位Patients.length, names: 買位Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
       私位: { count: 私位Patients.length, names: 私位Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
-      院舍劵: { count: 院舍劵Patients.length, names: 院舍劵Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+      院舍券: { count: 院舍券Patients.length, names: 院舍券Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
       暫住: { count: 暫住Patients.length, names: 暫住Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
     };
 
@@ -647,8 +647,8 @@ const Reports: React.FC = () => {
                   </span> 人;
                 </span>
                 <span className="text-gray-700 ml-4">
-                  院舍劵: <span className="inline-block w-12 border-b-2 border-gray-400 text-center font-bold cursor-pointer hover:bg-yellow-100" title="點擊查看院友名單" onClick={() => showPatientList('院舍劵院友', dailyReportData.admissionTypeStats.院舍劵.names)}>
-                    {dailyReportData.admissionTypeStats.院舍劵.count}
+                  院舍券: <span className="inline-block w-12 border-b-2 border-gray-400 text-center font-bold cursor-pointer hover:bg-yellow-100" title="點擊查看院友名單" onClick={() => showPatientList('院舍券院友', dailyReportData.admissionTypeStats.院舍券.names)}>
+                    {dailyReportData.admissionTypeStats.院舍券.count}
                   </span> 人;
                 </span>
                 <span className="text-gray-700 ml-4">

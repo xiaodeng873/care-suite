@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { softDeleteRecord } from './recycleBin';
 import { calculateNextDueDate } from '../utils/taskScheduler';
+import { pickDueStayTypeChanges } from '../utils/stayTypeChanges';
 // [新增] 全域導出 CUTOFF 日期字串
 export const SYNC_CUTOFF_DATE_STR = '2025-12-01';
 // --- 介面定義 (Interfaces) ---
@@ -26,7 +27,7 @@ export interface Patient {
   入住日期?: string;
   退住日期?: string;
   護理等級?: '全護理' | '半護理' | '自理';
-  入住類型?: '私位' | '買位' | '院舍卷級別0' | '院舍卷級別1-7' | '暫住';
+  入住類型?: '私位' | '買位' | '院舍券級別0' | '院舍券級別1-7' | '暫住';
   社會福利?: { type: string; subtype?: string };
   公務員?: '公務員/家屬' | '醫管局員工/家屬';
   在住狀態?: '在住' | '待入住' | '已退住';
@@ -1456,6 +1457,95 @@ export const createBedTransferLogEntry = async (
 export const deleteBedTransferLogEntry = async (id: string): Promise<void> => {
   const { error } = await supabase.from('bed_transfer_log').delete().eq('id', id);
   if (error) throw error;
+};
+
+// ========== 入住記錄日誌（patient_stay_log：入住 / 類型變更 / 退住 / 床位調動）==========
+export type PatientStayEventType = '入住' | '類型變更' | '退住' | '床位調動';
+export type StayTypeValue = NonNullable<Patient['入住類型']>;
+
+export interface PatientStayLog {
+  id: string;
+  patient_id: number;
+  facility_id?: number | null;
+  event_type: PatientStayEventType;
+  event_date: string; // YYYY-MM-DD，手動輸入（可為未來日期）
+  // DB 係 text 欄（CHECK 約束把關合法值），呢度用 string 方便 UI 組裝；合法值見 StayTypeValue
+  from_type?: string | null;
+  to_type?: string | null;
+  bed_action?: string | null;
+  from_bed_number?: string | null;
+  to_bed_number?: string | null;
+  applied: boolean; // 類型變更專用：預選未來日期=false，到期套用後=true
+  actor_user_id?: string | null;
+  actor_username?: string | null;
+  actor_name?: string | null;
+  notes?: string | null;
+  created_at?: string;
+}
+
+export const getPatientStayLog = async (patientId: number): Promise<PatientStayLog[]> => {
+  const { data, error } = await supabase
+    .from('patient_stay_log')
+    .select('*')
+    .eq('patient_id', patientId)
+    .order('event_date', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as PatientStayLog[];
+};
+export const createPatientStayLog = async (
+  entry: Omit<PatientStayLog, 'id' | 'created_at'>
+): Promise<PatientStayLog> => {
+  const { data, error } = await supabase.from('patient_stay_log').insert([entry]).select().single();
+  if (error) throw error;
+  return data;
+};
+export const deletePatientStayLog = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('patient_stay_log').delete().eq('id', id);
+  if (error) throw error;
+};
+
+export interface AppliedStayTypeChange {
+  patient_id: number;
+  from_type: string | null;
+  to_type: string | null;
+  event_date: string;
+  log_id: string;
+}
+
+// 套用到期嘅類型變更：更新院友主表.入住類型，標記 log applied=true；回傳更新咗邊啲院友
+export const applyDueStayTypeChanges = async (todayStr?: string): Promise<AppliedStayTypeChange[]> => {
+  const today = todayStr || new Date().toISOString().split('T')[0];
+  const { data, error } = await supabase
+    .from('patient_stay_log')
+    .select('*')
+    .eq('event_type', '類型變更')
+    .eq('applied', false)
+    .lte('event_date', today)
+    .order('event_date', { ascending: false });
+  if (error) throw error;
+  const dueChanges = pickDueStayTypeChanges((data || []) as PatientStayLog[], today);
+  const applied: AppliedStayTypeChange[] = [];
+  for (const change of dueChanges) {
+    const { error: updateError } = await supabase
+      .from('院友主表')
+      .update({ 入住類型: change.to_type })
+      .eq('院友id', change.patient_id);
+    if (updateError) throw updateError;
+    const { error: markError } = await supabase
+      .from('patient_stay_log')
+      .update({ applied: true })
+      .eq('id', change.id);
+    if (markError) throw markError;
+    applied.push({
+      patient_id: change.patient_id,
+      from_type: change.from_type ?? null,
+      to_type: change.to_type ?? null,
+      event_date: change.event_date,
+      log_id: change.id,
+    });
+  }
+  return applied;
 };
 
 // 其他基礎函式

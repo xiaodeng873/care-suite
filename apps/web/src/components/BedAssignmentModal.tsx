@@ -19,6 +19,7 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
   const deferredSearch = useDeferredValue(searchTerm);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [transferType, setTransferType] = useState<BedTransferType>('routine');
+  const [transferDate, setTransferDate] = useState('');
   const [showAdmissionDateModal, setShowAdmissionDateModal] = useState(false);
   const [admissionDate, setAdmissionDate] = useState('');
 
@@ -71,6 +72,11 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
       return;
     }
 
+    if (!transferDate) {
+      alert('請選擇轉床日期');
+      return;
+    }
+
     // 院友未填寫入住日期：先彈出補填，確認後一併儲存及指派
     if (!selectedPatient.入住日期) {
       setAdmissionDate('');
@@ -79,7 +85,7 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
     }
 
     try {
-      await assignPatientToBed(selectedPatient.院友id, bed.id, transferType);
+      await assignPatientToBed(selectedPatient.院友id, bed.id, transferType, { transferDate });
       onClose();
     } catch (error) {
       console.error('指派院友到床位失敗:', error);
@@ -92,9 +98,13 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
       alert('請填寫入住日期');
       return;
     }
+    if (!transferDate) {
+      alert('請選擇轉床日期');
+      return;
+    }
     try {
       await updatePatient({ ...selectedPatient, 入住日期: admissionDate });
-      await assignPatientToBed(selectedPatient.院友id, bed.id, transferType);
+      await assignPatientToBed(selectedPatient.院友id, bed.id, transferType, { transferDate });
       onClose();
     } catch (error) {
       console.error('補填入住日期及指派床位失敗:', error);
@@ -312,11 +322,23 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
             )}
           </div>
 
+          {/* 轉床日期（必填）：會寫入入住記錄 */}
+          <div className="pt-6 border-t border-gray-200">
+            <label className="form-label">轉床日期 <span className="text-red-500">*</span></label>
+            <DateInput
+              name="轉床日期"
+              value={transferDate}
+              className="form-input max-w-xs"
+              onChange={(value) => setTransferDate(value)}
+            />
+            <p className="text-xs text-gray-500 mt-1">此日期會寫入院友入住記錄作為床位調動日期。</p>
+          </div>
+
           {/* 確認按鈕 */}
           <div className="flex flex-col sm:flex-row gap-2 pt-6 border-t border-gray-200">
             <button
               onClick={handleAssign}
-              disabled={!selectedPatient || !!occupyingPatient}
+              disabled={!selectedPatient || !transferDate || !!occupyingPatient}
               className="btn-primary flex-1"
               title={occupyingPatient ? `此床位已被 ${occupyingPatient.中文姓氏 || ''}${occupyingPatient.中文名字 || ''} 佔用` : ''}
             >

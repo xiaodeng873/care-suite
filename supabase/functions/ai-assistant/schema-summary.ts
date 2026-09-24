@@ -14,6 +14,12 @@ export const DB_SCHEMA_SUMMARY = `
 ## 院友入院記錄
 - **patient_admission_records** (id uuid [PK], patient_id integer, event_type, event_date date, event_time time, hospital_name text, hospital_ward text, hospital_bed_number text, remarks text, discharge_type, date_of_death date, time_of_death time, transfer_to_facility_name text, transfer_to_facility_address text, transfer_paths jsonb, created_at, updated_at)
 
+## 入住記錄日誌（入住 / 類型變更 / 退住 / 床位調動事件）
+- **patient_stay_log** (id uuid [PK], patient_id integer [FK→院友主表], facility_id integer, event_type text, event_date date, from_type text, to_type text, bed_action text, from_bed_number text, to_bed_number text, applied boolean, actor_user_id uuid, actor_username text, actor_name text, notes text, created_at timestamptz)
+  - event_type 合法值：'入住'、'類型變更'、'退住'、'床位調動'
+  - from_type / to_type 為入住類型值：'私位'、'買位'、'院舍券級別0'、'院舍券級別1-7'、'暫住'（入住只用 to_type，退住只用 from_type）
+  - 類型變更可預選未來日期：applied=false 表示未到期，到期後由 app 更新院友主表.入住類型 並標記 applied=true；院友主表.入住類型 係「現時類型」cache
+
 ## 感染控制記錄
 - **infection_control_records** (id uuid [PK], patient_id integer [FK→院友主表], infection_type text, diagnosis_date date, recovery_date date, created_at, updated_at)
   - 取代院友主表「感染控制」JSONB 陣列；查傳染病/感染控制請用此表
@@ -217,7 +223,7 @@ export const DB_SCHEMA_SUMMARY = `
 - **院友主表.在住狀態**：'在住'、'已退住'
 - **院友主表.性別**：'男'、'女'
 - **院友主表.護理等級**：'半護理'、'全護理'
-- **院友主表.入住類型**：'私位'、'院舍卷'、'暫住'、'買位'
+- **院友主表.入住類型**：'私位'、'買位'、'院舍券級別0'、'院舍券級別1-7'、'暫住'
 - **覆診安排主表.狀態**：'尚未安排'、'已安排'、'已完成'、'取消'、'改期'
 - **health_task_type**（用於 patient_health_tasks.health_record_type 及 健康監測記錄.監測類型）：'血壓'、'脈搏'、'體溫'、'血含氧量'、'呼吸'、'血糖值'、'體重'、'導尿管更換'、'鼻胃飼管更換'、'傷口換症'、'氧氣喉管清洗/更換'、'約束物品同意書'、'年度體檢'、'藥物自存同意書'、'預設醫療指示'
 `;

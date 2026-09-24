@@ -47,10 +47,10 @@ import { diagnoseWorkflowDisplayIssue } from '../utils/diagnoseTool';
 import { isPrescriptionScheduledOnDate } from '../utils/prescriptionSchedule';
 import { formatMealTimingFrom } from '../utils/mealTiming';
 import DrugAdjustmentReminderModal from '../components/DrugAdjustmentReminderModal';
-import { type DrugAdjustmentReminderItem } from '../utils/drugAdjustmentCheck';
+import { drugAdjustItemKey, type DrugAdjustmentReminderItem } from '../utils/drugAdjustmentCheck';
 import { isPrescriptionExpired, isPrescriptionValidAt, normalizeTime, prescriptionOverlapsDateRange } from '../utils/prescriptionExpiry';
 import { supabase } from '../lib/supabase';
-import { getPatientByQrCodeId, getPatientWorkflowSettings, updatePatientBatchCutoffTime } from '../lib/database';
+import { getPatientByQrCodeId, getPatientWorkflowSettings, updatePatientBatchCutoffTime, getDrugAdjustmentReminderDismissals } from '../lib/database';
 import {
   hasOverdueWorkflowOnDate,
   calculateOverdueCountByDate
@@ -451,8 +451,14 @@ const MedicationWorkflow: React.FC = () => {
   const [prnModalDefaultTime, setPrnModalDefaultTime] = useState('');
   const [showQRScannerModal, setShowQRScannerModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  // 藥物調節監測提醒：由處方編輯模態框儲存後觸發
+  // 藥物調節監測提醒：由處方編輯模態框儲存後觸發；「不再提醒」名單由伺服器載入
   const [drugAdjustSaveItems, setDrugAdjustSaveItems] = useState<DrugAdjustmentReminderItem[]>([]);
+  const drugAdjustDismissedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    getDrugAdjustmentReminderDismissals()
+      .then((keys) => { drugAdjustDismissedRef.current = keys; })
+      .catch(() => {});
+  }, []);
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
   const [selectedWorkflowRecord, setSelectedWorkflowRecord] = useState<any>(null);
   const [selectedStep, setSelectedStep] = useState<string>('');
@@ -3424,7 +3430,9 @@ const MedicationWorkflow: React.FC = () => {
             setShowModal(false);
             setSelectedPrescription(null);
           }}
-          onDrugAdjustmentTrigger={(items) => setDrugAdjustSaveItems(items)}
+          onDrugAdjustmentTrigger={(items) => setDrugAdjustSaveItems(
+            items.filter((i) => !drugAdjustDismissedRef.current.has(drugAdjustItemKey(i)))
+          )}
         />
       )}
       {/* 藥物調節監測提醒（劑量新增/調整後） */}
@@ -3432,7 +3440,10 @@ const MedicationWorkflow: React.FC = () => {
         <DrugAdjustmentReminderModal
           items={drugAdjustSaveItems}
           onClose={() => setDrugAdjustSaveItems([])}
-          onDismissed={() => setDrugAdjustSaveItems([])}
+          onDismissed={(item) => {
+            drugAdjustDismissedRef.current.add(drugAdjustItemKey(item));
+            setDrugAdjustSaveItems([]);
+          }}
           onTaskCreated={() => { refreshData(); }}
         />
       )}

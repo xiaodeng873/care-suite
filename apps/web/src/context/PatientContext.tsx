@@ -114,8 +114,8 @@ interface PatientContextType {
   addBed: (bed: Omit<db.Bed, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateBed: (bed: db.Bed) => Promise<void>;
   deleteBed: (id: string) => Promise<void>;
-  assignPatientToBed: (patientId: number, bedId: string, transferType?: db.BedTransferType, opts?: { originalBedId?: string }) => Promise<void>;
-  swapPatientBeds: (patientId1: number, patientId2: number, transferType?: db.BedTransferType) => Promise<void>;
+  assignPatientToBed: (patientId: number, bedId: string, transferType?: db.BedTransferType, opts?: { originalBedId?: string; transferDate?: string }) => Promise<void>;
+  swapPatientBeds: (patientId1: number, patientId2: number, transferType?: db.BedTransferType, transferDate?: string) => Promise<void>;
   changeOriginalBed: (patientId: number, newOriginalBedId: string) => Promise<void>;
   endTemporaryTransfer: (patientId: number) => Promise<void>;
   cancelTemporaryTransfer: (patientId: number) => Promise<{ success: boolean; reason?: string }>;
@@ -591,6 +591,8 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   const refreshDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastRefreshTimeRef = useRef<number>(0);
   const patientPhotoLoadRef = useRef<Promise<Map<number, string | null>> | null>(null);
+  // 入住類型變更到期套用：每次登入載入只跑一次，避免 refresh 造成無限 loop
+  const stayTypeChangesAppliedRef = useRef(false);
   const DEBOUNCE_DELAY = 500; // 500ms 防抖延遲
   // 資料狀態
   const [allPatientsData, setAllPatientsData] = useState<db.Patient[]>([]);
@@ -765,6 +767,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       setInfectionControlRecords([]);
       setLoading(false);
       setDataLoaded(false);
+      stayTypeChangesAppliedRef.current = false;
       return;
     }
     if (dataLoaded) return;
@@ -773,6 +776,17 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
         // 先加載數據，不等待 generateDailyWorkflowRecords
         await refreshDataRef.current();
         setDataLoaded(true);
+
+        // 套用到期嘅入住類型變更（預選未來日期、今日到期嘅 log → 更新主表）
+        // 每次登入只跑一次；有更新就 refresh 一次院友資料，唔會再觸發 apply（旗標擋住）
+        if (!stayTypeChangesAppliedRef.current) {
+          stayTypeChangesAppliedRef.current = true;
+          db.applyDueStayTypeChanges()
+            .then(applied => {
+              if (applied.length > 0) refreshDataRef.current();
+            })
+            .catch(err => console.warn('套用到期入住類型變更失敗:', err));
+        }
         
         // 在背景執行工作流程生成（不阻塞 UI；dbToken 未簽發完成前跳過，避免 401 噪音）
         if (localStorage.getItem('care_suite_db_token')) {
@@ -865,13 +879,13 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     }
   };
 
-  const assignPatientToBed = async (patientId: number, bedId: string, transferType: db.BedTransferType = 'routine', opts?: { originalBedId?: string }) => {
+  const assignPatientToBed = async (patientId: number, bedId: string, transferType: db.BedTransferType = 'routine', opts?: { originalBedId?: string; transferDate?: string }) => {
     await assignPatientToBedInStation(patientId, bedId, transferType, opts);
     await refreshData();
   };
 
-  const swapPatientBeds = async (patientId1: number, patientId2: number, transferType: db.BedTransferType = 'routine') => {
-    await swapPatientBedsInStation(patientId1, patientId2, transferType);
+  const swapPatientBeds = async (patientId1: number, patientId2: number, transferType: db.BedTransferType = 'routine', transferDate?: string) => {
+    await swapPatientBedsInStation(patientId1, patientId2, transferType, transferDate);
     await refreshData();
   };
 

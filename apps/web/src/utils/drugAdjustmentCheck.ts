@@ -1,8 +1,10 @@
 // 糖尿病／降血壓藥物「藥物調節」監測提醒的檢查邏輯。
 //
 // 規則：院友有標籤藥（藥物資料庫 is_diabetic_drug / is_antihypertensive_drug）的在服處方，
-// 而該處方最後修改時間之後，沒有對應的「藥物調節」監測任務
+// 而該院友沒有對應的「藥物調節」監測任務
 // （糖尿病藥 → 血糖值；降血壓藥 → 生命表徵），即列入提醒。
+// 已存在對應任務即算已跟進；劑量變更後的再提醒由儲存時觸發流程
+// （getDrugAdjustmentTriggersForSave）負責，呢度唔再靠處方 updated_at 重複觸發。
 // 「不再提醒」按 院友+藥物+監測類型 存於伺服器（drug_adjustment_reminder_dismissals 表，
 // 見 lib/database.tsx），全院工作站共用；舊版 localStorage 紀錄會一次性遷移上去。
 
@@ -40,11 +42,6 @@ export function clearLegacyDismissedDrugAdjustKeys(): void {
   } catch { /* ignore */ }
 }
 
-const parseTime = (s?: string | null): number => {
-  const t = Date.parse(String(s ?? ''));
-  return Number.isFinite(t) ? t : 0;
-};
-
 /**
  * 計算需要提醒的藥物調節監測項目。
  * @param dismissedKeys 已被用戶選「不再提醒」的項目 key（見 drugAdjustItemKey）
@@ -70,19 +67,17 @@ export function findDrugAdjustmentReminders(
   }
   if (tagged.size === 0) return [];
 
-  // 每名院友每隻標籤藥的在服處方最後修改時間（取最大）
-  const latestRxUpdate = new Map<string, number>();
+  // 每名院友每隻標籤藥有冇在服處方
+  const activeRxKeys = new Set<string>();
   for (const rx of prescriptions || []) {
     if (rx?.status !== 'active') continue;
     const name = String(rx?.medication_name ?? '').trim();
     if (!tagged.has(name)) continue;
-    const key = `${rx.patient_id}|${name}`;
-    const ts = parseTime(rx.updated_at || rx.created_at);
-    if (ts > (latestRxUpdate.get(key) ?? 0)) latestRxUpdate.set(key, ts);
+    activeRxKeys.add(`${rx.patient_id}|${name}`);
   }
 
   const items: DrugAdjustmentReminderItem[] = [];
-  for (const [key, rxTs] of latestRxUpdate) {
+  for (const key of activeRxKeys) {
     const sep = key.indexOf('|');
     const patientId = Number(key.slice(0, sep));
     const name = key.slice(sep + 1);
@@ -96,8 +91,7 @@ export function findDrugAdjustmentReminders(
       const hasTask = (tasks || []).some((t) =>
         t?.patient_id === patientId &&
         t?.notes === DRUG_ADJUST_TASK_NOTES &&
-        t?.health_record_type === combo.taskType &&
-        parseTime(t.created_at) >= rxTs
+        t?.health_record_type === combo.taskType
       );
       if (!hasTask) items.push(item);
     }

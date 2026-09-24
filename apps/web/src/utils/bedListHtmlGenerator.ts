@@ -46,7 +46,7 @@ export interface BedListInput {
 function typeLabel(t?: string | null): string {
   if (t === '私位') return '私';
   if (t === '買位') return '買';
-  if (t === '院舍卷級別0' || t === '院舍卷級別1-7') return '卷';
+  if (t === '院舍券級別0' || t === '院舍券級別1-7') return '券';
   if (t === '暫住') return '暫';
   return '';
 }
@@ -54,7 +54,7 @@ function typeLabel(t?: string | null): string {
 function badgeClass(t?: string | null): string {
   if (t === '私位') return 'bdg bdg-p';
   if (t === '買位') return 'bdg bdg-b';
-  if (t === '院舍卷級別0' || t === '院舍卷級別1-7') return 'bdg bdg-v';
+  if (t === '院舍券級別0' || t === '院舍券級別1-7') return 'bdg bdg-v';
   if (t === '暫住') return 'bdg bdg-t';
   return '';
 }
@@ -106,7 +106,7 @@ export function generateBedListHtml(input: BedListInput): string {
   const emptyN    = totalBeds - occupiedN - reservedN;
   const privateN  = occ.filter(b => b.patient?.admissionType === '私位').length;
   const buyN      = occ.filter(b => b.patient?.admissionType === '買位').length;
-  const vouN      = occ.filter(b => b.patient?.admissionType === '院舍卷級別0' || b.patient?.admissionType === '院舍卷級別1-7').length;
+  const vouN      = occ.filter(b => b.patient?.admissionType === '院舍券級別0' || b.patient?.admissionType === '院舍券級別1-7').length;
   const tempN     = occ.filter(b => b.patient?.admissionType === '暫住').length;
   // 護理 × 性別
   const care = (lvl: string, g: string) =>
@@ -219,7 +219,7 @@ export function generateBedListHtml(input: BedListInput): string {
       <div class="sg-title">入住類型</div>
       ${mkRow('私位', privateN)}
       ${mkRow('買位', buyN)}
-      ${mkRow('院舍卷（0/1-7）', vouN)}
+      ${mkRow('院舍券（0/1-7）', vouN)}
       ${mkRow('暫住', tempN)}
     </div>
     <div class="sg-block">

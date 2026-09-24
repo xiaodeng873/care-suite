@@ -22,6 +22,7 @@ import {
   findDrugAdjustmentReminders,
   getLegacyDismissedDrugAdjustKeys,
   clearLegacyDismissedDrugAdjustKeys,
+  drugAdjustItemKey,
   type DrugAdjustmentReminderItem,
 } from '../utils/drugAdjustmentCheck';
 import {
@@ -649,7 +650,9 @@ const PrescriptionManagement: React.FC = () => {
               setShowModal(false);
               setSelectedPrescription(null);
             }}
-            onDrugAdjustmentTrigger={(items) => setDrugAdjustSaveItems(items)}
+            onDrugAdjustmentTrigger={(items) => setDrugAdjustSaveItems(
+              items.filter((i) => !drugAdjustDismissed.has(drugAdjustItemKey(i)))
+            )}
           />
         )}
       </div>
@@ -1023,7 +1026,9 @@ const PrescriptionManagement: React.FC = () => {
             setShowModal(false);
             setSelectedPrescription(null);
           }}
-          onDrugAdjustmentTrigger={(items) => setDrugAdjustSaveItems(items)}
+          onDrugAdjustmentTrigger={(items) => setDrugAdjustSaveItems(
+            items.filter((i) => !drugAdjustDismissed.has(drugAdjustItemKey(i)))
+          )}
         />
       )}
 

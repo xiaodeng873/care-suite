@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, User, Upload, Camera, Trash2, LogOut, LogIn, Calendar } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
-import { type PatientContact, createPatientContact, type VaccinationRecord } from '../lib/database';
+import { useAuth } from '../context/AuthContext';
+import {
+  type PatientContact,
+  createPatientContact,
+  type VaccinationRecord,
+  getPatientStayLog,
+  createPatientStayLog,
+  deletePatientStayLog
+} from '../lib/database';
 import { formatEnglishGivenName, formatEnglishSurname } from '../utils/nameFormatter';
 import SimpleStationBedSelector from './SimpleStationBedSelector';
 import OCRIDCardBlock from './OCRIDCardBlock';
@@ -12,6 +20,7 @@ import PatientMedicalServicesSection from './PatientMedicalServicesSection';
 import PatientNursingAssessmentSection from './PatientNursingAssessmentSection';
 import DateInput from './DateInput';
 import ImageCropModal from './ImageCropModal';
+import PatientStayLogTab from './PatientStayLogTab';
 
 interface PatientModalProps {
   patient?: any;
@@ -45,8 +54,9 @@ function parseOcrDate(raw: string): string | null {
 
 const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefill, idCardImage }) => {
   const { addPatient, updatePatient, stations, beds, patients, vaccinationRecords: allVaccinationRecords, addVaccinationRecord, updateVaccinationRecord, deleteVaccinationRecord } = usePatientData();
+  const { user, userProfile, displayName } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<'basic' | 'contacts' | 'social' | 'medical' | 'services'>('basic');
-  const [activeMainTab, setActiveMainTab] = useState<'personal' | 'nursing'>('personal');
+  const [activeMainTab, setActiveMainTab] = useState<'personal' | 'nursing' | 'staylog'>('personal');
 
   // 獲取當天日期作為預設入住日期
   const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -110,6 +120,11 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   );
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [dischargeDate, setDischargeDate] = useState('');
+  // 入住類型變更攔截：揀咗新類型後彈「生效日期」細 modal，確認先落 formData + 記住 pendingStayChange
+  const [showStayChangeModal, setShowStayChangeModal] = useState(false);
+  const [stayChangeTarget, setStayChangeTarget] = useState('');
+  const [stayChangeDate, setStayChangeDate] = useState('');
+  const [pendingStayChange, setPendingStayChange] = useState<{ from_type: string; to_type: string; event_date: string } | null>(null);
   const [ocrError, setOcrError] = useState<string>('');
   const [vaccinationRecords, setVaccinationRecords] = useState<VaccinationRecord[]>([]);
   const [initialVaccinationRecordIds, setInitialVaccinationRecordIds] = useState<Set<string>>(new Set());
@@ -243,7 +258,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     return valid;
   };
 
-  const isVoucherAdmission = (admissionType: string) => admissionType === '院舍卷級別0' || admissionType === '院舍卷級別1-7';
+  const isVoucherAdmission = (admissionType: string) => admissionType === '院舍券級別0' || admissionType === '院舍券級別1-7';
   const hasAdmissionWelfareConflict = (admissionType: string, welfareType: string) =>
   isVoucherAdmission(admissionType) && welfareType === '綜合社會保障援助';
 
@@ -276,6 +291,54 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       ...prev,
       [name]: updatedValue
     }));
+  };
+
+  // 入住記錄 log 嘅記錄人三欄（去正規化，照 bed_transfer_log 做法）
+  const stayLogActorFields = () => ({
+    actor_user_id: user?.id || null,
+    actor_username: userProfile?.username || user?.email || null,
+    actor_name: displayName || user?.email || null
+  });
+
+  // 入住類型變更攔截：編輯既有院友、舊值非空、新舊唔同 → 彈「生效日期」細 modal；
+  // 新增院友或揀返原值就唔攔截，直接改 formData
+  const handleAdmissionTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newValue = e.target.value;
+    const originalValue = patient?.入住類型 || '';
+    if (!patient || !originalValue || newValue === originalValue) {
+      setPendingStayChange(null);
+      handleChange(e);
+      return;
+    }
+    setStayChangeTarget(newValue);
+    setStayChangeDate('');
+    setShowStayChangeModal(true);
+  };
+
+  const confirmStayChange = () => {
+    if (!stayChangeDate) {
+      alert('請選擇生效日期');
+      return;
+    }
+    const newValue = stayChangeTarget;
+    setPendingStayChange({
+      from_type: patient?.入住類型 || '',
+      to_type: newValue,
+      event_date: stayChangeDate
+    });
+    // 社會福利互斥：新類型係院舍券 → 清走綜援（照 handleChange 嘅邏輯）
+    if (hasAdmissionWelfareConflict(newValue, socialWelfareType)) {
+      setSocialWelfareType('');
+      setSocialWelfareSubtype('');
+      setFormData((prev) => ({
+        ...prev,
+        入住類型: newValue,
+        社會福利: { type: '', subtype: '' }
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, 入住類型: newValue }));
+    }
+    setShowStayChangeModal(false);
   };
 
   const addAllergy = () => {
@@ -552,7 +615,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     let finalFormData = { ...formData };
 
     if (hasAdmissionWelfareConflict(finalFormData.入住類型, finalFormData.社會福利?.type || '')) {
-      alert('入住類型「院舍卷級別0」或「院舍卷級別1-7」不可與社會福利「綜合社會保障援助」同時選擇');
+      alert('入住類型「院舍券級別0」或「院舍券級別1-7」不可與社會福利「綜合社會保障援助」同時選擇');
       return;
     }
 
@@ -620,6 +683,12 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       bed_id: finalFormData.bed_id || null
     };
 
+    // 類型變更預選未來日期：主表入住類型用返舊值，到期先由系統套用（Step 3）
+    const today = getTodayDate();
+    if (pendingStayChange && pendingStayChange.event_date > today) {
+      sanitizedFormData.入住類型 = patient?.入住類型 || null;
+    }
+
     try {
       const patientIdToUse = patient?.院友id;
 
@@ -634,12 +703,62 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
           delete updatePayload.院友相片高清;
         }
         await updatePatient(updatePayload);
+
+        // 入住記錄 log 寫入失敗唔阻住主表儲存，只記 console
+        // 類型變更：今日或之前 → applied=true（主表已用新類型）；未來 → applied=false 待到期套用
+        if (pendingStayChange) {
+          try {
+            await createPatientStayLog({
+              patient_id: patient.院友id,
+              event_type: '類型變更',
+              event_date: pendingStayChange.event_date,
+              from_type: pendingStayChange.from_type,
+              to_type: pendingStayChange.to_type,
+              applied: pendingStayChange.event_date <= today,
+              ...stayLogActorFields()
+            });
+          } catch (logError) {
+            console.error('寫入類型變更記錄失敗:', logError);
+          }
+        }
+
+        // 退住：在住狀態由非「已退住」變「已退住」且有退住日期 → 寫「退住」log
+        if (patient.在住狀態 !== '已退住' && sanitizedFormData.在住狀態 === '已退住' && sanitizedFormData.退住日期) {
+          try {
+            await createPatientStayLog({
+              patient_id: patient.院友id,
+              event_type: '退住',
+              event_date: sanitizedFormData.退住日期,
+              from_type: sanitizedFormData.入住類型 || null,
+              applied: true,
+              ...stayLogActorFields()
+            });
+          } catch (logError) {
+            console.error('寫入退住記錄失敗:', logError);
+          }
+        }
       } else {
         const newPatient = await addPatient({
           ...sanitizedFormData,
           ...(idCardImage ? { 身份證相片: idCardImage } : {})
         });
         const newPatientId = newPatient.院友id;
+
+        // 新增院友：有入住日期同入住類型 → 寫「入住」log
+        if (sanitizedFormData.入住日期 && sanitizedFormData.入住類型) {
+          try {
+            await createPatientStayLog({
+              patient_id: newPatientId,
+              event_type: '入住',
+              event_date: sanitizedFormData.入住日期,
+              to_type: sanitizedFormData.入住類型,
+              applied: true,
+              ...stayLogActorFields()
+            });
+          } catch (logError) {
+            console.error('寫入入住記錄失敗:', logError);
+          }
+        }
 
         // 新增院友時同時寫入疫苗記錄
         for (const record of vaccinationRecords) {
@@ -748,6 +867,17 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
               }>
               
               護理評估記錄
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveMainTab('staylog')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeMainTab === 'staylog' ?
+              'border-blue-500 text-blue-600' :
+              'border-transparent text-gray-600 hover:text-blue-600'}`
+              }>
+
+              入住記錄
             </button>
           </div>
           {/* 二級子標籤頁（僅在個人及健康記錄下顯示） */}
@@ -1022,6 +1152,16 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
                               transfer_facility_name: null
                             };
                             await updatePatient(updatedPatient);
+                            // 同步刪除最新一筆「退住」log（冇就唔使郁；失敗唔阻住取消退住）
+                            try {
+                              const stayLogs = await getPatientStayLog(patient.院友id);
+                              const latestDischarge = stayLogs.
+                              filter((l) => l.event_type === '退住').
+                              sort((a, b) => b.event_date.localeCompare(a.event_date))[0];
+                              if (latestDischarge) await deletePatientStayLog(latestDischarge.id);
+                            } catch (logError) {
+                              console.error('刪除退住記錄失敗:', logError);
+                            }
                             onClose();
                           } catch (error) {
                             console.error('取消退住失敗:', error);
@@ -1060,16 +1200,21 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
               <select
                     name="入住類型"
                     value={formData.入住類型}
-                    onChange={handleChange}
+                    onChange={handleAdmissionTypeChange}
                     className="form-input">
                     
                 <option value="">請選擇</option>
                 <option value="私位">私位</option>
                 <option value="買位">買位</option>
-                <option value="院舍卷級別0" disabled={socialWelfareType === '綜合社會保障援助'}>院舍卷級別0</option>
-                <option value="院舍卷級別1-7" disabled={socialWelfareType === '綜合社會保障援助'}>院舍卷級別1-7</option>
+                <option value="院舍券級別0" disabled={socialWelfareType === '綜合社會保障援助'}>院舍券級別0</option>
+                <option value="院舍券級別1-7" disabled={socialWelfareType === '綜合社會保障援助'}>院舍券級別1-7</option>
                 <option value="暫住">暫住</option>
               </select>
+              {pendingStayChange &&
+                  <p className="text-xs text-amber-600 mt-1">
+                  類型變更將於 {pendingStayChange.event_date} 生效{pendingStayChange.event_date > getTodayDate() ? '（待生效，主表到該日先更新）' : ''}
+                  </p>
+                  }
             </div>
 
             <div>
@@ -1355,6 +1500,13 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
           }
 
+          {activeMainTab === 'staylog' &&
+          <PatientStayLogTab
+            patientId={patient?.院友id ?? null}
+            currentAdmissionType={formData.入住類型} />
+
+          }
+
           <div className="flex flex-col sm:flex-row gap-2 pt-4">
             <button
               type="submit"
@@ -1371,6 +1523,61 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
             </button>
           </div>
         </form>
+
+        {/* 入住類型變更生效日期模態框 */}
+        {showStayChangeModal &&
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowStayChangeModal(false)}>
+            <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">入住類型變更</h3>
+                <button
+                onClick={() => setShowStayChangeModal(false)}
+                className="text-gray-400 hover:text-gray-600">
+                
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-700">
+                  入住類型將由「{patient?.入住類型}」變更為「{stayChangeTarget}」。
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="form-label">
+                  <Calendar className="h-4 w-4 inline mr-1" />
+                  生效日期 *
+                </label>
+                <DateInput
+
+                value={stayChangeDate}
+
+                className="form-input"
+                required onChange={(value) => setStayChangeDate(value)} />
+              
+                <p className="text-xs text-gray-500 mt-1">可選擇未來日期，系統將於該日自動更新院友的入住類型。</p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                type="button"
+                onClick={confirmStayChange}
+                className="btn-primary flex-1">
+                
+                  確認
+                </button>
+                <button
+                type="button"
+                onClick={() => setShowStayChangeModal(false)}
+                className="btn-secondary flex-1">
+                
+                  取消
+                </button>
+              </div>
+            </div>
+          </div>
+        }
 
         {/* 退住確認模態框 */}
         {showDischargeModal &&
