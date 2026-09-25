@@ -1,6 +1,8 @@
 import BedNumberImprint from './BedNumberImprint';
 import { X, LogOut, Calendar, Heart, Home, Hospital, Building2 } from 'lucide-react';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { isStorageUrl } from '../utils/storageUpload';
+import { deletePatientPhotoByUrl } from '../utils/patientPhotoUpload';
 import React, { useState } from 'react';
 import DateInput from './DateInput';
 
@@ -48,6 +50,10 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ patient, onClose, onCon
       // 退住時清走高清相片，只保留壓縮版（控制雲端儲存成本）
       院友相片高清: ''
     };
+    // 舊高清相係 Storage 檔 → 一併刪除 object（失敗唔阻退住流程）
+    if (isStorageUrl(patient.院友相片高清)) {
+      deletePatientPhotoByUrl(patient.院友相片高清).catch((err) => console.error('刪除高清相片失敗:', err));
+    }
     onConfirm(updatedPatient, dischargeDate);
   };
 

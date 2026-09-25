@@ -7,9 +7,11 @@ import ImageSourcePicker from './ImageSourcePicker';
 interface OCRPrescriptionBlockProps {
   onOCRComplete: (extractedData: any, confidenceScores: Record<string, number>) => void;
   onOCRError: (error: string) => void;
+  // 揀咗/清除圖片時通知上層（處方儲存時會將圖片上傳 Storage）
+  onImageSelected?: (file: File | null) => void;
 }
 
-const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComplete, onOCRError }) => {
+const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComplete, onOCRError, onImageSelected }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -44,6 +46,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
     }
 
     setSelectedFile(file);
+    onImageSelected?.(file);
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -54,6 +57,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
       onOCRError('無法讀取圖片檔案');
       setSelectedFile(null);
       setImagePreview(null);
+      onImageSelected?.(null);
     };
     reader.readAsDataURL(file);
   };
@@ -85,6 +89,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
     setSelectedFile(null);
     setImagePreview(null);
     setOcrResult(null);
+    onImageSelected?.(null);
   };
 
   const handleStartOCR = async () => {

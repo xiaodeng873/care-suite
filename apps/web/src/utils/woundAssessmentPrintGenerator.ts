@@ -320,9 +320,22 @@ export const generateWoundAssessmentHtml = async (
   const sorted = [...assessments].sort(
     (a, b) => new Date(a.assessment_date).getTime() - new Date(b.assessment_date).getTime()
   );
-  const totalPages = Math.max(1, Math.ceil(sorted.length / COLS_PER_PAGE));
+  // iframe 列印對外鏈圖有前科：預先將 http(s) photo URL 並行 fetch 成 data URI
+  // （photoCell 只用每個評估嘅第一張相；fetch 失敗保留原 URL 讓 <img> 自行嘗試）
+  const resolved = await Promise.all(sorted.map(async (a) => {
+    const photos = (a?.wound_photos ?? []) as any[];
+    if (!photos.length) return a;
+    const first = photos[0];
+    const src = typeof first === 'object' ? (first.base64 ?? '') : (first ?? '');
+    if (!/^https?:\/\//.test(src)) return a;
+    const dataUri = await fetchImageAsDataUri(src);
+    if (!dataUri) return a;
+    const newFirst = typeof first === 'object' ? { ...first, base64: dataUri } : dataUri;
+    return { ...a, wound_photos: [newFirst, ...photos.slice(1)] };
+  }));
+  const totalPages = Math.max(1, Math.ceil(resolved.length / COLS_PER_PAGE));
   const pages = Array.from({ length: totalPages }, (_, i) =>
-    buildPage(wound, patient, sorted.slice(i * COLS_PER_PAGE, (i + 1) * COLS_PER_PAGE), i + 1, totalPages, stationCode, settings.facilityNameZh)(diagramDataUri)
+    buildPage(wound, patient, resolved.slice(i * COLS_PER_PAGE, (i + 1) * COLS_PER_PAGE), i + 1, totalPages, stationCode, settings.facilityNameZh)(diagramDataUri)
   );
   // 雙面文件：每頁印兩次（正面＋背面，內容相同），背面打孔圈鏡像由 printUtils 處理
   const duplexPages = pages.flatMap((p) => [p, p]);

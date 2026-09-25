@@ -15,6 +15,8 @@ import InstitutionAutocomplete from './InstitutionAutocomplete';
 import { type MedicationInspectionRule } from '../lib/database';
 import { getMealTimings, toMealTimingPayload, formatMealTimings, type MealTimings, type MealTimingConnector } from '../utils/mealTiming';
 import { getDrugAdjustmentTriggersForSave, type DrugAdjustmentReminderItem } from '../utils/drugAdjustmentCheck';
+import { compressToJpegBlob, uploadImage, deleteImageByUrl, isStorageUrl } from '../utils/storageUpload';
+import { PRESCRIPTION_IMAGES_BUCKET } from '../utils/patientPhotoUpload';
 
 interface PrescriptionModalProps {
   prescription?: any;
@@ -139,6 +141,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
 
   const [ocrFilledFields, setOcrFilledFields] = useState<Set<string>>(new Set());
   const [fieldConfidences, setFieldConfidences] = useState<Record<string, number>>({});
+  // OCR 區塊揀咗嘅處方圖片（儲存時先上傳 Storage）
+  const [prescriptionImageFile, setPrescriptionImageFile] = useState<File | null>(null);
   const [validationError, setValidationError] = useState<string>('');
   const [showContradictionModal, setShowContradictionModal] = useState(false);
   const [contradictionDetails, setContradictionDetails] = useState<string>('');
@@ -584,6 +588,36 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         }
       });
 
+      // 處方圖片：OCR 區塊有揀圖 → 壓縮上傳 Storage，URL 寫入 image_path；失敗唔阻處方儲存
+      let oldImageUrlToDelete: string | null = null;
+      if (prescriptionImageFile) {
+        try {
+          const blob = await compressToJpegBlob(prescriptionImageFile, 1536, 0.9);
+          const imageUrl = await uploadImage(PRESCRIPTION_IMAGES_BUCKET, blob);
+          prescriptionData.image_path = imageUrl;
+          const oldImageUrl: string | undefined = prescription?.image_path;
+          if (oldImageUrl && isStorageUrl(oldImageUrl) && oldImageUrl !== imageUrl) {
+            oldImageUrlToDelete = oldImageUrl;
+          }
+        } catch (uploadError) {
+          console.error('處方圖片上傳失敗:', uploadError);
+          alert('處方圖片上傳失敗，處方會在不附圖片的情況下儲存');
+        }
+      } else if (!prescription?.id && isStorageUrl(prescription?.image_path)) {
+        // 另存處方：繼承咗 source 嘅 image_path 但冇新揀圖 → 實體複製 Storage object，
+        // 避免新舊處方共用同一 object（停服/刪除處方會刪圖，唔可以累及另一張）
+        // 失敗只 log，新處方唔帶圖，唔阻儲存
+        const sourceImageUrl = prescription.image_path as string;
+        try {
+          const response = await fetch(sourceImageUrl);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const blob = await response.blob();
+          prescriptionData.image_path = await uploadImage(PRESCRIPTION_IMAGES_BUCKET, blob);
+        } catch (copyError) {
+          console.error('複製處方圖片失敗:', copyError);
+        }
+      }
+
       if (prescription && prescription.id) {
         await updatePrescription({
           id: prescription.id,
@@ -601,6 +635,11 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
             }));
           } catch { /* ignore quota errors */ }
         }
+      }
+
+      // 換咗新圖：舊 Storage 圖片冇用，背景刪除（失敗唔阻流程）
+      if (oldImageUrlToDelete) {
+        void deleteImageByUrl(PRESCRIPTION_IMAGES_BUCKET, oldImageUrlToDelete);
       }
 
       // 糖尿病／降血壓藥物：新增或調整劑量後觸發藥物調節監測提醒
@@ -625,7 +664,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       const isColumnMissing = msg.includes('column') && (msg.includes('does not exist') || msg.includes('unknown'));
       if (isColumnMissing) {
         try {
-          const { medication_source_specialty: _sp, estimated_end_date: _ed, is_long_term: _ilt, last_taken_date: _ltd, show_last_taken_in_record: _slt, ...fallbackData } = prescriptionData as any;
+          const { medication_source_specialty: _sp, estimated_end_date: _ed, is_long_term: _ilt, last_taken_date: _ltd, show_last_taken_in_record: _slt, image_path: _ip, ...fallbackData } = prescriptionData as any;
           if (prescription && prescription.id) {
             await updatePrescription({ id: prescription.id, ...fallbackData });
           } else {
@@ -701,6 +740,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
           <OCRPrescriptionBlock
             onOCRComplete={handleOCRComplete}
             onOCRError={handleOCRError}
+            onImageSelected={setPrescriptionImageFile}
           />
 
       

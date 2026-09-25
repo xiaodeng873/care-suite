@@ -13,6 +13,8 @@ import ImageSourcePicker from '../ImageSourcePicker';
 import { mapOCRDataToPrescriptionForm } from '../../utils/ocrFieldMapper';
 import { getMedicationSettings } from '../../utils/medicationSettings';
 import { supabase } from '../../lib/supabase';
+import { compressToJpegBlob, isStorageUrl } from '../../utils/storageUpload';
+import { uploadPatientPhoto, deletePatientPhotoByUrl } from '../../utils/patientPhotoUpload';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const VALID_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -225,8 +227,11 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
     }
     setIsSettingPortrait(true);
     try {
-      const photoDataUrl = await compressImageDataUrl(prefill.imageBase64, prefill.imageMimeType);
-      await updatePatient({ ...patient, 院友相片: photoDataUrl });
+      const blob = await compressToJpegBlob(`data:${prefill.imageMimeType};base64,${prefill.imageBase64}`, 400, 0.85);
+      const photoUrl = await uploadPatientPhoto(patient.院友id, 'photo', blob);
+      await updatePatient({ ...patient, 院友相片: photoUrl });
+      // 舊值係 Storage 檔先刪舊 object（base64 過渡期資料唔使郁）
+      if (patient.院友相片 && isStorageUrl(patient.院友相片)) await deletePatientPhotoByUrl(patient.院友相片);
       addLocalMessage(`✅ 已將該相片設為${patient.中文姓名}院友的院友相片。`);
     } catch (err) {
       addLocalMessage(`❌ 更新院友相片失敗：${err instanceof Error ? err.message : '請稍後再試'}`);
@@ -247,8 +252,17 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
     setIsArchivingIdCard(true);
     const isReplace = idCardPhotoStatus[pid!] === 'has';
     try {
-      const idCardDataUrl = await compressImageDataUrl(prefill.imageBase64, prefill.imageMimeType, 1200);
-      await updatePatient({ ...patient, 身份證相片: idCardDataUrl });
+      // 「身份證相片」唔喺 light 查詢，覆蓋前先讀舊值，方便事後刪舊 storage object
+      const { data: oldRow } = await supabase
+        .from('院友主表')
+        .select('身份證相片')
+        .eq('院友id', patient.院友id)
+        .maybeSingle();
+      const oldIdCardPhoto = (oldRow as unknown as { 身份證相片?: string | null } | null)?.身份證相片 ?? null;
+      const blob = await compressToJpegBlob(`data:${prefill.imageMimeType};base64,${prefill.imageBase64}`, 1200, 0.85);
+      const idCardUrl = await uploadPatientPhoto(patient.院友id, 'idcard', blob);
+      await updatePatient({ ...patient, 身份證相片: idCardUrl });
+      if (oldIdCardPhoto && isStorageUrl(oldIdCardPhoto)) await deletePatientPhotoByUrl(oldIdCardPhoto);
       setIdCardPhotoStatus(prev => ({ ...prev, [pid!]: 'has' }));
       addLocalMessage(isReplace
         ? `✅ 已更換${patient.中文姓名}的身份證相片存檔。`

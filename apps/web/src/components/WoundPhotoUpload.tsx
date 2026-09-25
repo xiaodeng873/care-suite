@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Upload, Trash2, Eye, X, Plus } from 'lucide-react';
+import { Camera, Upload, Trash2, Eye, X, Plus, Download } from 'lucide-react';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
+import { compressToJpegBlob, uploadImage, deleteImageByUrl, isStorageUrl } from '../utils/storageUpload';
+import { PATIENT_PHOTOS_BUCKET } from '../utils/patientPhotoUpload';
 
 
 interface WoundPhoto {
@@ -46,27 +48,25 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
     }
 
     setIsUploading(true);
-    
+
     try {
-      // Convert to base64
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64String = e.target?.result as string;
-        const newPhoto: WoundPhoto = {
-          id: Date.now().toString(),
-          base64: base64String,
-          filename: file.name,
-          uploadDate: new Date().toISOString(),
-          description: ''
-        };
-        
-        onPhotosChange([...photos, newPhoto]);
-        setIsUploading(false);
+      // 壓縮後直接上傳 Storage，base64 欄位存 public URL（渲染位 <img src> 照舊）
+      const blob = await compressToJpegBlob(file, 1536, 0.9);
+      const publicUrl = await uploadImage(PATIENT_PHOTOS_BUCKET, blob, 'jpg', 'wound/');
+
+      const newPhoto: WoundPhoto = {
+        id: Date.now().toString(),
+        base64: publicUrl,
+        filename: file.name,
+        uploadDate: new Date().toISOString(),
+        description: ''
       };
-      reader.readAsDataURL(file);
+
+      onPhotosChange([...photos, newPhoto]);
     } catch (error) {
       console.error('上傳相片失敗:', error);
       alert('上傳相片失敗，請重試');
+    } finally {
       setIsUploading(false);
     }
   };
@@ -128,8 +128,37 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
     }
   };
 
-  const removePhoto = (photoId: string) => {
+  const removePhoto = async (photoId: string) => {
+    const target = photos.find(photo => photo.id === photoId);
+    if (target && isStorageUrl(target.base64)) {
+      await deleteImageByUrl(PATIENT_PHOTOS_BUCKET, target.base64);
+    }
     onPhotosChange(photos.filter(photo => photo.id !== photoId));
+  };
+
+  const downloadPhoto = async (photo: WoundPhoto) => {
+    const safeDate = photo.uploadDate.replace(/[:.]/g, '-');
+    const filename = `傷口相-${safeDate}.jpg`;
+    if (isStorageUrl(photo.base64)) {
+      try {
+        const res = await fetch(photo.base64);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch {
+        window.open(photo.base64, '_blank');
+      }
+    } else {
+      const a = document.createElement('a');
+      a.href = photo.base64;
+      a.download = filename;
+      a.click();
+    }
   };
 
   return (
@@ -247,6 +276,14 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
                       title="預覽"
                     >
                       <Eye className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadPhoto(photo)}
+                      className="text-green-600 hover:text-green-800 p-1"
+                      title="下載"
+                    >
+                      <Download className="h-3 w-3" />
                     </button>
                     <button
                       type="button"

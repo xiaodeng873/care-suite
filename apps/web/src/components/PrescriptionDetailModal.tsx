@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { X, Pill, User, Calendar, Clock, AlertTriangle, Stethoscope, FlaskConical, Beaker, CheckCircle, Ban } from 'lucide-react';
+import { X, Pill, User, Calendar, Clock, AlertTriangle, Stethoscope, FlaskConical, Beaker, CheckCircle, Ban, Image as ImageIcon, Download } from 'lucide-react';
 import type { Patient, MedicationPrescription } from '../lib/database';
 import { formatDisplayDate, calculateAge } from '../utils/dateFormat';
 import { formatMealTimingFrom } from '../utils/mealTiming';
+import { downloadImage } from '../utils/storageUpload';
 import BedNumberImprint from './BedNumberImprint';
 
 interface PrescriptionDetailModalProps {
@@ -227,6 +228,34 @@ const PrescriptionDetailModal: React.FC<PrescriptionDetailModalProps> = ({ presc
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* 處方圖片（Storage URL；點擊開新 tab 放大） */}
+          {prescription.image_path && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <ImageIcon className="h-5 w-5 text-gray-600" />
+                處方圖片
+              </h3>
+              <div className="flex items-start gap-3">
+                <a href={prescription.image_path} target="_blank" rel="noopener noreferrer" className="inline-block">
+                  <img
+                    src={prescription.image_path}
+                    alt="處方圖片"
+                    className="h-32 rounded-lg border border-gray-200 object-contain bg-white hover:opacity-90 transition-opacity"
+                  />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => downloadImage(prescription.image_path!, `處方圖片-${prescription.medication_name || prescription.id}.jpg`)}
+                  className="btn-secondary p-2"
+                  title="下載處方圖片"
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">點擊圖片放大檢視</p>
             </div>
           )}
 

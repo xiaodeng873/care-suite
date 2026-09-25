@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, User, Upload, Camera, Trash2, LogOut, LogIn, Calendar } from 'lucide-react';
+import { X, User, Upload, Camera, Trash2, LogOut, LogIn, Calendar, Eye, Download } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -11,6 +11,8 @@ import {
   deletePatientStayLog
 } from '../lib/database';
 import { formatEnglishGivenName, formatEnglishSurname } from '../utils/nameFormatter';
+import { compressToJpegBlob, isStorageUrl, downloadImage } from '../utils/storageUpload';
+import { uploadPatientPhoto, deletePatientPhotoByUrl } from '../utils/patientPhotoUpload';
 import SimpleStationBedSelector from './SimpleStationBedSelector';
 import OCRIDCardBlock from './OCRIDCardBlock';
 import PatientContactsSection from './PatientContactsSection';
@@ -104,10 +106,31 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     nursing_assessment_json: patient?.nursing_assessment_json || {}
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(patient?.院友相片 || null);
-  // 相片有冇被用戶郁過（上傳/拍攝/移除）；冇郁過就唔好寫返 DB，
-  // 否則初始載入未完成背景補載時 patient.院友相片 係空，一儲存就會洗走 DB 入面嘅相
-  const photoTouchedRef = useRef(false);
+  // 相片改動暫存：null = 冇郁過（submit 唔寫相片欄，否則初始載入未完成背景補載時
+  // patient.院友相片 係空，一儲存就會洗走 DB 入面嘅相）；'DELETE' = 移除；
+  // 物件 = 待上傳嘅 Blob（submit 時先上傳 Storage，欄位寫 URL）
+  const [stagedPhotoBlobs, setStagedPhotoBlobs] = useState<{ photo: Blob; hd: Blob } | 'DELETE' | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // 相片查看/下載共用：檔名標籤用姓名，拎唔到就用院友 id
+  const photoFileTag = (`${formData.中文姓氏}${formData.中文名字}`.trim()) || patient?.院友id || 'patient';
+  // 查看相片：Storage URL 直接開新 tab；base64/預覽就開新視窗寫入 <img>
+  const viewImageInNewTab = (src: string) => {
+    if (isStorageUrl(src)) {
+      window.open(src, '_blank');
+      return;
+    }
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.title = '相片預覽';
+      win.document.body.style.margin = '0';
+      win.document.body.style.background = '#111';
+      const img = win.document.createElement('img');
+      img.src = src;
+      img.style.maxWidth = '100%';
+      win.document.body.appendChild(img);
+    }
+  };
   // 上傳照片裁剪步驟：揀咗檔案先入裁剪 modal，確認先壓縮寫入
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [newAllergy, setNewAllergy] = useState('');
@@ -428,6 +451,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     });
   };
 
+  const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => (await fetch(dataUrl)).blob();
+
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     // 重置 input，等用戶可以重新揀返同一個檔案
@@ -459,13 +484,10 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       // 雙版本：400px 壓縮版（日常頭像）+ 1600px 高清版（匯出餐卡/藥紙等文件）
       const compressedBase64 = await compressDataUrl(croppedDataUrl, 400, 0.85);
       const hdBase64 = await compressDataUrl(croppedDataUrl, 1600, 0.9);
-      photoTouchedRef.current = true;
+      // Blob 暫存待 submit 上傳 Storage；預覽直接用壓縮後 data URL，formData 相片欄保持原值
+      const [photoBlob, hdBlob] = await Promise.all([dataUrlToBlob(compressedBase64), dataUrlToBlob(hdBase64)]);
       setPhotoPreview(compressedBase64);
-      setFormData((prev) => ({
-        ...prev,
-        院友相片: compressedBase64,
-        院友相片高清: hdBase64
-      }));
+      setStagedPhotoBlobs({ photo: photoBlob, hd: hdBlob });
       setIsUploading(false);
     } catch (error) {
       console.error('上傳照片失敗:', error);
@@ -475,13 +497,9 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   };
 
   const handleRemovePhoto = () => {
-    photoTouchedRef.current = true;
     setPhotoPreview(null);
-    setFormData((prev) => ({
-      ...prev,
-      院友相片: '',
-      院友相片高清: ''
-    }));
+    // 標記刪除，真正刪 Storage object 同清欄喺 submit 做
+    setStagedPhotoBlobs('DELETE');
   };
 
   const handleCameraCapture = async () => {
@@ -560,13 +578,15 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
         const dataURL = drawScaled(400);
         const hdURL = drawScaled(1600);
 
-        photoTouchedRef.current = true;
         setPhotoPreview(dataURL);
-        setFormData((prev) => ({
-          ...prev,
-          院友相片: dataURL,
-          院友相片高清: hdURL
-        }));
+        // Blob 暫存待 submit 上傳 Storage；formData 相片欄保持原值
+        (async () => {
+          const [photoBlob, hdBlob] = await Promise.all([dataUrlToBlob(dataURL), dataUrlToBlob(hdURL)]);
+          setStagedPhotoBlobs({ photo: photoBlob, hd: hdBlob });
+        })().catch((err) => {
+          console.error('暫存拍攝相片失敗:', err);
+          alert('相片處理失敗，請重試');
+        });
 
         closeCamera();
       });
@@ -697,12 +717,35 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
           院友id: patient.院友id,
           ...sanitizedFormData
         };
-        // 相片欄今次冇郁過就唔送出，保留 DB 原值（背景補載未完成時 formData 係空字串，送咗會洗走 DB 嘅相）
-        if (!photoTouchedRef.current) {
+        // 相片欄今次冇郁過就唔送出，保留 DB 原值（背景補載未完成時 formData 係空字串，送咗會洗走 DB 嘅相）；
+        // 有 staged blobs 都先唔送——上傳 Storage 後第二次 update 先寫 URL
+        if (stagedPhotoBlobs !== 'DELETE') {
           delete updatePayload.院友相片;
           delete updatePayload.院友相片高清;
         }
         await updatePatient(updatePayload);
+
+        // 相片處理（上傳/刪除失敗唔 roll back 院友資料，只提示）
+        if (stagedPhotoBlobs === 'DELETE') {
+          try {
+            if (isStorageUrl(patient.院友相片)) await deletePatientPhotoByUrl(patient.院友相片);
+            if (isStorageUrl(patient.院友相片高清)) await deletePatientPhotoByUrl(patient.院友相片高清);
+          } catch (photoError) {
+            console.error('刪除院友相片失敗:', photoError);
+          }
+        } else if (stagedPhotoBlobs) {
+          try {
+            const photoUrl = await uploadPatientPhoto(patient.院友id, 'photo', stagedPhotoBlobs.photo);
+            const hdUrl = await uploadPatientPhoto(patient.院友id, 'hd', stagedPhotoBlobs.hd);
+            await updatePatient({ 院友id: patient.院友id, 院友相片: photoUrl, 院友相片高清: hdUrl } as any);
+            // 新 URL 寫入成功先刪舊 object（舊值可能係 base64 過渡期資料，只刪 Storage URL）
+            if (isStorageUrl(patient.院友相片)) await deletePatientPhotoByUrl(patient.院友相片);
+            if (isStorageUrl(patient.院友相片高清)) await deletePatientPhotoByUrl(patient.院友相片高清);
+          } catch (photoError) {
+            console.error('院友相片上傳失敗:', photoError);
+            alert('院友資料已儲存，但相片上傳失敗，請重新上傳相片');
+          }
+        }
 
         // 入住記錄 log 寫入失敗唔阻住主表儲存，只記 console
         // 類型變更：今日或之前 → applied=true（主表已用新類型）；未來 → applied=false 待到期套用
@@ -738,11 +781,26 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
           }
         }
       } else {
-        const newPatient = await addPatient({
-          ...sanitizedFormData,
-          ...(idCardImage ? { 身份證相片: idCardImage } : {})
-        });
+        const newPatient = await addPatient(sanitizedFormData);
         const newPatientId = newPatient.院友id;
+
+        // 相片（如有）上傳 Storage 後補寫 URL；失敗唔 roll back 院友資料
+        try {
+          if (stagedPhotoBlobs && stagedPhotoBlobs !== 'DELETE') {
+            const photoUrl = await uploadPatientPhoto(newPatientId, 'photo', stagedPhotoBlobs.photo);
+            const hdUrl = await uploadPatientPhoto(newPatientId, 'hd', stagedPhotoBlobs.hd);
+            await updatePatient({ 院友id: newPatientId, 院友相片: photoUrl, 院友相片高清: hdUrl } as any);
+          }
+          // AI 助護帶入嘅身份證圖（base64）→ 壓縮 1200px 上傳，「身份證相片」欄寫 URL
+          if (idCardImage) {
+            const idCardBlob = await compressToJpegBlob(idCardImage, 1200);
+            const idCardUrl = await uploadPatientPhoto(newPatientId, 'idcard', idCardBlob);
+            await updatePatient({ 院友id: newPatientId, 身份證相片: idCardUrl } as any);
+          }
+        } catch (photoError) {
+          console.error('相片上傳失敗:', photoError);
+          alert('院友資料已儲存，但相片上傳失敗，請稍後喺院友資料重新上傳');
+        }
 
         // 新增院友：有入住日期同入住類型 → 寫「入住」log
         if (sanitizedFormData.入住日期 && sanitizedFormData.入住類型) {
@@ -929,6 +987,42 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
               <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
               <img src={idCardImage} alt="身份證圖" className="h-10 rounded border border-gray-200" />
               <span>已附加身份證圖，新增院友後將一併留檔到「身份證相片」欄。</span>
+              <button
+                type="button"
+                onClick={() => viewImageInNewTab(idCardImage)}
+                className="btn-secondary p-1.5"
+                title="查看身份證相">
+                <Eye className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadImage(idCardImage, `身份證-${photoFileTag}.jpg`)}
+                className="btn-secondary p-1.5"
+                title="下載身份證相">
+                <Download className="h-4 w-4" />
+              </button>
+            </div>
+              }
+
+          {/* 已留檔嘅身份證相片（Storage URL） */}
+          {patient?.身份證相片 &&
+              <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+              <img src={patient.身份證相片} alt="身份證相片" className="h-10 rounded border border-gray-200" />
+              <span>身份證相片</span>
+              <button
+                type="button"
+                onClick={() => viewImageInNewTab(patient.身份證相片)}
+                className="btn-secondary p-1.5"
+                title="查看身份證相">
+                <Eye className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadImage(patient.身份證相片, `身份證-${photoFileTag}.jpg`)}
+                className="btn-secondary p-1.5"
+                title="下載身份證相">
+                <Download className="h-4 w-4" />
+              </button>
             </div>
               }
 
@@ -1028,6 +1122,44 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
                     <Trash2 className="h-4 w-4" />
                     <span>移除照片</span>
                   </button>
+                    }
+                {photoPreview &&
+                    <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => viewImageInNewTab(photoPreview)}
+                      className="btn-secondary p-2"
+                      title="查看相片">
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadImage(photoPreview, `院友相-${photoFileTag}.jpg`)}
+                      className="btn-secondary p-2"
+                      title="下載相片">
+                      <Download className="h-4 w-4" />
+                    </button>
+                    {stagedPhotoBlobs === null && isStorageUrl(patient?.院友相片高清) &&
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => viewImageInNewTab(patient.院友相片高清)}
+                          className="btn-secondary p-2 flex items-center gap-1"
+                          title="查看高清相">
+                          <Eye className="h-4 w-4" />
+                          <span className="text-xs">高清</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadImage(patient.院友相片高清, `高清相-${photoFileTag}.jpg`)}
+                          className="btn-secondary p-2 flex items-center gap-1"
+                          title="下載高清相">
+                          <Download className="h-4 w-4" />
+                          <span className="text-xs">高清</span>
+                        </button>
+                      </>
+                      }
+                  </div>
                     }
               </div>
             </div>

@@ -2,6 +2,8 @@ import { supabase } from './supabase';
 import { softDeleteRecord } from './recycleBin';
 import { calculateNextDueDate } from '../utils/taskScheduler';
 import { pickDueStayTypeChanges } from '../utils/stayTypeChanges';
+import { deleteImageByUrl, isStorageUrl } from '../utils/storageUpload';
+import { PRESCRIPTION_IMAGES_BUCKET } from '../utils/patientPhotoUpload';
 // [新增] 全域導出 CUTOFF 日期字串
 export const SYNC_CUTOFF_DATE_STR = '2025-12-01';
 // --- 介面定義 (Interfaces) ---
@@ -965,6 +967,8 @@ export interface MedicationPrescription {
   cannot_crush?: boolean;
   // 不可與中和胃酸藥同服（顯示時會與藥物資料庫的同名旗標合併判斷）
   no_antacid?: boolean;
+  // 處方圖片（Supabase Storage public URL，prescription-images bucket）
+  image_path?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1167,6 +1171,19 @@ export const updatePrescription = async (prescription: Partial<MedicationPrescri
   return data;
 };
 export const deletePrescription = async (id: string | number): Promise<void> => {
+  // 處方如有 Storage 圖片，先刪 object 再刪記錄（失敗只 log，唔阻刪除）
+  try {
+    const { data: existing } = await supabase
+      .from('new_medication_prescriptions')
+      .select('image_path')
+      .eq('id', id)
+      .maybeSingle();
+    if (existing?.image_path && isStorageUrl(existing.image_path)) {
+      await deleteImageByUrl(PRESCRIPTION_IMAGES_BUCKET, existing.image_path);
+    }
+  } catch (imageError) {
+    console.error('刪除處方圖片失敗:', imageError);
+  }
   const { error } = await supabase.from('new_medication_prescriptions').delete().eq('id', id);
   if (error) throw error;
 };

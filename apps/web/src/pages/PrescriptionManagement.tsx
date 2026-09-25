@@ -32,6 +32,8 @@ import {
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { getHongKongNow, isPrescriptionExpired } from '../utils/prescriptionExpiry';
 import { formatDisplayDate, formatTimeToHHMM } from '../utils/dateFormat';
+import { deleteImageByUrl, isStorageUrl } from '../utils/storageUpload';
+import { PRESCRIPTION_IMAGES_BUCKET } from '../utils/patientPhotoUpload';
 
 
 type PrescriptionStatus = 'active' | 'pending_change' | 'inactive';
@@ -547,7 +549,16 @@ const PrescriptionManagement: React.FC = () => {
 
   const handleStatusChange = async (prescription: any, targetStatus: 'active' | 'pending_change' | 'inactive') => {
     try {
-      await updatePrescription({ id: prescription.id, status: targetStatus });
+      // 停服處方唔保留圖片：清 image_path 欄位＋刪 Storage object（轉返在服唔恢復）
+      const shouldDeleteImage = targetStatus === 'inactive' && isStorageUrl(prescription.image_path);
+      await updatePrescription({
+        id: prescription.id,
+        status: targetStatus,
+        ...(shouldDeleteImage ? { image_path: null } : {}),
+      });
+      if (shouldDeleteImage) {
+        void deleteImageByUrl(PRESCRIPTION_IMAGES_BUCKET, prescription.image_path);
+      }
       if (targetStatus === 'active') {
         // 待變更 → 在服：重新觸發監測任務欠缺檢查（每個觸發事件提醒一次）
         monitoringRemindedRef.current = false;
