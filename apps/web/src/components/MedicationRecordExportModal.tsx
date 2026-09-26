@@ -27,7 +27,7 @@ interface RouteStats {
 
 type PrescriptionSortOrder = 'efficiency' | 'name' | 'time' | 'source';
 
-const sortPrescriptionsByOrder = (prescriptions: any[], order: PrescriptionSortOrder): any[] => {
+const sortPrescriptionsByOrder = (prescriptions: any[], order: PrescriptionSortOrder, withDayhead = false): any[] => {
   const sorted = [...prescriptions];
   const firstSlot = (p: any): string => [...(p.medication_time_slots ?? [])].sort()[0] ?? '';
   const byName = (a: any, b: any): number =>
@@ -42,8 +42,9 @@ const sortPrescriptionsByOrder = (prescriptions: any[], order: PrescriptionSortO
       (a.medication_source ?? '').localeCompare(b.medication_source ?? '', 'zh-TW') || byName(a, b));
     case 'efficiency':
     default:
-      // 與匯出器共用同一排序：時段重疊高者相鄰（每頁彙總列最少），無時段處方置最後
-      return orderPrescriptionsForSignatureEfficiency(sorted);
+      // 與匯出器共用同一排序：時段重疊高者相鄰（每頁彙總列最少），無時段處方置最後；
+      // withDayhead = 所選模板係 template3（每處方多重日期列，分頁容量唔同，排序要跟住變）
+      return orderPrescriptionsForSignatureEfficiency(sorted, withDayhead);
   }
 };
 
@@ -186,8 +187,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
       if (term === 'long' && !includeLongTerm) return false;
       return true;
     });
-    return sortPrescriptionsByOrder(filtered, prescriptionSortOrder);
-  }, [exportMode, currentPatient, allPrescriptions, includeInactive, includeWorkflowRecords, prescriptionsWithWorkflowRecords, prescriptionSortOrder, includeShortTerm, includeLongTerm]);
+    return sortPrescriptionsByOrder(filtered, prescriptionSortOrder, recordTemplate === 'template3' || recordTemplate === 'template4');
+  }, [exportMode, currentPatient, allPrescriptions, includeInactive, includeWorkflowRecords, prescriptionsWithWorkflowRecords, prescriptionSortOrder, includeShortTerm, includeLongTerm, recordTemplate]);
 
   const batchRouteStats = useMemo(() => {
     const stats: RouteStats = { oral: 0, injection: 0, topical: 0, noRoute: 0 };
@@ -242,8 +243,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
       return true;
     });
     // 匯出排序必須與 modal 預覽一致（勾選模式下的 base 是未排序的 allPrescriptions）
-    return sortPrescriptionsByOrder(filtered, prescriptionSortOrder);
-  }, [exportMode, currentPatient, currentPatientSelectedPrescriptions, allPrescriptions, currentPatientAvailablePrescriptions, includeShortTerm, includeLongTerm, prescriptionSortOrder]);
+    return sortPrescriptionsByOrder(filtered, prescriptionSortOrder, recordTemplate === 'template3' || recordTemplate === 'template4');
+  }, [exportMode, currentPatient, currentPatientSelectedPrescriptions, allPrescriptions, currentPatientAvailablePrescriptions, includeShortTerm, includeLongTerm, prescriptionSortOrder, recordTemplate]);
 
   const currentRouteStats = useMemo((): RouteStats => {
     if (exportMode !== 'current') return { oral: 0, injection: 0, topical: 0, noRoute: 0 };
@@ -458,7 +459,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
           return {
             ...patient,
-            prescriptions: sortPrescriptionsByOrder(validPrescriptions, prescriptionSortOrder),
+            prescriptions: sortPrescriptionsByOrder(validPrescriptions, prescriptionSortOrder, recordTemplate === 'template3' || recordTemplate === 'template4'),
             // 數量統計用 filter 之前嘅在服全集（唔受勾選／月份／停用／途徑篩選影響）
             quantityStatPrescriptions: allPrescriptions.filter((p) => p.status === 'active')
           };
@@ -624,8 +625,10 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                   value={recordTemplate}
                   onChange={(e) => setRecordTemplate(e.target.value as MedicationRecordTemplate)}
                   className="form-input text-sm py-1 px-2 h-9">
-                  <option value="template1">模板1：簽署指引 → 院友相片 → 彙總區</option>
-                  <option value="template2">模板2：院友相片在頂部（現有設計）</option>
+                  <option value="template1">模板1：院友相片底置</option>
+                  <option value="template2">模板2：院友相片頂置</option>
+                  <option value="template3">模板3：院友相片頂置＋處方日期列</option>
+                  <option value="template4">模板4：院友相片底置＋處方日期列</option>
                 </select>
               </div>
             </div>

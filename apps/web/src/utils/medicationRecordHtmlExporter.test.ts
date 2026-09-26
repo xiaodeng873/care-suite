@@ -26,7 +26,7 @@ const LEI_ORAL = [
   rx('METFORMIN HCL TABLET 250MG', ['08:00', '16:00']),
 ];
 
-// 全域搜尋後 page1 = 五個 {08:00,16:00}；同頁按時序排列，sig 相同再按藥名排序
+// 預設（template1/2 版面）：全域搜尋後 page1 = 五個 {08:00,16:00}；同頁按時序排列，sig 相同再按藥名排序
 const PAGE1_NAMES = [
   'CYANOCOBALAMIN (VIT B12) TABLET 50MCG',
   'LISINOPRIL TABLET 5MG',
@@ -34,12 +34,29 @@ const PAGE1_NAMES = [
   'METFORMIN HCL TABLET 500MG',
   'THIAMINE HCL (VIT B1) TABLET 50MG',
 ];
-// page2 = {07:00} 在前，三個 {08:00} 按藥名排序
+// 預設：page2 = {07:00} 在前，三個 {08:00} 按藥名排序
 const PAGE2_NAMES = [
   'ALENDRONATE SODIUM TAB (70MG ALENDRONIC ACID)',
   'AMLODIPINE (BESYLATE) TABLET 5MG',
   'CALCIUM（CARBONATE）+VITAMIN D CHEW TAB 1000MG CA+800IU',
   'ENERVON C TABLET',
+];
+// template3（每處方上方多重日期列）：重複列佔 4mm/區塊，每頁上限變 4 個處方（5-block 頁超容）
+// page1 = {07:00} 獨佔；page2 = 四個 {08:00,16:00}；page3 = 三個 {08:00} + METFORMIN 500MG
+const PAGE3_1_NAMES = [
+  'ALENDRONATE SODIUM TAB (70MG ALENDRONIC ACID)',
+];
+const PAGE3_2_NAMES = [
+  'CYANOCOBALAMIN (VIT B12) TABLET 50MCG',
+  'LISINOPRIL TABLET 5MG',
+  'METFORMIN HCL TABLET 500MG',
+  'THIAMINE HCL (VIT B1) TABLET 50MG',
+];
+const PAGE3_3_NAMES = [
+  'AMLODIPINE (BESYLATE) TABLET 5MG',
+  'CALCIUM（CARBONATE）+VITAMIN D CHEW TAB 1000MG CA+800IU',
+  'ENERVON C TABLET',
+  'METFORMIN HCL TABLET 250MG',
 ];
 
 describe('packBlocksForSignatureEfficiency（雷燕優個案）', () => {
@@ -47,25 +64,45 @@ describe('packBlocksForSignatureEfficiency（雷燕優個案）', () => {
   const blocks = scheduled.map((p) => ({ prescription: p, timeSlots: p.medication_time_slots }));
   // footerLegendMm=20 等同 estimateFooterLegendMm(0)（無職員代號）
   const pages = packBlocksForSignatureEfficiency(blocks, 20);
+  const pagesT3 = packBlocksForSignatureEfficiency(blocks, 20, true);
 
-  it('頁面按首列處方的第一個時間點排序：{07:00} 頁在 {08:00} 頁之前', () => {
+  it('預設：頁面按首列處方的第一個時間點排序：{07:00} 頁在 {08:00} 頁之前', () => {
     expect(pages).toHaveLength(2);
     expect(pages[0].map((b) => b.prescription.medication_name)).toEqual(PAGE2_NAMES);
     expect(pages[1].map((b) => b.prescription.medication_name)).toEqual(PAGE1_NAMES);
   });
 
-  it('各頁彙總區不同時段數合計為 4（2+2），而非 5（2+3）', () => {
+  it('預設：各頁彙總區不同時段數合計為 4（2+2），而非 5（2+3）', () => {
     const total = pages.reduce((n, page) => n + new Set(page.flatMap((b) => b.timeSlots)).size, 0);
     expect(total).toBe(4);
+  });
+
+  it('template3：多重日期列令每頁上限 4 個處方 → 3 頁（{07:00} 獨佔 + 4+4），時段數合計 5（1+2+2）', () => {
+    expect(pagesT3).toHaveLength(3);
+    expect(pagesT3[0].map((b) => b.prescription.medication_name)).toEqual(PAGE3_1_NAMES);
+    expect(pagesT3[1].map((b) => b.prescription.medication_name)).toEqual(PAGE3_2_NAMES);
+    expect(pagesT3[2].map((b) => b.prescription.medication_name)).toEqual(PAGE3_3_NAMES);
+    const total = pagesT3.reduce((n, page) => n + new Set(page.flatMap((b) => b.timeSlots)).size, 0);
+    expect(total).toBe(5);
   });
 });
 
 describe('orderPrescriptionsForSignatureEfficiency（modal 預覽＝列印順序）', () => {
-  it('展平順序與分頁一致，無時段處方（SENNA）排最後', () => {
+  it('預設：展平順序與分頁一致，無時段處方（SENNA）排最後', () => {
     const ordered = orderPrescriptionsForSignatureEfficiency(LEI_ORAL);
     expect(ordered.map((p) => p.medication_name)).toEqual([
       ...PAGE2_NAMES,
       ...PAGE1_NAMES,
+      'SENNA TABLET 7.5MG',
+    ]);
+  });
+
+  it('template3：展平順序與分頁一致', () => {
+    const ordered = orderPrescriptionsForSignatureEfficiency(LEI_ORAL, true);
+    expect(ordered.map((p) => p.medication_name)).toEqual([
+      ...PAGE3_1_NAMES,
+      ...PAGE3_2_NAMES,
+      ...PAGE3_3_NAMES,
       'SENNA TABLET 7.5MG',
     ]);
   });
@@ -89,11 +126,18 @@ const ZHAN_ORAL = [
 describe('packBlocksForSignatureEfficiency（詹金花個案）', () => {
   const blocks = ZHAN_ORAL.map((p) => ({ prescription: p, timeSlots: p.medication_time_slots }));
   const pages = packBlocksForSignatureEfficiency(blocks, 20);
+  const pagesT3 = packBlocksForSignatureEfficiency(blocks, 20, true);
 
-  it('全域最優：3 頁、彙總區不同時段數合計為 6（舊貪心為 8，人手排法為 7）', () => {
+  it('預設：全域最優 3 頁、彙總區不同時段數合計為 6（舊貪心為 8，人手排法為 7）', () => {
     expect(pages).toHaveLength(3);
     const total = pages.reduce((n, page) => n + new Set(page.flatMap((b) => b.timeSlots)).size, 0);
     expect(total).toBe(6);
+  });
+
+  it('template3：3 頁、合計 7（每頁上限 4 個處方，2+2+2 不再可行）', () => {
+    expect(pagesT3).toHaveLength(3);
+    const total = pagesT3.reduce((n, page) => n + new Set(page.flatMap((b) => b.timeSlots)).size, 0);
+    expect(total).toBe(7);
   });
 
   it('每頁內部已按時序排列（首時段分鐘數遞增）', () => {
@@ -146,6 +190,15 @@ describe('preparePages（檢測項獨立分頁：關閉）', () => {
     const inspPages = pages.filter((p) => p.blocks.some((b) => b.prescription.inspection_rules.length > 0));
     expect(inspPages.length).toBeGreaterThan(0);
     expect(inspPages.every((p) => p.fillerCount > 0)).toBe(true);
+  });
+});
+
+describe('preparePages（template3/4 多重日期列）', () => {
+  it.each(['template3', 'template4'] as const)('%s 參數照常用：分頁正常、全部處方都在頁面上', (template) => {
+    const pages = preparePages(PATIENT, RXS, true, 0, 'efficiency', false, undefined, [], undefined, template);
+    expect(pages.length).toBeGreaterThan(0);
+    expect(pages.flatMap((p) => p.blocks).map((b) => b.prescription.medication_name).sort())
+      .toEqual(RXS.map((r) => r.medication_name).sort());
   });
 });
 
