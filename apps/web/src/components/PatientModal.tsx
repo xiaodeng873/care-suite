@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, User, Upload, Camera, Trash2, LogOut, LogIn, Calendar, Eye, Download } from 'lucide-react';
+import { X, User, Camera, Trash2, LogOut, LogIn, Calendar, Eye, Download } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -111,6 +111,9 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   // 物件 = 待上傳嘅 Blob（submit 時先上傳 Storage，欄位寫 URL）
   const [stagedPhotoBlobs, setStagedPhotoBlobs] = useState<{ photo: Blob; hd: Blob } | 'DELETE' | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  // 拖曳上傳：相片框 drag-over 狀態（虛線框 highlight 用）
+  const [photoDragOver, setPhotoDragOver] = useState(false);
+  const photoFileInputRef = useRef<HTMLInputElement>(null);
 
   // 相片查看/下載共用：檔名標籤用姓名，拎唔到就用院友 id
   const photoFileTag = (`${formData.中文姓氏}${formData.中文名字}`.trim()) || patient?.院友id || 'patient';
@@ -453,12 +456,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
   const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => (await fetch(dataUrl)).blob();
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // 重置 input，等用戶可以重新揀返同一個檔案
-    e.target.value = '';
-    if (!file) return;
-
+  // 揀/拖入嘅檔案統一入裁剪步驟（同 OCR 區塊嘅 loadFile 流程一致）
+  const stagePhotoFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
       alert('請選擇圖片文件');
       return;
@@ -474,6 +473,33 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     reader.onload = (ev) => setCropSrc(ev.target?.result as string);
     reader.onerror = () => alert('檔案讀取失敗');
     reader.readAsDataURL(file);
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // 重置 input，等用戶可以重新揀返同一個檔案
+    e.target.value = '';
+    if (!file) return;
+    stagePhotoFile(file);
+  };
+
+  // 拖曳上傳：同 OCRIDCardBlock 嘅 handleDrop 一樣，拎 dataTransfer 第一個檔案行同一個 staged photo 流程
+  const handlePhotoDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setPhotoDragOver(false);
+    if (isUploading) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) stagePhotoFile(file);
+  };
+
+  const handlePhotoDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (e.dataTransfer.types.includes('Files')) setPhotoDragOver(true);
+  };
+
+  const handlePhotoDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    // 跨過框內子元素（預覽圖/提示字）都會觸發 dragleave，只喺真係離開框時先熄 highlight
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) setPhotoDragOver(false);
   };
 
   const handleCropConfirm = async (croppedDataUrl: string) => {
@@ -1082,7 +1108,18 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
           <div>
             <label className="form-label">院友照片</label>
             <div className="flex flex-wrap items-center gap-4">
-              <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+              {/* 相框 = 拖曳/點擊上傳區（樣式跟 BatchHealthRecordOCRModal 虛線框） */}
+              <div
+                onClick={() => { if (!isUploading) photoFileInputRef.current?.click(); }}
+                onDrop={handlePhotoDrop}
+                onDragOver={handlePhotoDragOver}
+                onDragLeave={handlePhotoDragLeave}
+                className={`relative w-28 h-28 rounded-lg border-2 border-dashed overflow-hidden flex items-center justify-center transition-colors ${
+                  photoDragOver
+                    ? 'border-blue-500 bg-blue-100'
+                    : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'
+                } ${isUploading ? 'cursor-wait' : 'cursor-pointer'}`}
+                title="點擊或拖曳圖片到此">
                 {photoPreview ?
                     <img
                       src={photoPreview}
@@ -1090,21 +1127,25 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
                       className="w-full h-full object-cover" /> :
 
 
-                    <User className="h-12 w-12 text-gray-400" />
+                    <div className="flex flex-col items-center text-center px-1">
+                      <User className="h-8 w-8 text-gray-400" />
+                      <p className="text-[10px] text-gray-400 mt-1">點擊或拖曳圖片到此</p>
+                    </div>
+                    }
+                {photoDragOver &&
+                    <div className="absolute inset-0 bg-blue-100 bg-opacity-80 flex items-center justify-center pointer-events-none">
+                      <p className="text-xs text-blue-600 font-medium">放開以上傳相片</p>
+                    </div>
                     }
               </div>
+              <input
+                    type="file"
+                    ref={photoFileInputRef}
+                    accept="image/*"
+                    onChange={handleFileInput}
+                    className="hidden"
+                    disabled={isUploading} />
               <div className="flex flex-col space-y-2">
-                <label className="btn-secondary cursor-pointer flex flex-wrap items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  <span>上傳照片</span>
-                  <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileInput}
-                        className="hidden"
-                        disabled={isUploading} />
-                      
-                </label>
                 <button
                       type="button"
                       onClick={handleCameraCapture}

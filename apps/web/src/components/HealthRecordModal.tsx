@@ -41,6 +41,8 @@ interface HealthRecordModalProps {
     預設日期?: string;
     預設時間?: string;
   };
+  // 只顯示清單內嘅監測類型（例如任務卡片：當日已完成嘅類型唔再彈出）；冇傳就顯示全部
+  restrictTypes?: string[];
   onClose: () => void;
   onTaskCompleted?: (taskId: string, recordDateTime: Date) => void;
 }
@@ -85,7 +87,7 @@ const getInitialActiveTypes = (
   return [];
 };
 
-const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGroup, initialData, onClose, onTaskCompleted }) => {
+const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGroup, initialData, restrictTypes, onClose, onTaskCompleted }) => {
   const { updateHealthRecord, addHealthRecordsForSession, deleteHealthRecord, patients, hospitalEpisodes, admissionRecords } = usePatientData();
   const { displayName, isDeveloper } = useAuth();
 
@@ -111,7 +113,8 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
     return { date: now.date, time: initialData?.預設時間 || now.time };
   };
 
-  const initialActiveTypes = getInitialActiveTypes(record, initialData, recordGroup);
+  const initialActiveTypes = getInitialActiveTypes(record, initialData, recordGroup)
+    .filter(t => !restrictTypes || restrictTypes.includes(t));
   const isTypeFixed = !!(record || recordGroup || initialData?.task || initialData?.任務清單 || initialData?.預設監測類型 || initialData?.預設記錄類型);
   const [activeTypes, setActiveTypes] = useState<VitalSignType[]>(initialActiveTypes);
 

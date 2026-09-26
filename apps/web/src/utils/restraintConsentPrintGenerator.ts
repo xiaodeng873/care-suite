@@ -126,7 +126,6 @@ export const generateRestraintConsentPrintHtml = (
   const patientName = `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}` || patient.中文姓名;
   const genderAge = `${patient.性別 ?? ''}／${calcAge(patient.出生日期)}`;
   const lastAssessDate = fmtDate(assessment.doctor_signature_date);
-  const nextAssessDate = fmtDate(assessment.next_due_date);
 
   // 折衷辦法的 11 個選項（對應 P1 (二) 表格的 11 行）
   const alternativeOptions = [

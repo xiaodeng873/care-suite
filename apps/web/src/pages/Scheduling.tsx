@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { Calendar, Plus, Edit3, Trash2, Download, Users, Settings, User, Search, Filter, X, AlertCircle } from 'lucide-react';
+import { Calendar, Plus, Edit3, Trash2, Download, Users, Settings, User, Search, Filter, X, AlertCircle, Loader2 } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { exportCombinedScheduleToExcel, type StationGroup } from '../utils/combinedScheduleExcelGenerator';
 import { printVmoWaitingList, printVmoPrescriptions, type VmoPatientItem } from '../utils/vmoSchedulePrintGenerator';
+import { printMedicalExaminationForm } from '../utils/annualHealthCheckupFormGenerator';
+import { printRestraintConsentForm } from '../utils/restraintConsentPrintGenerator';
 import ScheduleModal from '../components/ScheduleModal';
 import PatientSelectModal from '../components/PatientSelectModal';
 import ScheduleDetailModal from '../components/ScheduleDetailModal';
@@ -20,7 +22,7 @@ import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
 
 const Scheduling: React.FC = () => {
-  const { schedules, deleteSchedule, stations, loading, refreshData } = usePatientData();
+  const { schedules, deleteSchedule, stations, loading, refreshData, annualHealthCheckups, patientRestraintAssessments } = usePatientData();
   const patients = useFilteredPatients();
   const { isFiltered, selectedStationIds } = useStationFilter();
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -36,6 +38,7 @@ const Scheduling: React.FC = () => {
   const [reasonFilter, setReasonFilter] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [dueItems, setDueItems] = useState<DueItem[]>([]);
+  const [printingBadgeKey, setPrintingBadgeKey] = useState<string | null>(null);
   // 創建居住區 ID → 名稱的映射
   const stationMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -172,6 +175,60 @@ const Scheduling: React.FC = () => {
     );
     if (!items.length) { alert('此排程沒有看診原因為「申訴不適」的院友，無需列印處方單。'); return; }
     await printVmoPrescriptions(items);
+  };
+  /** 點擊標籤列印：「年度體檢」／「約束物品同意書」→ 該院友最近一份對應記錄；「申訴不適」→ 該院友藥物處方單 */
+  const handlePrintReasonBadge = async (patient: any, scheduleItem: any, reasonName: string, badgeKey: string) => {
+    if (!patient || printingBadgeKey) return;
+    if (reasonName === '申訴不適') {
+      // 處方單係預填院友基本資料嘅空白標準表格；同「列印處方單」按鈕一致，院友需有床號
+      if (!patient.床號) {
+        alert(`${patient.中文姓氏}${patient.中文名字} 缺少床號，無法列印藥物處方單`);
+        return;
+      }
+      setPrintingBadgeKey(badgeKey);
+      try {
+        await printVmoPrescriptions([{ ...scheduleItem, patient }]);
+      } finally {
+        setPrintingBadgeKey(null);
+      }
+      return;
+    }
+    if (reasonName === '年度體檢') {
+      // 與年度體檢頁一致：以醫生簽署日期判斷最新記錄，created_at 作後備
+      const latestCheckup = (annualHealthCheckups || [])
+        .filter((c: any) => c.patient_id === patient.院友id)
+        .sort((a: any, b: any) => {
+          const sa = a.last_doctor_signature_date ? new Date(a.last_doctor_signature_date).getTime() : 0;
+          const sb = b.last_doctor_signature_date ? new Date(b.last_doctor_signature_date).getTime() : 0;
+          if (sb !== sa) return sb - sa;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        })[0];
+      if (!latestCheckup) {
+        alert(`${patient.中文姓氏}${patient.中文名字} 沒有年度體檢記錄可供列印`);
+        return;
+      }
+      setPrintingBadgeKey(badgeKey);
+      try {
+        await printMedicalExaminationForm(latestCheckup, patient);
+      } finally {
+        setPrintingBadgeKey(null);
+      }
+      return;
+    }
+    if (reasonName === '約束物品同意書') {
+      // patientRestraintAssessments 已按 created_at 降序排列，首筆即最近記錄
+      const latestAssessment = (patientRestraintAssessments || []).find(a => a.patient_id === patient.院友id);
+      if (!latestAssessment) {
+        alert(`${patient.中文姓氏}${patient.中文名字} 沒有使用約束措施的評估及同意書記錄可供列印`);
+        return;
+      }
+      setPrintingBadgeKey(badgeKey);
+      try {
+        await printRestraintConsentForm(latestAssessment, patient);
+      } finally {
+        setPrintingBadgeKey(null);
+      }
+    }
   };
   const handleExportScheduleToExcel = async (schedule: ScheduleWithDetails) => {
     try {
@@ -525,12 +582,25 @@ const Scheduling: React.FC = () => {
                           <div className="text-sm text-gray-900 mb-1">
                             {item.reasons && Array.isArray(item.reasons) && item.reasons.length > 0 ? (
                               <div className="flex flex-wrap gap-1 justify-end">
-                                {item.reasons.map((reason: any, index: number) => (
-                                  <span key={index} className={getReasonBadgeClass(reason.原因名稱)}>
-                                    <span className="mr-1">{getReasonIcon(reason.原因名稱)}</span>
-                                    {reason.原因名稱}
-                                  </span>
-                                ))}
+                                {item.reasons.map((reason: any, index: number) => {
+                                  const isPrintableReason = reason.原因名稱 === '年度體檢' || reason.原因名稱 === '約束物品同意書' || reason.原因名稱 === '申訴不適';
+                                  const badgeKey = `${item.細項id}:${reason.原因名稱}`;
+                                  const isPrinting = printingBadgeKey === badgeKey;
+                                  return (
+                                    <span
+                                      key={index}
+                                      className={`${getReasonBadgeClass(reason.原因名稱)}${isPrintableReason ? ' cursor-pointer hover:opacity-75' : ''}`}
+                                      title={isPrintableReason ? (reason.原因名稱 === '申訴不適' ? '點擊列印該院友藥物處方單' : `點擊列印最近一份${reason.原因名稱}記錄`) : undefined}
+                                      onClick={isPrintableReason ? () => handlePrintReasonBadge(patient, item, reason.原因名稱, badgeKey) : undefined}
+                                    >
+                                      {isPrinting
+                                        ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                        : <span className="mr-1">{getReasonIcon(reason.原因名稱)}</span>
+                                      }
+                                      {reason.原因名稱}
+                                    </span>
+                                  );
+                                })}
                               </div>
                             ) : (
                               <span className="text-gray-400">未指定原因</span>

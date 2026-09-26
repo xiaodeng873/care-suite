@@ -243,13 +243,13 @@ const generateDayContent = (day: DayData): string => {
 // 高度估算常數 (單位: mm)
 // 對半模式：A5高度210mm，扣除margin後約202mm；全頁直立模式：A4高度297mm，扣除margin後約289mm
 // 估算值比實際稍大10%，確保不會溢出
-const A5_CONTENT_HEIGHT = 200;         // 對半模式（A4橫向對半=A5）可用內容高度；全頁模式同用此預算再 zoom 放大
-const HEADER_HEIGHT = 5.5;     // 頁眉高度
-const SLOT_TITLE_HEIGHT = 4.5; // 時段標題高度
-const TABLE_HEADER_HEIGHT = 4.5; // 表格欄位標題高度（14px ≈ 4mm + 10%）
-const ROW_HEIGHT = 4.6;        // 每行數據高度（16px ≈ 4.2mm + 10%）
-const RECHECK_ROW_HEIGHT = ROW_HEIGHT * 2; // 複檢空白列係雙倍行高
-const SLOT_MARGIN = 1.5;       // 時段之間的間距
+export const A5_CONTENT_HEIGHT = 200;         // 對半模式（A4橫向對半=A5）可用內容高度；全頁模式同用此預算再 zoom 放大
+export const HEADER_HEIGHT = 5.5;     // 頁眉高度
+export const SLOT_TITLE_HEIGHT = 4.5; // 時段標題高度
+export const TABLE_HEADER_HEIGHT = 4.5; // 表格欄位標題高度（14px ≈ 4mm + 10%）
+export const ROW_HEIGHT = 4.6;        // 每行數據高度（16px ≈ 4.2mm + 10%）
+export const RECHECK_ROW_HEIGHT = ROW_HEIGHT * 2; // 複檢空白列係雙倍行高
+export const SLOT_MARGIN = 1.5;       // 時段之間的間距
 // 計算單個時段需要的高度
 const calculateSlotHeight = (taskCount: number): number => {
   if (taskCount === 0) return 0;
@@ -268,7 +268,8 @@ interface PageContent {
   usedHeight: number;
 }
 // 將一天的內容分割成多個頁面（預算高度依版面而定：對半=A5、全頁直立=A4 portrait）
-const splitDayIntoPages = (day: DayData, contentHeight: number = A5_CONTENT_HEIGHT): PageContent[] => {
+// 分頁規則：第 1 頁只放晚餐之前嘅時段（早餐/午餐）；晚餐同宵夜強制由下一頁（雙面配對下即背頁）開始
+export const splitDayIntoPages = (day: DayData, contentHeight: number = A5_CONTENT_HEIGHT): PageContent[] => {
   const pages: PageContent[] = [];
   let currentPage: PageContent = { slots: [], usedHeight: HEADER_HEIGHT };
   let currentHeight = HEADER_HEIGHT;
@@ -280,6 +281,18 @@ const splitDayIntoPages = (day: DayData, contentHeight: number = A5_CONTENT_HEIG
   ];
   for (const slot of slots) {
     if (slot.tasks.length === 0) continue;
+    // 晚餐/宵夜強制由背頁開始：第 1 頁（正面）只放晚餐之前嘅時段（早餐/午餐）。
+    // 雙面配對下頁索引 1 即第 1 張 A4 嘅背頁；即使第 1 頁完全空白（全日只有晚餐/宵夜任務）都照樣開新頁
+    const isDinnerSlot = slot.name === '晚餐' || slot.name === '宵夜';
+    // 已經喺晚餐/宵夜開咗嘅頁唔好再斷（宵夜要同晚餐同頁）
+    const currentPageIsDinner = currentPage.slots.length > 0 &&
+      (currentPage.slots[0].name === '晚餐' || currentPage.slots[0].name === '宵夜');
+    if (isDinnerSlot && !currentPageIsDinner) {
+      currentPage.usedHeight = currentHeight;
+      pages.push(currentPage);
+      currentPage = { slots: [], usedHeight: HEADER_HEIGHT };
+      currentHeight = HEADER_HEIGHT;
+    }
     // 餐段不可跨頁中斷（avoid-break）：整段高度計晒先決定放唔放得落
     const baseSlotHeight = SLOT_TITLE_HEIGHT + TABLE_HEADER_HEIGHT + SLOT_MARGIN;
     const slotHeight = baseSlotHeight + (slot.tasks.length * ROW_HEIGHT);
@@ -364,12 +377,15 @@ const generateA5PageContent = (
       </div>
     `;
   }
-  // 複檢：只在每天最後一頁，於四個時段後加空白手寫列，填到 footer 前為止
+  // 複檢：加喺每天第 1 頁（晚餐之前嘅時段後；剩餘空間唔夠就唔加）同最後一頁（四個時段後），
+  // 填到 footer 前為止；其餘中間頁（續頁）唔加
   let recheckHTML = '';
   const isLastPage = pageNumber === totalPages;
-  if (isLastPage) {
+  const allowRecheck = isLastPage || pageNumber === 1;
+  if (allowRecheck) {
     const recheckRows = computeRecheckRows(pageContent.usedHeight ?? HEADER_HEIGHT, contentHeight);
-    if (pageContent.slots.length === 0 && recheckRows === 0) {
+    if (pageContent.slots.length === 0 && (!isLastPage || recheckRows === 0)) {
+      // 最後一頁冇任何時段先顯示「無監測任務」；第 1 頁被迫空白（全日只有晚餐/宵夜）同樣顯示，唔加複檢
       slotsHTML = '<div class="empty-page">（無監測任務）</div>';
     } else if (recheckRows > 0) {
       // [修正] 剩餘空間唔夠一行複檢空白列（雙倍行高）就成段唔顯示，唔好淨係擠個表頭落頁尾
@@ -430,9 +446,9 @@ const generateTimeSlotTableHTMLForPage = (tasks: MonitoringTask[], slotName: str
     </table>
   `;
 };
-// 「複檢」空白列：填滿每天最後一頁四個時段之後的剩餘空間（預留 footer 高度），供手寫數值
+// 「複檢」空白列：填滿每天第 1 頁同最後一頁時段之後的剩餘空間（預留 footer 高度），供手寫數值
 const FOOTER_RESERVE = 7; // footer（頁碼/列印提示）預留高度(mm)
-const computeRecheckRows = (usedHeight: number, contentHeight: number): number => {
+export const computeRecheckRows = (usedHeight: number, contentHeight: number): number => {
   const base = SLOT_TITLE_HEIGHT + TABLE_HEADER_HEIGHT + SLOT_MARGIN + FOOTER_RESERVE;
   return Math.max(0, Math.floor((contentHeight - usedHeight - base) / RECHECK_ROW_HEIGHT));
 };

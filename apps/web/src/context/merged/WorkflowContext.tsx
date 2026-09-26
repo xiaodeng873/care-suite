@@ -22,7 +22,8 @@ import { SYNC_CUTOFF_DATE_STR } from '../../lib/database';
 
 // 回溯生成範圍：由處方開始日到今天 + 30 天
 const WORKFLOW_HORIZON_DAYS = 30;
-const backfillWorkflowForPrescription = (created: any) => {
+// notifyDone：回溯完成（成功或失敗）後通知呼叫方，用嚟觸發頁面重新載入當週記錄
+const backfillWorkflowForPrescription = (created: any, notifyDone?: () => void) => {
   try {
     if (!created || created.status !== 'active' || !created.start_date) return;
     const today = new Date();
@@ -30,9 +31,11 @@ const backfillWorkflowForPrescription = (created: any) => {
     const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     // 背景執行，不阻塞 UI
     generateWorkflowRecordsClient(Number(created.patient_id), [created], created.start_date, fmt(horizon))
-      .catch(err => console.warn('處方回溯生成工作流程失敗（背景）:', err));
+      .catch(err => console.warn('處方回溯生成工作流程失敗（背景）:', err))
+      .finally(() => notifyDone?.());
   } catch (err) {
     console.warn('觸發處方回溯生成失敗:', err);
+    notifyDone?.();
   }
 };
 
@@ -168,6 +171,9 @@ interface WorkflowContextType {
   prescriptions: db.MedicationPrescription[];
   drugDatabase: any[];
   prescriptionWorkflowRecords: PrescriptionWorkflowRecord[];
+  // 處方 backfill 完成次數：建立/編輯處方後新 workflow records 生成完（或失敗）會 +1，
+  // 頁面可以加入 effect dependency 觸發重新載入
+  workflowRecordsVersion: number;
   prescriptionTimeSlotDefinitions: PrescriptionTimeSlotDefinition[];
   prescriptionLoading: boolean;
   addPrescription: (prescription: any, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
@@ -267,6 +273,10 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
   
   // ===== 處方工作流程記錄狀態（需要動態查詢）=====
   const [prescriptionWorkflowRecords, setPrescriptionWorkflowRecords] = useState<PrescriptionWorkflowRecord[]>([]);
+  // 處方建立/編輯後 backfill 完成時 +1，通知頁面（如 eMAR）重新載入當週記錄，
+  // 否則新生成嘅 workflow records 唔會入頁面局部 cache，要手動刷新先見到
+  const [workflowRecordsVersion, setWorkflowRecordsVersion] = useState(0);
+  const bumpWorkflowRecordsVersion = useCallback(() => setWorkflowRecordsVersion(v => v + 1), []);
 
   // ===== 從 Query 獲取數據 =====
   const schedules = schedulesQuery.data ?? [];
@@ -421,12 +431,12 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
       });
       void refreshPrescriptionData().catch(err => console.warn('背景刷新處方資料失敗:', err));
       // Plan A: 建立處方後，背景回溯生成工作流程記錄（由開始日起），避免翻頁時才慢慢生成
-      backfillWorkflowForPrescription(created);
+      backfillWorkflowForPrescription(created, bumpWorkflowRecordsVersion);
     } catch (error) {
       console.error('Error adding prescription:', error);
       throw error;
     }
-  }, [refreshPrescriptionData, queryClient, logPrescriptionActivity]);
+  }, [refreshPrescriptionData, queryClient, logPrescriptionActivity, bumpWorkflowRecordsVersion]);
 
   const updatePrescription = useCallback(async (prescription: any, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => {
     try {
@@ -460,12 +470,12 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
       });
       void refreshPrescriptionData().catch(err => console.warn('背景刷新處方資料失敗:', err));
       // Plan A: 處方轉為 active（啟用/編輯）後，背景回溯生成工作流程記錄
-      backfillWorkflowForPrescription(updated);
+      backfillWorkflowForPrescription(updated, bumpWorkflowRecordsVersion);
     } catch (error) {
       console.error('Error updating prescription:', error);
       throw error;
     }
-  }, [refreshPrescriptionData, queryClient, logPrescriptionActivity]);
+  }, [refreshPrescriptionData, queryClient, logPrescriptionActivity, bumpWorkflowRecordsVersion]);
 
   const deletePrescription = useCallback(async (id: number | string, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => {
     try {
@@ -660,6 +670,28 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
       }
       const updated = await db.updateMedicationWorkflowRecord({ id: recordId, ...updateData } as any);
       upsertWorkflowRecord(updated as unknown as PrescriptionWorkflowRecord);
+      // 撤銷派藥後回推處方 last_taken_date：syncPrescriptionLastTakenDate 只會向前推，
+      // 呢度重算為該處方最近一條 dispensing_status === 'completed' 嘅 scheduled_date（冇就 null）
+      if (step === 'dispensing' && updated?.prescription_id) {
+        try {
+          const { data: latestRows, error: latestErr } = await supabase
+            .from('medication_workflow_records')
+            .select('scheduled_date')
+            .eq('prescription_id', updated.prescription_id)
+            .eq('dispensing_status', 'completed')
+            .order('scheduled_date', { ascending: false })
+            .limit(1);
+          if (latestErr) throw latestErr;
+          const lastTakenDate = latestRows && latestRows.length > 0 ? latestRows[0].scheduled_date : null;
+          const { error: syncErr } = await supabase
+            .from('new_medication_prescriptions')
+            .update({ last_taken_date: lastTakenDate })
+            .eq('id', updated.prescription_id);
+          if (syncErr) console.warn('撤銷派藥後回推上次服用日期失敗:', syncErr);
+        } catch (syncError) {
+          console.warn('撤銷派藥後回推上次服用日期失敗:', syncError);
+        }
+      }
     } catch (error) {
       console.error('撤銷步驟失敗:', error);
       throw error;
@@ -822,6 +854,7 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
     prescriptions,
     drugDatabase,
     prescriptionWorkflowRecords,
+    workflowRecordsVersion,
     prescriptionTimeSlotDefinitions,
     prescriptionLoading,
     addPrescription,

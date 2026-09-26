@@ -49,6 +49,8 @@ import { formatMealTimingFrom } from '../utils/mealTiming';
 import DrugAdjustmentReminderModal from '../components/DrugAdjustmentReminderModal';
 import { drugAdjustItemKey, type DrugAdjustmentReminderItem } from '../utils/drugAdjustmentCheck';
 import { isPrescriptionExpired, isPrescriptionValidAt, normalizeTime, prescriptionOverlapsDateRange } from '../utils/prescriptionExpiry';
+import { isCellDateInRange, mergeRecordSlots } from '../utils/workflowCellRule';
+import { useWorkflow } from '../context/merged/WorkflowContext';
 import { supabase } from '../lib/supabase';
 import { getPatientByQrCodeId, getPatientWorkflowSettings, updatePatientBatchCutoffTime, getDrugAdjustmentReminderDismissals } from '../lib/database';
 import {
@@ -408,6 +410,8 @@ const MedicationWorkflow: React.FC = () => {
     loading,
     drugDatabase
   } = usePatientData();
+  // 處方建立/編輯後 backfill 新 workflow records 完成時 version +1，用嚟觸發當週記錄重新載入
+  const { workflowRecordsVersion } = useWorkflow();
   // 藥物名稱 → 藥物資料庫旗標（不可碎藥／不可與中和胃酸藥同服），供名稱欄顯示小標籤
   const drugFlagMap = useMemo(() => {
     const map = new Map<string, any>();
@@ -549,17 +553,22 @@ const MedicationWorkflow: React.FC = () => {
     // 錯誤已在 QRScanner 元件中顯示，這裡不需要額外處理
   };
   // 計算一週日期（周日開始）
+  // 注意：日期字串一律用本地時區砌 YYYY-MM-DD，唔好用 toISOString()（UTC）——
+  // 香港時間凌晨 00:00-08:00 對應 UTC 前一日，用 toISOString 會令成週日期錯一日。
+  // 同埋 `new Date('YYYY-MM-DD')` 本身係按 UTC 午夜解析，呢度補 T00:00:00 強制本地解析。
   const computeWeekDates = (dateStr: string): string[] => {
-    const date = new Date(dateStr);
+    const date = new Date(`${dateStr}T00:00:00`);
     const day = date.getDay(); // 0=週日, 1=週一, ..., 6=週六
     const diff = date.getDate() - day;
     const sunday = new Date(date);
     sunday.setDate(diff);
+    const fmtLocal = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const week: string[] = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(sunday);
       d.setDate(d.getDate() + i);
-      week.push(d.toISOString().split('T')[0]);
+      week.push(fmtLocal(d));
     }
     return week;
   };
@@ -795,7 +804,7 @@ const MedicationWorkflow: React.FC = () => {
   useEffect(() => {
     setAutoGenerationChecked(false);
   }, [selectedPatientId, selectedDate]);
-  // 當 weekDates 或 patient 改變時，清空並重新載入一週記錄
+  // 當 weekDates、patient 或處方 backfill 完成（workflowRecordsVersion）時，清空並重新載入一週記錄
   useEffect(() => {
     if (selectedPatientId && weekDates.length > 0) {
       setAllWorkflowRecords([]);
@@ -827,7 +836,7 @@ const MedicationWorkflow: React.FC = () => {
         })();
       }
     }
-  }, [selectedPatientId, JSON.stringify(weekDates)]);
+  }, [selectedPatientId, JSON.stringify(weekDates), workflowRecordsVersion]);
   // 監聯 context 的 prescriptionWorkflowRecords 改變，只更新已存在的記錄，不引入週外記錄
   useEffect(() => {
     if (selectedPatientId) {
@@ -1140,21 +1149,33 @@ const MedicationWorkflow: React.FC = () => {
     }
     const record = allWorkflowRecords.find(r => r.id === recordId);
     if (!record) return;
-    // 無時間點 PRN：一筆為一次臨時給藥（三簽一次完成），撤銷任一步驟＝整筆刪除，
+    // 無時間點 PRN：撤銷同普通處方一致，只將該步重設回 pending；
+    // 若撤銷後三步全部 pending（記錄已無任何簽署內容），先整筆刪除，
     // 使時間列連同每日計數一併移除。
     const prescription = prescriptions.find(p => p.id === record.prescription_id);
     if (prescription && isPrnNoSlot(prescription)) {
-      try {
-        const { error } = await supabase
-          .from('medication_workflow_records')
-          .delete()
-          .eq('id', recordId);
-        if (error) throw error;
-        setAllWorkflowRecords(prev => prev.filter(r => r.id !== recordId));
-      } catch (error) {
-        console.error('撤銷需要時給藥（刪除記錄）失敗:', error);
+      const afterRevert = { ...record };
+      if (step === 'preparation') afterRevert.preparation_status = 'pending';
+      else if (step === 'verification') afterRevert.verification_status = 'pending';
+      else if (step === 'dispensing') afterRevert.dispensing_status = 'pending';
+      const allPending =
+        afterRevert.preparation_status === 'pending' &&
+        afterRevert.verification_status === 'pending' &&
+        afterRevert.dispensing_status === 'pending';
+      if (allPending) {
+        try {
+          const { error } = await supabase
+            .from('medication_workflow_records')
+            .delete()
+            .eq('id', recordId);
+          if (error) throw error;
+          setAllWorkflowRecords(prev => prev.filter(r => r.id !== recordId));
+        } catch (error) {
+          console.error('撤銷需要時給藥（刪除記錄）失敗:', error);
+        }
+        return;
       }
-      return;
+      // 仍有其他步驟非 pending：落入下方普通撤銷流程（重設該步回 pending）
     }
     try {
       await revertPrescriptionWorkflowStep(recordId, step as any, patientIdNum, record.scheduled_date);
@@ -3077,30 +3098,19 @@ const MedicationWorkflow: React.FC = () => {
                   {filteredPrescriptions.map((prescription, index) => {
                     // 獲取處方當前的時間點
                     const currentTimeSlots = prescription.medication_time_slots || [];
-                    // 只保留「該週有已簽記錄」的舊時間點（任一狀態非 pending 即為已簽）。
-                    // 原則：過去已簽的時間點永遠保留（歷史不變），純 pending 的舊時間點會響應處方增減而消失。
-                    // 此判斷以「當前這一週的記錄」為準，故每翻一頁（每週）獨立評估，任何週次皆自動正確。
-                    const weekTimeSlotsFromRecords = allWorkflowRecords
-                      .filter(r =>
-                        r.prescription_id === prescription.id &&
-                        (r.preparation_status !== 'pending' ||
-                          r.verification_status !== 'pending' ||
-                          r.dispensing_status !== 'pending')
-                      )
-                      .map(r => r.scheduled_time?.trim().substring(0, 5))
-                      .filter((time, idx2, self) => time && self.indexOf(time) === idx2);
-                    // 合併時間點：當前處方時間點 + 當週有已簽記錄的舊時間點
-                    const allTimeSlots = new Set([
-                      ...currentTimeSlots,
-                      ...weekTimeSlotsFromRecords
-                    ]);
-                    const timeSlots = Array.from(allTimeSlots).sort((a, b) => {
-                      const parseTime = (t: string) => {
-                        const [h, m] = t.split(':').map(Number);
-                        return h * 60 + m;
-                      };
-                      return parseTime(a) - parseTime(b);
-                    });
+                    // 時間列規則（同藥紙共用 mergeRecordSlots，單一真相來源）：
+                    // 當前處方時間點 ∪ 當週「範圍內有記錄（不論 pending 定已簽）」嘅舊時間點，
+                    // 已排序去重，輸出為 HH:MM（同下面 normalizeTime 比對格式一致）。
+                    // 原則：舊時間點只要有記錄就保留；範圍外嘅記錄唔會令時間列復活。
+                    const weekRecordsForPrescription = allWorkflowRecords
+                      .filter(r => r.prescription_id === prescription.id);
+                    const timeSlots = mergeRecordSlots(
+                      prescription,
+                      currentTimeSlots,
+                      weekRecordsForPrescription,
+                      weekDates[0],
+                      weekDates[6]
+                    );
                     // PRN 或無時間點時，fallback 顯示單行
                     const prnNoSlot = isPrnNoSlot(prescription);
                     // 無時間點 PRN：已派實際時間成為時間列 + 最底「按需要」加號列
@@ -3310,11 +3320,17 @@ const MedicationWorkflow: React.FC = () => {
                               {weekDates.map((date) => {
                                 const isSelectedDate = date === selectedDate;
                                 const isAddRow = timeSlot === PRN_ADD_ROW;
-                                const workflowRecord = isAddRow ? undefined : recordsWithOptimisticUpdates.find(r =>
+                                const foundRecord = isAddRow ? undefined : recordsWithOptimisticUpdates.find(r =>
                                   r.prescription_id === prescription.id &&
                                   r.scheduled_date === date &&
                                   normalizeTime(r.scheduled_time) === normalizeTime(timeSlot)
                                 );
+                                // 處方有效期（start/end）範圍外嘅記錄——包括已簽歷史——一律當無記錄處理，
+                                // 落入下方「無處方」灰字分支（已簽記錄永不刪除，只係表面隱藏）
+                                const workflowRecord = foundRecord &&
+                                  isCellDateInRange(prescription, foundRecord.scheduled_date, foundRecord.scheduled_time)
+                                  ? foundRecord
+                                  : undefined;
                                 // PRN 空格互動：加號列任何日皆可點；時間列僅該日已有記錄時可點。
                                 // 是否達每日上限的判斷交由 openPrnDose：到頂會出提示。
                                 const renderPrnEmptyCell = () => {
@@ -3389,11 +3405,16 @@ const MedicationWorkflow: React.FC = () => {
                                 </td>
                                 {weekDates.map((date) => {
                                   const isSelectedDate = date === selectedDate;
-                                  const workflowRecord = recordsWithOptimisticUpdates.find(r =>
+                                  const foundRecord = recordsWithOptimisticUpdates.find(r =>
                                     r.prescription_id === prescription.id &&
                                     r.scheduled_date === date &&
                                     normalizeTime(r.scheduled_time) === normalizeTime(timeSlot)
                                   );
+                                  // 同主格一致：處方範圍外嘅記錄當無記錄，注射位置都唔顯示
+                                  const workflowRecord = foundRecord &&
+                                    isCellDateInRange(prescription, foundRecord.scheduled_date, foundRecord.scheduled_time)
+                                    ? foundRecord
+                                    : undefined;
                                   let site = '';
                                   if (workflowRecord?.notes) {
                                     const m = String(workflowRecord.notes).match(/注射位置[：:]\s*([^|]+)/);

@@ -254,6 +254,15 @@ const Dashboard: React.FC = () => {
       const completedTimes = new Set(dateRecords.map(r => normalizeTime(r.記錄時間)));
       selectedTime = primaryTask.specific_times.find(time => !completedTimes.has(normalizeTime(time)));
     }
+    // [增量輸入] 計算該日期（同時間點，如有）尚未完成嘅監測類型，modal 只顯示呢啲輸入框。
+    // 語義同 isTaskCompletedForDate 一致：有時間點用 ±30 分鐘容差（hasRecordWithinTolerance），
+    // 冇時間點就用當日存在鍵；只用 院友+類型 鍵（每條記錄必定產生，合併任務可逐項判定）
+    const primaryPidStr = primaryTask.patient_id?.toString() || '';
+    const missingTypes = taskRecordVitalTypes(primaryTask.health_record_type).filter(tp => {
+      const dateKey = `${primaryPidStr}_${tp}_${effectiveDate}`;
+      if (selectedTime) return !hasRecordWithinTolerance([dateKey], selectedTime);
+      return !recordLookup.has(dateKey);
+    });
     const initialDataForModal = {
       patient: patient ? {
         院友id: patient.院友id,
@@ -273,7 +282,9 @@ const Dashboard: React.FC = () => {
         notes: t.notes,
       })),
       預設日期: effectiveDate,
-      預設時間: selectedTime
+      預設時間: selectedTime,
+      // 全部類型已完成（過渡狀態，例如四項齊但卡片未消失）就唔傳，modal 維持原有全量顯示
+      restrictTypes: missingTypes.length > 0 ? missingTypes : undefined
     };
     setSelectedHealthRecordInitialData(initialDataForModal);
     setShowHealthRecordModal(true);
@@ -1731,6 +1742,7 @@ const Dashboard: React.FC = () => {
       {showHealthRecordModal && (
         <HealthRecordModal
           initialData={selectedHealthRecordInitialData}
+          restrictTypes={selectedHealthRecordInitialData?.restrictTypes}
           onClose={() => {
             lastHealthModalCloseAtRef.current = Date.now();
             setShowHealthRecordModal(false);

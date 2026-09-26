@@ -1750,8 +1750,10 @@ export const createPatient = async (patient: Omit<Patient, '院友id'>): Promise
 };
 export const updatePatient = async (patient: Patient): Promise<Patient> => {
   const cleanedPatient = { ...patient } as Record<string, any>;
+  // NOT NULL 文字欄位：空字串係合法嘅「無值」表示，轉 null 會違反約束（退住時床號='' 就係咁爆）
+  const KEEP_EMPTY_STRING_COLUMNS = new Set(['床號']);
   Object.keys(cleanedPatient).forEach(key => {
-    if (cleanedPatient[key] === '') cleanedPatient[key] = null;
+    if (cleanedPatient[key] === '' && !KEEP_EMPTY_STRING_COLUMNS.has(key)) cleanedPatient[key] = null;
   });
   // 同上：若欄位不存在於 DB，null 值直接省略避免 PGRST204。
   if (cleanedPatient.公務員 == null) delete cleanedPatient.公務員;

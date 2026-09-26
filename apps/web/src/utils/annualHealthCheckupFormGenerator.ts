@@ -6,7 +6,6 @@
 import { AnnualHealthCheckup, parseMentalStateAssessment } from './annualHealthCheckupHelper';
 import { generateMedicationListAttachment } from './medicationListHtmlGenerator';
 import { supabase } from '../lib/supabase';
-import { formatDisplayDate } from '../utils/dateFormat';
 
 
 interface Patient {
@@ -509,7 +508,7 @@ ${medicationPages}
       <p style="margin-bottom:2px; font-size:8.5pt;">Registered Medical Practitioner's Name<br/>註冊醫生姓名</p>
       <div style="border-bottom:1px solid #000; height:30px; margin-bottom:8px;"></div>
       <p style="margin-bottom:2px; font-size:8.5pt;">Date 日期</p>
-      <div style="border-bottom:1px solid #000; height:15px;">${checkup.last_doctor_signature_date ? formatDisplayDate(checkup.last_doctor_signature_date) : ''}</div>
+      <div style="border-bottom:1px solid #000; height:15px;"></div>
     </div>
     <div style="width:50%;">
       <p style="margin-bottom:2px; font-size:8.5pt;">Name of Hospital/Clinic<br/>醫院／診所名稱</p>

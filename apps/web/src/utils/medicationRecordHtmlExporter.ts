@@ -15,6 +15,7 @@ import {
 } from './facilitySettings';
 import { isPrescriptionScheduledOnDate } from './prescriptionSchedule';
 import { isPrescriptionExpired, isPrescriptionAboutToExpire } from './prescriptionExpiry';
+import { mergeRecordSlots } from './workflowCellRule';
 import { formatMealTimingFrom } from './mealTiming';
 
 import { formatDisplayDate } from './dateFormat';
@@ -229,7 +230,7 @@ const buildMedicationRecordHtml = async (
     const staffMapping = generateStaffCodeMapping(extractStaffNamesFromWorkflowRecords(workflowRecords));
     const staffCount = Object.keys(staffMapping).length;
 
-    for (const page of preparePages(patient, prescriptions, includeBlankRows, staffCount, prescriptionSortOrder, separateInspectionPages, patient.quantityStatPrescriptions)) {
+    for (const page of preparePages(patient, prescriptions, includeBlankRows, staffCount, prescriptionSortOrder, separateInspectionPages, patient.quantityStatPrescriptions, workflowRecords, selectedMonth)) {
       renderedPages.push(renderPage(page, selectedMonth, workflowRecords, staffMapping, includeBlankRows, template));
     }
   }
@@ -246,7 +247,21 @@ export const preparePages = (
   prescriptionSortOrder?: string,
   separateInspectionPages = false,
   quantityStatPrescriptions?: MedicationPrescription[],
+  workflowRecords: WorkflowRecord[] = [],
+  selectedMonth?: string,
 ): PageData[] => {
+  // 時間列合併（業務規則：時間點隨時可改；舊時間點喺處方範圍內當月有記錄——
+  // 不論 pending 定已簽——都要出現喺藥紙）。喺 block 建立時就 merge，
+  // 令 getBlockHeightMm／rowsPerSlot／summaryRowCount／分頁全部用合併後嘅時段數計高度。
+  const mergeSlotsFor = (rx: MedicationPrescription): string[] => {
+    const current = resolvePrescriptionTimeSlots(rx);
+    if (!selectedMonth || workflowRecords.length === 0) return current;
+    const from = `${selectedMonth}-01`;
+    const to = toDateString(selectedMonth, getDaysInMonth(selectedMonth));
+    const rxRecords = workflowRecords.filter((r) => r.prescription_id === rx.id);
+    if (rxRecords.length === 0) return current;
+    return mergeRecordSlots(rx, current, rxRecords, from, to);
+  };
   const categorized: Record<RouteKind, MedicationPrescription[]> = { oral: [], topical: [], subcutaneous: [], intramuscular: [] };
   for (const prescription of prescriptions) {
     categorized[classifyRoute(prescription)].push(prescription);
@@ -274,12 +289,12 @@ export const preparePages = (
       : rxList;
     const inspectionBlocks: PrescriptionBlock[] = inspectionRx.map((rx) => ({
       prescription: rx,
-      timeSlots: resolvePrescriptionTimeSlots(rx),
+      timeSlots: mergeSlotsFor(rx),
     }));
 
     const blocks = normalRx.map((rx) => ({
       prescription: rx,
-      timeSlots: resolvePrescriptionTimeSlots(rx),
+      timeSlots: mergeSlotsFor(rx),
     }));
 
     let grouped: PrescriptionBlock[][];

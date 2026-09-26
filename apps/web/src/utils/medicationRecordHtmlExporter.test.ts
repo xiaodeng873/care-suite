@@ -259,3 +259,75 @@ describe('preparePages（藥物數量參考：全部在服處方）', () => {
     expect(pages[0].oralQuantityStat).toBe('藥物數量參考 8A(1)');
   });
 });
+
+// ---- 時間點變更：合併當月有記錄嘅舊時段 ----
+// 業務規則：時間點隨時可改；舊時間點喺處方 start–end 範圍內當月有記錄
+// （不論 pending 定已簽）都要出現喺藥紙；冇記錄嘅舊時間點唔出現。
+describe('preparePages（時間點變更：合併舊記錄時段）', () => {
+  const MONTH = '2026-08';
+
+  // 處方時間點已由 08:00 改做 10:00
+  const changedRx = () => ({
+    id: 'rx-1',
+    medication_name: 'AMLODIPINE TABLET 5MG',
+    administration_route: '口服',
+    medication_time_slots: ['10:00'],
+    status: 'active',
+    start_date: '2026-08-01',
+    inspection_rules: [],
+  });
+
+  const recordAt = (date: string, time: string, overrides: Record<string, unknown> = {}) => ({
+    id: `rec-${date}-${time}`,
+    prescription_id: 'rx-1',
+    patient_id: 1,
+    scheduled_date: date,
+    scheduled_time: time,
+    preparation_status: 'pending',
+    verification_status: 'pending',
+    dispensing_status: 'pending',
+    ...overrides,
+  });
+
+  const slotsOf = (pages: ReturnType<typeof preparePages>): string[] =>
+    pages.flatMap((p) => p.blocks).flatMap((b) => b.timeSlots);
+
+  it('舊時間點（08:00）當月有已簽記錄 → 藥紙同時出現 08:00 同 10:00 時間列', () => {
+    const records = [
+      recordAt('2026-08-05', '08:00', { dispensing_status: 'completed', dispensing_staff: '陳姑娘' }),
+    ];
+    const pages = preparePages(PATIENT, [changedRx()], false, 0, 'efficiency', false, undefined, records as any, MONTH);
+    expect(slotsOf(pages)).toEqual(['08:00', '10:00']);
+  });
+
+  it('舊時間點只有純 pending 記錄（排程預告）都會令時間列出現', () => {
+    const records = [recordAt('2026-08-05', '08:00')];
+    const pages = preparePages(PATIENT, [changedRx()], false, 0, 'efficiency', false, undefined, records as any, MONTH);
+    expect(slotsOf(pages)).toEqual(['08:00', '10:00']);
+  });
+
+  it('舊時間點冇記錄 → 唔會出現舊時間列（只有新時間 10:00）', () => {
+    const pages = preparePages(PATIENT, [changedRx()], false, 0, 'efficiency', false, undefined, [], MONTH);
+    expect(slotsOf(pages)).toEqual(['10:00']);
+  });
+
+  it('其他處方嘅記錄唔會混入呢條處方嘅時間列', () => {
+    const records = [{ ...recordAt('2026-08-05', '08:00'), prescription_id: 'rx-other' }];
+    const pages = preparePages(PATIENT, [changedRx()], false, 0, 'efficiency', false, undefined, records as any, MONTH);
+    expect(slotsOf(pages)).toEqual(['10:00']);
+  });
+
+  it('記錄喺處方範圍外（end_date 之後）→ 舊時間點唔會復活', () => {
+    const rx = { ...changedRx(), end_date: '2026-08-10' };
+    const records = [
+      recordAt('2026-08-20', '08:00', { dispensing_status: 'completed', dispensing_staff: '陳姑娘' }),
+    ];
+    const pages = preparePages(PATIENT, [rx], false, 0, 'efficiency', false, undefined, records as any, MONTH);
+    expect(slotsOf(pages)).toEqual(['10:00']);
+  });
+
+  it('冇傳 workflowRecords / selectedMonth（舊 caller）→ 行為不變，只用當前時間點', () => {
+    const pages = preparePages(PATIENT, [changedRx()], false, 0, 'efficiency', false);
+    expect(slotsOf(pages)).toEqual(['10:00']);
+  });
+});
