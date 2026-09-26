@@ -33,7 +33,11 @@ export type MedicationRecordTemplate = 'template1' | 'template2';
 // template1: 簽署指引 → 院友相片 → 彙總區（相片在彙總區）
 // template2: 院友相片在頂部標題區（現有設計）
 type MedicationPrescription = Record<string, any>;
-type PatientWithPrescriptions = Record<string, any> & { prescriptions?: MedicationPrescription[] };
+type PatientWithPrescriptions = Record<string, any> & {
+  prescriptions?: MedicationPrescription[];
+  // 「藥物數量參考」統計用嘅在服處方全集（唔受勾選／月份／停用篩選影響）；缺省 fallback 用 prescriptions
+  quantityStatPrescriptions?: MedicationPrescription[];
+};
 
 interface PrescriptionBlock {
   prescription: MedicationPrescription;
@@ -225,7 +229,7 @@ const buildMedicationRecordHtml = async (
     const staffMapping = generateStaffCodeMapping(extractStaffNamesFromWorkflowRecords(workflowRecords));
     const staffCount = Object.keys(staffMapping).length;
 
-    for (const page of preparePages(patient, prescriptions, includeBlankRows, staffCount, prescriptionSortOrder, separateInspectionPages)) {
+    for (const page of preparePages(patient, prescriptions, includeBlankRows, staffCount, prescriptionSortOrder, separateInspectionPages, patient.quantityStatPrescriptions)) {
       renderedPages.push(renderPage(page, selectedMonth, workflowRecords, staffMapping, includeBlankRows, template));
     }
   }
@@ -241,6 +245,7 @@ export const preparePages = (
   staffCount: number,
   prescriptionSortOrder?: string,
   separateInspectionPages = false,
+  quantityStatPrescriptions?: MedicationPrescription[],
 ): PageData[] => {
   const categorized: Record<RouteKind, MedicationPrescription[]> = { oral: [], topical: [], subcutaneous: [], intramuscular: [] };
   for (const prescription of prescriptions) {
@@ -249,13 +254,18 @@ export const preparePages = (
 
   const footerLegendMm = estimateFooterLegendMm(staffCount);
   const pages: PageData[] = [];
-  const oralQuantityStat = computeOralQuantityStat(categorized.oral);
+  // 數量統計用「而家喺服嘅全部口服處方」（modal 傳入），冇傳就 backward-compatible 用勾選清單嘅口服
+  const statOral = quantityStatPrescriptions
+    ? quantityStatPrescriptions.filter((p) => classifyRoute(p) === 'oral')
+    : categorized.oral;
+  const oralQuantityStat = computeOralQuantityStat(statOral);
 
   const addRoute = (routeKind: PageRouteKind, rxList: MedicationPrescription[]): void => {
     if (rxList.length === 0) return;
 
-    // 「檢測項獨立分頁」：含檢測項（inspection_rules）的處方各自獨立一頁，
-    // 該頁永不插入處方空白列；其餘處方維持原有分頁方式
+    // 「檢測項獨立分頁」：含檢測項（inspection_rules）的處方抽出裝入獨立頁
+    // （時間點互斥 first-fit 共用，見 packInspectionBlocks），該頁永不插入處方空白列；
+    // 其餘處方維持原有分頁方式
     const inspectionRx = separateInspectionPages
       ? rxList.filter((rx) => prescriptionHasInspection(rx))
       : [];
@@ -294,7 +304,8 @@ export const preparePages = (
       grouped = paginateBlocks(blocks, footerLegendMm);
     }
 
-    // 檢測項獨立頁排於本途徑常規頁之後
+    // 檢測項獨立頁排於本途徑常規頁之後（多個 block 按時間點互斥 first-fit 共用頁面）
+    const inspectionGroups = packInspectionBlocks(inspectionBlocks, footerLegendMm);
     const routePages: PageData[] = grouped.map((pb, i) => {
       // 空白處方列是最後程序：在最終頁面組成後，依本頁實際剩餘高度計算可補列數
       let fillerCount = 0;
@@ -311,9 +322,9 @@ export const preparePages = (
         oralQuantityStat: routeKind === 'oral' ? oralQuantityStat : undefined,
       };
     });
-    for (const block of inspectionBlocks) {
+    for (const group of inspectionGroups) {
       routePages.push({
-        patient, routeKind, blocks: [block],
+        patient, routeKind, blocks: group,
         pageIndexInRoute: 0, pageCountInRoute: 0, // 下方統一重編頁碼
         fillerCount: 0, // 檢測項獨立頁永不插入處方空白列
         oralQuantityStat: routeKind === 'oral' ? oralQuantityStat : undefined,
@@ -424,6 +435,34 @@ const paginateBlocks = (
 
   if (current.length > 0) result.push(current);
   return result.length > 0 ? result : [[]];
+};
+
+// 檢測項獨立頁裝箱（first-fit）：含檢測項嘅處方抽出後共用頁面（慳紙），
+// 但同一頁內唔可以有多過一條處方擁有相同時間點——時間點集合有交集就唔可以放同一頁
+// （空 timeSlots 嘅 block 交集永遠為空，唔會同任何 block 衝突）；
+// 放得落亦受 mm 高度限制（同 paginateBlocks 計法一致），裝唔落先開新頁。
+const packInspectionBlocks = (
+  blocks: PrescriptionBlock[],
+  footerLegendMm: number,
+): PrescriptionBlock[][] => {
+  const pages: PrescriptionBlock[][] = [];
+  for (const block of blocks) {
+    const blockMm = getBlockHeightMm(block);
+    let target: PrescriptionBlock[] | undefined;
+    for (const page of pages) {
+      const conflict = page.some((b) =>
+        b.timeSlots.length > 0 && block.timeSlots.length > 0 &&
+        b.timeSlots.some((s) => block.timeSlots.includes(s)));
+      if (conflict) continue;
+      const projected = [...page, block];
+      const usedMm = projected.reduce((sum, b) => sum + getBlockHeightMm(b), 0);
+      if (usedMm > bodyUsableMm(summaryRowCount(projected), footerLegendMm)) continue;
+      target = page;
+      break;
+    }
+    if (target) target.push(block); else pages.push([block]);
+  }
+  return pages;
 };
 
 // 彙總區行數配置：按實際 AM/PM 時段數，PM 最少從第 3 列開始，
@@ -693,7 +732,7 @@ const sortDistinctTimeSlots = (slots: string[]): string[] => {
 };
 
 // 將 "HH:mm" 轉為短標籤：上午加 A、下午加 P，並以 12 小時制顯示（08:00→8A、10:00→10A、16:00→4P）
-const formatSlotShortLabel = (slot: string): string => {
+export const formatSlotShortLabel = (slot: string): string => {
   const match = String(slot ?? '').match(/(\d{1,2}):(\d{2})/);
   if (!match) return slot;
   const hour = parseInt(match[1], 10);
@@ -727,6 +766,8 @@ const computeOralQuantityStat = (oralPrescriptions: MedicationPrescription[]): s
       || freqType === 'each_time'
       || (freqType === 'every_x_days' && (Number(rx.frequency_value) || 1) === 1);
     for (const slot of resolvePrescriptionTimeSlots(rx)) {
+      // 只統計 HH:MM 時間點；「晚上」等文字時段唔計入數量參考
+      if (!/^\d{1,2}:\d{2}/.test(String(slot ?? ''))) continue;
       if (isAlternating) {
         const g = oddEvenBySlot.get(slot) ?? { odd: 0, even: 0 };
         if (rx.is_odd_even_day === 'even') g.even += amount; else g.odd += amount;

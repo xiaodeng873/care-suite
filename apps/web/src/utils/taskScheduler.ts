@@ -13,7 +13,7 @@ const MONITORING_TASK_TYPES = new Set([
 export function isMonitoringTask(taskType: string): boolean {
   return MONITORING_TASK_TYPES.has(taskType);
 }
-// 「生命表徵」合併任務涵蓋的四項監測類型（記錄仍以逐項保存，完成判定四項任一命中即可）
+// 「生命表徵」合併任務涵蓋的四項監測類型（記錄仍以逐項保存，完成判定四項齊全先算完成）
 export const VITAL_SIGN_GROUP_TYPES: readonly string[] = ['血壓', '脈搏', '血含氧量', '呼吸'];
 
 // 任務完成判定適用的監測類型清單：合併任務對應四項，其他任務為自身類型
@@ -21,14 +21,19 @@ export function taskRecordVitalTypes(taskType: string): string[] {
   return taskType === '生命表徵' ? [...VITAL_SIGN_GROUP_TYPES] : [taskType];
 }
 
-// recordLookup 命中檢查：先按任務 id，後備按 院友+監測類型（合併任務四項任一命中即可）
+// recordLookup 命中檢查：先按任務 id，後備按 院友+監測類型
+// 「生命表徵」合併任務：四項逐項檢查、全部有記錄先算完成；
+// 只用 院友+類型 鍵（每條記錄必定產生），唔用任務 id 鍵（唔分類型，無法逐項判定）
 export function taskHasRecordLookup(task: PatientHealthTask, recordLookup: Set<string>, dateStr: string, timeStr?: string): boolean {
   const suffix = timeStr ? `_${timeStr}` : '';
-  if (recordLookup.has(`${task.id}_${dateStr}${suffix}`)) return true;
   const pid = task.patient_id?.toString() || '';
-  return taskRecordVitalTypes(task.health_record_type).some(
-    (tp) => recordLookup.has(`${pid}_${tp}_${dateStr}${suffix}`)
-  );
+  if (task.health_record_type === '生命表徵') {
+    return VITAL_SIGN_GROUP_TYPES.every(
+      (tp) => recordLookup.has(`${pid}_${tp}_${dateStr}${suffix}`)
+    );
+  }
+  if (recordLookup.has(`${task.id}_${dateStr}${suffix}`)) return true;
+  return recordLookup.has(`${pid}_${task.health_record_type}_${dateStr}${suffix}`);
 }
 
 // 判斷任務喺某日期係咪已完成（同 Dashboard 逾期掃描完全一致嘅語義）：
@@ -44,13 +49,22 @@ export function isTaskCompletedForDate(
 ): boolean {
   const toMin = (t: string) => { const [h, m] = t.substring(0, 5).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
   const times = (task.specific_times || []).map(t => t.substring(0, 5));
-  const keys = [
-    `${task.id}_${dateStr}`,
-    ...taskRecordVitalTypes(task.health_record_type).map(tp => `${task.patient_id?.toString()}_${tp}_${dateStr}`),
-  ];
+  // 合併任務唔用任務 id 鍵（唔分類型），逐項用 院友+類型 鍵判定
+  const isVitalGroup = task.health_record_type === '生命表徵';
+  const pid = task.patient_id?.toString() || '';
+  const keys = isVitalGroup
+    ? VITAL_SIGN_GROUP_TYPES.map(tp => `${pid}_${tp}_${dateStr}`)
+    : [
+        `${task.id}_${dateStr}`,
+        ...taskRecordVitalTypes(task.health_record_type).map(tp => `${pid}_${tp}_${dateStr}`),
+      ];
   if (times.length > 0 && task.health_record_type !== '體重') {
     return times.every(time => {
       const target = toMin(time);
+      if (isVitalGroup) {
+        // 每個時間點都要四項齊（各自 ±toleranceMin 分鐘內有記錄）
+        return keys.every(k => (recordTimes.get(k) || []).some(min => Math.abs(min - target) <= toleranceMin));
+      }
       return keys.some(k => (recordTimes.get(k) || []).some(min => Math.abs(min - target) <= toleranceMin));
     });
   }
@@ -236,8 +250,9 @@ export async function findFirstMissingDate(
   supabase: any,
   maxDaysToCheck: number = 90
 ): Promise<Date> {
-  // 「生命表徵」合併任務：以四項中任何一項記錄視為完成
+  // 「生命表徵」合併任務：四項逐項檢查，全部有記錄先算完成
   const matchTypes = taskRecordVitalTypes(task.health_record_type);
+  const isVitalGroup = task.health_record_type === '生命表徵';
   const typeClause = matchTypes.length === 1
     ? `監測類型.eq.${matchTypes[0]}`
     : `監測類型.in.(${matchTypes.join(',')})`;
@@ -275,16 +290,27 @@ export async function findFirstMissingDate(
         // - 無 任務id（舊記錄）且 院友id+監測類型 匹配：後備匹配
         // [修復] 排除屬於其他任務的記錄，避免誤判為本任務已完成
         const taskRecords = (records || []).filter(recordMatchesTask);
-        // 收集已完成的時間點
+        // 收集已完成的時間點（合併任務按 類型→時間 分組，逐項判定）
         const completedTimes = new Set(
           taskRecords.map((r: any) => normalizeTime(r.記錄時間))
         );
-        // 檢查每個時間點是否都有記錄
+        const timesByType = new Map<string, Set<string>>();
+        if (isVitalGroup) {
+          taskRecords.forEach((r: any) => {
+            if (!VITAL_SIGN_GROUP_TYPES.includes(r.監測類型)) return;
+            if (!timesByType.has(r.監測類型)) timesByType.set(r.監測類型, new Set());
+            timesByType.get(r.監測類型)!.add(normalizeTime(r.記錄時間));
+          });
+        }
+        // 檢查每個時間點是否都有記錄（合併任務：每個時間點要四項齊）
         let allTimesCompleted = true;
         let firstMissingTime: string | null = null;
         for (const time of task.specific_times) {
           const normalizedTime = normalizeTime(time);
-          if (!completedTimes.has(normalizedTime)) {
+          const timeCompleted = isVitalGroup
+            ? VITAL_SIGN_GROUP_TYPES.every(tp => timesByType.get(tp)?.has(normalizedTime))
+            : completedTimes.has(normalizedTime);
+          if (!timeCompleted) {
             allTimesCompleted = false;
             firstMissingTime = time;
             break;
@@ -307,7 +333,11 @@ export async function findFirstMissingDate(
         }
         // [修復] 排除屬於其他任務的記錄
         const taskRecords = (records || []).filter(recordMatchesTask);
-        if (taskRecords.length === 0) {
+        // 合併任務：四項逐項檢查，齊先算完成；其他任務：有任何記錄即完成
+        const dateCompleted = isVitalGroup
+          ? VITAL_SIGN_GROUP_TYPES.every(tp => taskRecords.some((r: any) => r.監測類型 === tp))
+          : taskRecords.length > 0;
+        if (!dateCompleted) {
           if (task.specific_times && task.specific_times.length > 0) {
             const timeStr = task.specific_times[0];
             if (timeStr.includes(':')) {

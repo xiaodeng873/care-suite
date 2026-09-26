@@ -372,13 +372,32 @@ const Dashboard: React.FC = () => {
   const hasRecordForDateTime = (task: HealthTask, dateStr: string, timeStr?: string) => {
     // [關鍵修復] 確保 patient_id 類型一致
     const patientIdStr = task.patient_id?.toString() || '';
-    // 「生命表徵」合併任務：四項記錄任一命中即算完成
+    // 「生命表徵」合併任務：四項（血壓/脈搏/血含氧量/呼吸）逐項檢查、齊全先算完成；
+    // 只用 院友+類型 鍵（任務 id 鍵唔分類型，無法逐項判定）
+    const isVitalGroup = task.health_record_type === '生命表徵';
     const typeKeys = taskRecordVitalTypes(task.health_record_type).map(tp => `${patientIdStr}_${tp}_${dateStr}`);
     // [修復] 如果任務有多個時間點，需要檢查所有時間點
     // 體重等不講求具體時間的監測，只要當日有記錄即算完成
     if (task.health_record_type === '體重') {
       return recordLookup.has(`${task.id}_${dateStr}`) ||
              recordLookup.has(`${patientIdStr}_${task.health_record_type}_${dateStr}`);
+    }
+    if (isVitalGroup) {
+      const checkTimeAllTypes = (time: string) =>
+        typeKeys.every(k => hasRecordWithinTolerance([k], time));
+      if (task.specific_times && task.specific_times.length > 0) {
+        if (timeStr) {
+          // 檢查特定時間點：四項各自 ±30 分鐘內有記錄
+          return checkTimeAllTypes(timeStr);
+        }
+        // 檢查所有時間點是否都四項齊
+        return task.specific_times.every(time => checkTimeAllTypes(time));
+      }
+      if (timeStr) {
+        return checkTimeAllTypes(timeStr);
+      }
+      // 檢查整天（不分時間）：四項各自當日有記錄
+      return typeKeys.every(k => recordLookup.has(k));
     }
     if (task.specific_times && task.specific_times.length > 0) {
       if (timeStr) {

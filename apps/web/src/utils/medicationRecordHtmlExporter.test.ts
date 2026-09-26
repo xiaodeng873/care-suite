@@ -152,9 +152,10 @@ describe('preparePages（檢測項獨立分頁：關閉）', () => {
 describe('preparePages（檢測項獨立分頁：開啟）', () => {
   const pages = preparePages(PATIENT, RXS, true, 0, 'efficiency', true);
 
-  it('每個含檢測項處方獨立一頁，排於常規頁之後', () => {
-    const inspPages = pages.filter((p) => p.blocks.length === 1 && p.blocks[0].prescription.inspection_rules.length > 0);
+  it('含檢測項處方裝入獨立頁，排於常規頁之後（單個 block 獨佔一頁）', () => {
+    const inspPages = pages.filter((p) => p.blocks.some((b) => b.prescription.inspection_rules.length > 0));
     expect(inspPages).toHaveLength(1);
+    expect(inspPages[0].blocks).toHaveLength(1);
     expect(inspPages[0].blocks[0].prescription.medication_name).toBe('METFORMIN HCL TABLET 500MG');
     expect(pages[pages.length - 1]).toBe(inspPages[0]);
   });
@@ -174,5 +175,87 @@ describe('preparePages（檢測項獨立分頁：開啟）', () => {
   it('口服途徑頁碼連貫：pageIndexInRoute 1..N，pageCountInRoute = N（含檢測項獨立頁）', () => {
     expect(pages.map((p) => p.pageIndexInRoute)).toEqual(pages.map((_, i) => i + 1));
     expect(pages.every((p) => p.pageCountInRoute === pages.length)).toBe(true);
+  });
+});
+
+describe('preparePages（檢測項獨立分頁：時間點互斥共用頁）', () => {
+  it('兩條有檢測項處方時間點相同 → 分開兩頁', () => {
+    const rxs = [
+      inspectionRx('METFORMIN HCL TABLET 500MG', ['08:00']),
+      inspectionRx('METFORMIN HCL TABLET 250MG', ['08:00']),
+    ];
+    const pages = preparePages(PATIENT, rxs, false, 0, 'efficiency', true);
+    const inspPages = pages.filter((p) => p.blocks.some((b) => b.prescription.inspection_rules.length > 0));
+    expect(inspPages).toHaveLength(2);
+    expect(inspPages.every((p) => p.blocks.length === 1)).toBe(true);
+    expect(inspPages.every((p) => p.fillerCount === 0)).toBe(true);
+  });
+
+  it('兩條有檢測項處方時間點唔同 → 同一頁（高度容許）', () => {
+    const rxs = [
+      inspectionRx('METFORMIN HCL TABLET 500MG', ['08:00']),
+      inspectionRx('METFORMIN HCL TABLET 250MG', ['16:00']),
+    ];
+    const pages = preparePages(PATIENT, rxs, false, 0, 'efficiency', true);
+    const inspPages = pages.filter((p) => p.blocks.some((b) => b.prescription.inspection_rules.length > 0));
+    expect(inspPages).toHaveLength(1);
+    expect(inspPages[0].blocks.map((b) => b.prescription.medication_name).sort())
+      .toEqual(['METFORMIN HCL TABLET 250MG', 'METFORMIN HCL TABLET 500MG']);
+    expect(inspPages[0].fillerCount).toBe(0);
+  });
+
+  it('時間點唔同但同時包含一個相同時間點 → 分開兩頁', () => {
+    const rxs = [
+      inspectionRx('METFORMIN HCL TABLET 500MG', ['08:00', '16:00']),
+      inspectionRx('METFORMIN HCL TABLET 250MG', ['16:00', '20:00']),
+    ];
+    const pages = preparePages(PATIENT, rxs, false, 0, 'efficiency', true);
+    const inspPages = pages.filter((p) => p.blocks.some((b) => b.prescription.inspection_rules.length > 0));
+    expect(inspPages).toHaveLength(2);
+  });
+
+  it('無時間點嘅檢測項處方唔會同任何處方衝突，可同頁', () => {
+    const rxs = [
+      inspectionRx('METFORMIN HCL TABLET 500MG', ['08:00']),
+      inspectionRx('INSULIN INJECTION', []),
+    ];
+    const pages = preparePages(PATIENT, rxs, false, 0, 'efficiency', true);
+    const inspPages = pages.filter((p) => p.blocks.some((b) => b.prescription.inspection_rules.length > 0));
+    expect(inspPages).toHaveLength(1);
+    expect(inspPages[0].blocks).toHaveLength(2);
+  });
+});
+
+describe('preparePages（藥物數量參考：全部在服處方）', () => {
+  const qtyRx = (name: string, amount: number, slots: string[]) => ({
+    medication_name: name,
+    administration_route: '口服',
+    medication_time_slots: slots,
+    dosage_amount: amount,
+    dosage_unit: '粒',
+    frequency_type: 'daily',
+    inspection_rules: [],
+  });
+
+  it('冇傳 quantityStatPrescriptions：fallback 用勾選清單計統計', () => {
+    const pages = preparePages(PATIENT, [qtyRx('A', 1, ['08:00'])], false, 0, 'efficiency', false);
+    expect(pages[0].oralQuantityStat).toBe('藥物數量參考 8A(1)');
+  });
+
+  it('傳咗在服全集：未勾選嘅在服口服處方都計入統計', () => {
+    const selected = [qtyRx('A', 1, ['08:00'])];
+    const allActive = [qtyRx('A', 1, ['08:00']), qtyRx('B', 2, ['08:00']), qtyRx('C', 3, ['20:00'])];
+    const pages = preparePages(PATIENT, selected, false, 0, 'efficiency', false, allActive);
+    expect(pages[0].oralQuantityStat).toBe('藥物數量參考 8A(3) 8P(3)');
+  });
+
+  it('統計清單中非口服途徑處方會被濾走', () => {
+    const selected = [qtyRx('A', 1, ['08:00'])];
+    const allActive = [
+      qtyRx('A', 1, ['08:00']),
+      { ...qtyRx('D', 5, ['08:00']), administration_route: '皮下注射' },
+    ];
+    const pages = preparePages(PATIENT, selected, false, 0, 'efficiency', false, allActive);
+    expect(pages[0].oralQuantityStat).toBe('藥物數量參考 8A(1)');
   });
 });

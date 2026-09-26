@@ -57,6 +57,7 @@ import {
 } from '../utils/workflowStatusHelper';
 import { isQuickSignEnabled } from '../utils/toolsSettings';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { formatSlotShortLabel } from '../utils/medicationRecordHtmlExporter';
 import DateInput from '../components/DateInput';
 
 
@@ -1010,6 +1011,43 @@ const MedicationWorkflow: React.FC = () => {
       .sort(byName);
     return [...withSlots, ...noSlot];
   }, [activePrescriptions, workflowStep]);
+  // 主表格「藥物數量參考」列：每個日期格分時間點顯示當日粒數（三個步驟頁共用）
+  // 規則與藥紙彙總（computeOralQuantityStat）一致：只計 dosage_unit === '粒'；
+  // 無時間點（PRN/需要時）不計；當日為服藥日，每個 resolved slot（去重用 medication_time_slots）
+  // 嗰格加 dosage_amount（一條處方多個時間點，每個時間點各服一次份量）
+  const dailyPillQuantityBySlot = useMemo(() => {
+    const fmtQty = (n: number) => Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(2)));
+    const toMinutes = (slot: string) => {
+      const m = String(slot).match(/(\d{1,2}):(\d{2})/);
+      return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : NaN;
+    };
+    return weekDates.map(date => {
+      const totals = new Map<string, number>();
+      filteredPrescriptions.forEach(p => {
+        if (String(p.dosage_unit ?? '').trim() !== '粒') return;
+        const amount = parseFloat(String(p.dosage_amount ?? ''));
+        if (!Number.isFinite(amount) || amount <= 0) return;
+        const slots = new Set(
+          (Array.isArray(p.medication_time_slots) ? p.medication_time_slots : [])
+            .map((s: string) => String(s ?? '').trim())
+            // 只計 HH:MM 時間點；「晚上」等文字時段唔計入數量參考
+            .filter(s => /^\d{1,2}:\d{2}/.test(s))
+        );
+        if (slots.size === 0) return; // 無時間點（PRN/需要時）不計
+        if (!isPrescriptionScheduledOnDate(p, date)) return;
+        slots.forEach(slot => {
+          totals.set(slot, (totals.get(slot) ?? 0) + amount);
+        });
+      });
+      const sortedSlots = [...totals.keys()].sort((a, b) => {
+        const ma = toMinutes(a);
+        const mb = toMinutes(b);
+        if (Number.isNaN(ma) || Number.isNaN(mb)) return a.localeCompare(b);
+        return ma - mb;
+      });
+      return sortedSlots.map(slot => `${formatSlotShortLabel(slot)}(${fmtQty(totals.get(slot)!)})`).join(' ');
+    });
+  }, [filteredPrescriptions, weekDates]);
   // 計算每個日期的逾期未完成流程狀態（用於紅點提示，使用樂觀更新記錄）
   const dateOverdueStatus = useMemo(() => {
     return calculateOverdueCountByDate(recordsWithOptimisticUpdates, weekDates, prescriptions);
@@ -3379,6 +3417,28 @@ const MedicationWorkflow: React.FC = () => {
                       </React.Fragment>
                     );
                   })}
+                  {/* ── 藥物數量參考列：每個日期格分時間點顯示當日粒數（執藥/核藥/派藥共用） ── */}
+                  <tr className="bg-gray-50 dark:bg-slate-700/50" style={{ borderBottom: '2px solid #d1d5db' }}>
+                    <td
+                      colSpan={5}
+                      className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400"
+                      style={{ verticalAlign: 'middle' }}
+                    >
+                      藥物數量參考
+                    </td>
+                    {dailyPillQuantityBySlot.map((text, i) => {
+                      const isSelectedDate = weekDates[i] === selectedDate;
+                      return (
+                        <td
+                          key={weekDates[i]}
+                          className={`px-1 py-2 text-center text-xs font-medium text-gray-700 dark:text-gray-200 ${isSelectedDate ? 'bg-blue-100 dark:bg-blue-900' : ''}`}
+                          style={{ verticalAlign: 'middle' }}
+                        >
+                          {text || '\u00A0'}
+                        </td>
+                      );
+                    })}
+                  </tr>
                 </tbody>
               </table>
             </div>

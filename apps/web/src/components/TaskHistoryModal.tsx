@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { isTaskScheduledForDate, taskRecordVitalTypes } from '../utils/taskScheduler';
+import { isTaskScheduledForDate, taskRecordVitalTypes, VITAL_SIGN_GROUP_TYPES } from '../utils/taskScheduler';
 
 interface TaskHistoryModalProps {
   task: any;
@@ -140,14 +140,39 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
     };
 
     // 當日、屬於此任務（或院友+類型後備）的記錄時間（HH:MM 列表）
-    const dayRecordTimes = () => healthRecords
-      .filter(r => {
-        if (r.任務id && r.任務id === task.id) return r.記錄日期 === dateStr;
-        const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
-        const typeMatch = taskRecordVitalTypes(task.health_record_type).includes(r.監測類型);
-        return patientMatch && typeMatch && r.記錄日期 === dateStr;
-      })
-      .map(r => r.記錄時間);
+    // 「生命表徵」合併任務：按類型分組（四項齊全先算完成），只用 院友+類型 匹配
+    // （任務 id 鍵唔分類型，無法逐項判定）；其他任務維持原有 any 語義
+    const isVitalGroup = task.health_record_type === '生命表徵';
+    const dayRecordsByType = () => {
+      const map = new Map<string, string[]>();
+      healthRecords.forEach(r => {
+        if (r.記錄日期 !== dateStr) return;
+        if (isVitalGroup) {
+          if (!VITAL_SIGN_GROUP_TYPES.includes(r.監測類型)) return;
+          if (r.院友id?.toString() !== task.patient_id?.toString()) return;
+        } else {
+          if (r.任務id && r.任務id === task.id) {
+            // 任務精確匹配：任何類型都屬於此任務
+          } else {
+            const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
+            const typeMatch = taskRecordVitalTypes(task.health_record_type).includes(r.監測類型);
+            if (!(patientMatch && typeMatch)) return;
+          }
+        }
+        if (!map.has(r.監測類型)) map.set(r.監測類型, []);
+        map.get(r.監測類型)!.push(r.記錄時間);
+      });
+      return map;
+    };
+    const dayRecordTimes = () => {
+      const map = dayRecordsByType();
+      if (!isVitalGroup) return [...map.values()].flat();
+      return []; // 合併任務用 dayRecordsByType 逐項判定
+    };
+    // 合併任務：指定時間點係咪四項齊（各自 ±30 分鐘內有記錄）
+    const vitalGroupTimeCompleted = (timesByType: Map<string, string[]>, targetTime: string) =>
+      VITAL_SIGN_GROUP_TYPES.every(tp =>
+        (timesByType.get(tp) || []).some(rt => recordMatchesTime(rt, targetTime)));
 
     // [修改] 如果指定了 specificTime，只檢查那個時間點
     if (specificTime) {
@@ -162,7 +187,9 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
 
       const normalizedSpecificTime = normalizeTime(specificTime);
 
-      const hasRecord = dayRecordTimes().some(rt => recordMatchesTime(rt, normalizedSpecificTime));
+      const hasRecord = isVitalGroup
+        ? vitalGroupTimeCompleted(dayRecordsByType(), normalizedSpecificTime)
+        : dayRecordTimes().some(rt => recordMatchesTime(rt, normalizedSpecificTime));
 
       // 未來日期不顯示為逾期
       if (checkDate > today) {
@@ -203,10 +230,11 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
       }
 
       const normalizedTaskTimes = task.specific_times.map(normalizeTime);
-      const todaysRecordTimes = dayRecordTimes();
-      const allTimesCompleted = normalizedTaskTimes.every((time: string) =>
-        todaysRecordTimes.some(rt => recordMatchesTime(rt, time))
-      );
+      const allTimesCompleted = isVitalGroup
+        ? normalizedTaskTimes.every((time: string) => vitalGroupTimeCompleted(dayRecordsByType(), time))
+        : normalizedTaskTimes.every((time: string) =>
+            dayRecordTimes().some(rt => recordMatchesTime(rt, time))
+          );
 
       // 未來日期不顯示為逾期
       if (checkDate > today) {
@@ -232,17 +260,19 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
       return 'none';
     } else {
       // 單時間點任務
-      const hasRecord = healthRecords.some(r => {
-        if (r.任務id && r.任務id === task.id) {
-          return r.記錄日期 === dateStr;
-        }
-        // [增強] 更容錯的匹配邏輯
-        const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
-        const typeMatch = taskRecordVitalTypes(task.health_record_type).includes(r.監測類型);
-        const dateMatch = r.記錄日期 === dateStr;
+      const hasRecord = isVitalGroup
+        ? VITAL_SIGN_GROUP_TYPES.every(tp => (dayRecordsByType().get(tp) || []).length > 0)
+        : healthRecords.some(r => {
+            if (r.任務id && r.任務id === task.id) {
+              return r.記錄日期 === dateStr;
+            }
+            // [增強] 更容錯的匹配邏輯
+            const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
+            const typeMatch = taskRecordVitalTypes(task.health_record_type).includes(r.監測類型);
+            const dateMatch = r.記錄日期 === dateStr;
 
-        return patientMatch && typeMatch && dateMatch;
-      });
+            return patientMatch && typeMatch && dateMatch;
+          });
 
       // 未來日期不顯示為逾期
       if (checkDate > today) {

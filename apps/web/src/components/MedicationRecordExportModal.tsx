@@ -384,10 +384,14 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
       if (exportMode === 'current' && currentPatient) {
         if (shouldExportMedicationRecord) {
+          // 數量統計用該院友全部在服處方（唔受勾選／月份／停用篩選影響）
+          const activeQuantityStatPrescriptions = allPrescriptions.filter((p) =>
+            p.patient_id === currentPatient.patient.院友id && p.status === 'active');
           const hdCurrentPatients = await withHdPatientPhotos([
           {
             ...currentPatient.patient,
-            prescriptions: currentPatientPrescriptionsToExport
+            prescriptions: currentPatientPrescriptionsToExport,
+            quantityStatPrescriptions: activeQuantityStatPrescriptions
           }]);
           await exportMedicationRecordToHtml(hdCurrentPatients,
           selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate, separateInspectionPages);
@@ -454,7 +458,9 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
           return {
             ...patient,
-            prescriptions: sortPrescriptionsByOrder(validPrescriptions, prescriptionSortOrder)
+            prescriptions: sortPrescriptionsByOrder(validPrescriptions, prescriptionSortOrder),
+            // 數量統計用 filter 之前嘅在服全集（唔受勾選／月份／停用／途徑篩選影響）
+            quantityStatPrescriptions: allPrescriptions.filter((p) => p.status === 'active')
           };
         }).
         filter((p) => p.prescriptions.length > 0);
