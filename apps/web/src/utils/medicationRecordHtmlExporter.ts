@@ -1022,7 +1022,7 @@ const renderBodyTable = (
   return `<table class="mr-grid">${colGroup(dayCount)}${header}${body}${fillerBodies}</table>`;
 };
 
-const renderPrescriptionBlock = (
+export const renderPrescriptionBlock = (
   block: PrescriptionBlock,
   selectedMonth: string,
   dayCount: number,
@@ -1131,8 +1131,35 @@ const renderPrescriptionBlock = (
       + `<td class="c-name" rowspan="${leftRowspan}">${nameInfo}</td>`
       + `<td class="c-route" rowspan="${leftRowspan}">${routeInfo || '&nbsp;'}</td>`;
   };
-  // hourly（每N小時）PRN 無固定服用時間點：唔强加時間點落時間欄，格仔照舊灰斜線（= 冇預定時間），
-  // 只係左欄頻率行顯示「每N小時1次」標明呢張係真處方而唔係補白列。
+  // hourly（每N小時）PRN 無固定服用時間點：唔强加時間點落時間欄，
+  // 但日期格照樣顯示處方範圍：範圍外灰格＋▶（開始前一日）／◀（結束後一日，只限確有結束日），
+  // 同有時間點處方嘅視覺一致；範圍內維持白底斜線（= 冇預定時間，PRN 隨時可服）。
+  const isNoSlot = timeSlots.length === 0;
+  const prnBoundary = isNoSlot ? getPrnBoundaryDates(prescription, selectedMonth, dayCount) : null;
+  const noSlotDayCells = (() => {
+    if (!prnBoundary) return '';
+    const diagColor = '#9aa7b4';
+    let cells = '';
+    for (let day = 1; day <= dayCount; day += 1) {
+      const dateStr = toDateString(selectedMonth, day);
+      const inRange = (!prescription.start_date || dateStr >= prescription.start_date)
+        && (!prescription.end_date || dateStr <= prescription.end_date);
+      let cellInner = '';
+      let isBoundary = false;
+      if (!inRange) {
+        if (prnBoundary.before.has(dateStr)) {
+          cellInner = '<span class="mr-cell-special">▶</span>'; isBoundary = true;
+        } else if (prnBoundary.after.has(dateStr)) {
+          cellInner = '<span class="mr-cell-special">◀</span>'; isBoundary = true;
+        }
+      }
+      const inactiveClass = !inRange ? (isImmediate ? ' mr-inactive-prn' : ' mr-inactive') : '';
+      const boundaryClass = isBoundary ? ' mr-boundary' : '';
+      cells += `<td class="c-day ${diagClass}${inactiveClass}${boundaryClass}">${renderDiagonalSvg(diagColor)}${cellInner || '&nbsp;'}</td>`;
+    }
+    return cells;
+  })();
+  const padOrPrnCells = isNoSlot && noSlotDayCells ? noSlotDayCells : padDayCells;
   const rows: string[] = [];
 
   // --- 重複日期列（非首個區塊）：左三欄由本列開始合併，右方 1–31 日數字 ---
@@ -1151,7 +1178,7 @@ const renderPrescriptionBlock = (
     }
   }
   for (let i = 0; i < amPadRows; i++) {
-    rows.push(`<tr class="mr-sign-row">${leftFor()}<td class="c-time">&nbsp;</td>${padDayCells}</tr>`);
+    rows.push(`<tr class="mr-sign-row">${leftFor()}<td class="c-time">&nbsp;</td>${padOrPrnCells}</tr>`);
   }
 
   // --- PM 時段 ---
@@ -1165,7 +1192,7 @@ const renderPrescriptionBlock = (
     }
   }
   for (let i = 0; i < pmPadRows; i++) {
-    rows.push(`<tr class="mr-sign-row">${leftFor()}<td class="c-time">&nbsp;</td>${padDayCells}</tr>`);
+    rows.push(`<tr class="mr-sign-row">${leftFor()}<td class="c-time">&nbsp;</td>${padOrPrnCells}</tr>`);
   }
 
   return rows.join('');
@@ -1245,6 +1272,32 @@ const renderBodyInjectionRow = (
 };
 
 // 計算處方邊界標記格：▶ = 開始前 N 格，◀ = 結束後 N 格（N = 此處方所有日內時段數）。
+// 計算處方邊界標記格：▶ = 開始前 N 格，◀ = 結束後 N 格（N = 此處方所有日內時段數）。
+// PRN（無時間點）專用：以「日」為單位，▶ = 開始日前 1 日，◀ = 結束日後 1 日
+// （只在確有 end_date 時標），band 闊度同正常處方一樣係一日闊。
+const getPrnBoundaryDates = (
+  prescription: MedicationPrescription,
+  selectedMonth: string,
+  dayCount: number
+): { before: Set<string>; after: Set<string> } => {
+  const before = new Set<string>();
+  const after = new Set<string>();
+  const firstDay = `${selectedMonth}-01`;
+  const lastDay = toDateString(selectedMonth, dayCount);
+  const shiftDay = (iso: string, delta: number): string => {
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt = new Date(y, m - 1, d + delta);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  };
+  if (prescription.start_date && prescription.start_date > firstDay && prescription.start_date <= lastDay) {
+    before.add(shiftDay(prescription.start_date, -1));
+  }
+  if (prescription.end_date && prescription.end_date >= firstDay && prescription.end_date < lastDay) {
+    after.add(shiftDay(prescription.end_date, 1));
+  }
+  return { before, after };
+};
+
 const getBoundaryCells = (
   prescription: MedicationPrescription,
   slots: string[],

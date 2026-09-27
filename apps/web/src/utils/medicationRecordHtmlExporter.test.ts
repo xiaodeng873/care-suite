@@ -3,6 +3,7 @@ import {
   packBlocksForSignatureEfficiency,
   orderPrescriptionsForSignatureEfficiency,
   preparePages,
+  renderPrescriptionBlock,
 } from './medicationRecordHtmlExporter';
 
 // 雷燕優（C209-1）2026-08 口服處方（真實資料）
@@ -382,5 +383,45 @@ describe('preparePages（時間點變更：合併舊記錄時段）', () => {
   it('冇傳 workflowRecords / selectedMonth（舊 caller）→ 行為不變，只用當前時間點', () => {
     const pages = preparePages(PATIENT, [changedRx()], false, 0, 'efficiency', false);
     expect(slotsOf(pages)).toEqual(['10:00']);
+  });
+});
+
+describe('renderPrescriptionBlock（PRN 無時間點：日期範圍標記）', () => {
+  const prnBlock = (start: string | null, end: string | null) => ({
+    prescription: {
+      medication_name: 'TRAMADOL CAP 50MG',
+      administration_route: '口服',
+      medication_time_slots: [],
+      inspection_rules: [],
+      is_prn: true,
+      frequency_type: 'hourly',
+      preparation_method: 'immediate',
+      start_date: start,
+      end_date: end,
+    } as any,
+    timeSlots: [] as string[],
+  });
+
+  it('有開始/結束日：範圍外灰格，開始前一日 ▶、結束後一日 ◀，範圍內無灰格', () => {
+    const html = renderPrescriptionBlock(prnBlock('2026-09-10', '2026-09-20'), '2026-09', 30, [], {});
+    expect(html).toContain('▶');
+    expect(html).toContain('◀');
+    // 4 列補白行 × 30 日格；逐格驗證範圍標記
+    const cells = html.match(/<td class="c-day[^"]*"[^>]*>/g) ?? [];
+    expect(cells.length).toBe(30 * 4);
+    cells.forEach((cell, i) => {
+      const day = (i % 30) + 1;
+      const inRange = day >= 10 && day <= 20;
+      expect(cell.includes('mr-inactive'), `day ${day}`).toBe(!inRange);
+    });
+    // ▶ 只在第 9 日、◀ 只在第 21 日出現
+    expect(html.match(/▶/g)?.length).toBe(4);
+    expect(html.match(/◀/g)?.length).toBe(4);
+  });
+
+  it('冇結束日（長期 PRN）：冇 ◀，開始日前灰格＋▶', () => {
+    const html = renderPrescriptionBlock(prnBlock('2026-09-10', null), '2026-09', 30, [], {});
+    expect(html).toContain('▶');
+    expect(html).not.toContain('◀');
   });
 });
