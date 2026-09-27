@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<title>處方標籤 40×30mm（橫向）佈局預覽</title>
+<style>
+  body { font-family: "Microsoft JhengHei", "PingFang HK", "Noto Sans HK", sans-serif;
+         background: #e5e7eb; margin: 0; padding: 10mm; color: #000; }
+  h1 { font-size: 14pt; margin: 0 0 2mm; }
+  p  { font-size: 9pt; color: #374151; margin: 0 0 6mm; }
+  .row { display: flex; flex-direction: column; gap: 5mm; }
+  .sample { display: flex; align-items: center; gap: 4mm; }
+  .cap { font-size: 8pt; color: #6b7280; width: 45mm; }
+
+  /* ===== 以下同 prescriptionLabelHtmlGenerator.ts 嘅 LABEL_CSS 一致 ===== */
+  .label-page { width: 40mm; height: 30mm; overflow: hidden; background: #fff;
+                box-shadow: 0 1mm 3mm rgba(0,0,0,.25); }
+  .label {
+    width: 40mm; height: 30mm; overflow: hidden;
+    padding: 1.5mm 2mm 1mm;
+    display: flex; flex-direction: column;
+    font-family: "Microsoft JhengHei", "PingFang HK", "Noto Sans HK", sans-serif;
+  }
+  .name { font-size: 9pt; font-weight: 700; line-height: 1.15; }
+  .drug { font-size: 7.5pt; font-weight: 700; line-height: 1.15; margin-top: 0.5mm; word-break: break-all; }
+  .spacer { flex: 0 0 auto; min-height: 0.5mm; }
+  .slot { font-size: 13pt; font-weight: 900; line-height: 1.25; letter-spacing: 0.2mm; }
+  .enddate { margin-top: auto; font-size: 8.5pt; font-weight: 700; line-height: 1.2; }
+</style>
+</head>
+<body>
+<h1>處方標籤 40mm × 30mm（橫向）佈局預覽</h1>
+<p>上→下：院友中文姓名、藥物名稱、服用時間點+劑量（最大字，直排每個一行）、結束日期（置底；有輸入藥物數量或服用日數先顯示，「#DD/MM/YYYY」）。</p>
+<div class="row">
+
+  <div class="sample">
+    <div class="label-page"><div class="label">
+      <div class="name">陳大文</div>
+      <div class="drug">CALCIUM（CARBONATE）+VITAMIN D CHEW TAB 1000MG</div>
+      <div class="spacer"></div>
+      <div class="slots">
+        <div class="slot">8A × 1粒</div>
+        <div class="slot">8P × 1粒</div>
+      </div>
+      <div class="enddate">#14/10/2026</div>
+    </div></div>
+    <div class="cap">典型：早晚兩次＋結束日期</div>
+  </div>
+
+  <div class="sample">
+    <div class="label-page"><div class="label">
+      <div class="name">梁梅桂</div>
+      <div class="drug">PARACETAMOL TAB 500MG</div>
+      <div class="spacer"></div>
+      <div class="slots">
+        <div class="slot">需要時 × 1粒</div>
+      </div>
+      <div class="enddate">#30/09/2026</div>
+    </div></div>
+    <div class="cap">PRN（冇時間點→「需要時」）＋結束日期</div>
+  </div>
+
+  <div class="sample">
+    <div class="label-page"><div class="label">
+      <div class="name">黃秋紅</div>
+      <div class="drug">INSULIN HUMAN (HUMULIN 70/30) PENFILL 100U/ML 3ML</div>
+      <div class="spacer"></div>
+      <div class="slots">
+        <div class="slot">8A × 10單位</div>
+      </div>
+      <div class="enddate">#09/12/2026</div>
+    </div></div>
+    <div class="cap">長藥名（自動縮排多行）＋結束日期</div>
+  </div>
+
+  <div class="sample">
+    <div class="label-page"><div class="label">
+      <div class="name">盧葉慧卿</div>
+      <div class="drug">THYROXINE SODIUM TAB 100MCG</div>
+      <div class="spacer"></div>
+      <div class="slots">
+        <div class="slot">7A × 2粒</div>
+        <div class="slot">12N × 1粒</div>
+        <div class="slot">5P × 2粒</div>
+      </div>
+    </div></div>
+    <div class="cap">三時間點（直排）；長期藥冇數量/日數 → 唔顯示結束日期</div>
+  </div>
+
+</div>
+</body>
+</html>

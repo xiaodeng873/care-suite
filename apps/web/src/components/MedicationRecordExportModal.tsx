@@ -2,6 +2,7 @@ import { X, FileDown, Calendar, Users, CheckSquare, Square, AlertCircle, Pill, S
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { exportMedicationRecordToHtml, exportBlankMedicationRecordToHtml, orderPrescriptionsForSignatureEfficiency, type MedicationRecordTemplate } from '../utils/medicationRecordHtmlExporter';
 import { exportMedicationListToHtml, classifyMedicationTerm } from '../utils/medicationListHtmlGenerator';
+import { buildLabelContent, printPrescriptionLabels } from '../utils/prescriptionLabelHtmlGenerator';
 import { useStationData } from '../context/facility/StationContext';
 import { supabase } from '../lib/supabase';
 import { withHdPatientPhotos } from '../lib/database';
@@ -68,6 +69,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   const [includeWorkflowRecords, setIncludeWorkflowRecords] = useState(false);
   const [includeMedicationRecord, setIncludeMedicationRecord] = useState(true);
   const [includePersonalMedicationList, setIncludePersonalMedicationList] = useState(false);
+  const [includePrescriptionLabels, setIncludePrescriptionLabels] = useState(false);
   const [includeShortTerm, setIncludeShortTerm] = useState(true);
   const [includeLongTerm, setIncludeLongTerm] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
@@ -330,7 +332,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
     }
 
     // 非空白模式需要有處方
-    if (exportMode === 'current' && currentPatientPrescriptionsToExport.length === 0 && !includePersonalMedicationList) {
+    if (exportMode === 'current' && currentPatientPrescriptionsToExport.length === 0 && !includePersonalMedicationList && !includePrescriptionLabels) {
       alert('沒有可匯出的處方');
       return;
     }
@@ -416,6 +418,12 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
             });
           }
         }
+
+        if (includePrescriptionLabels && currentPatientPrescriptionsToExport.length > 0) {
+          printPrescriptionLabels(
+            currentPatientPrescriptionsToExport.map((p) => buildLabelContent(currentPatient.patient, p))
+          );
+        }
       } else {
         const selectedPatients = activePatients.
         filter((p) => selectedPatientIds.has(p.院友id)).
@@ -467,7 +475,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         }).
         filter((p) => p.prescriptions.length > 0);
 
-        if (selectedPatients.length === 0 && !shouldExportPersonalMedicationList) {
+        if (selectedPatients.length === 0 && !shouldExportPersonalMedicationList && !includePrescriptionLabels) {
           alert('所選院友在指定月份沒有符合條件的處方記錄');
           setIsExporting(false);
           return;
@@ -508,6 +516,16 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
             alert('所選院友沒有在服處方，無法匯出個人藥物記錄');
             setIsExporting(false);
             return;
+          }
+        }
+
+        if (includePrescriptionLabels) {
+          const labelContents = selectedPatients.flatMap((patient) =>
+            patient.prescriptions.map((p) => buildLabelContent(patient, p)));
+          if (labelContents.length > 0) {
+            printPrescriptionLabels(labelContents);
+          } else {
+            alert('所選院友沒有符合條件的處方，無法匯出處方標籤');
           }
         }
       }
@@ -654,6 +672,17 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                   className="form-checkbox h-5 w-5 text-blue-600 rounded" />
                 
                   <span className="text-sm text-gray-700">匯出個人藥物記錄</span>
+                </label>
+              }
+              {!isBlankMode &&
+              <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                  type="checkbox"
+                  checked={includePrescriptionLabels}
+                  onChange={(e) => setIncludePrescriptionLabels(e.target.checked)}
+                  className="form-checkbox h-5 w-5 text-blue-600 rounded" />
+
+                  <span className="text-sm text-gray-700">匯出處方標籤</span>
                 </label>
               }
               {includePersonalMedicationList && !isBlankMode &&
@@ -1244,7 +1273,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
               disabled={
               isExporting ||
               (exportMode === 'batch' || exportMode === 'batchBlank') && selectedPatientIds.size === 0 ||
-              exportMode === 'current' && currentPatientPrescriptionsToExport.length === 0 && !includePersonalMedicationList ||
+              exportMode === 'current' && currentPatientPrescriptionsToExport.length === 0 && !includePersonalMedicationList && !includePrescriptionLabels ||
               isBlankMode && !blankRouteOral && !blankRouteInjection && !blankRouteTopical
               }
               className="btn-primary flex flex-wrap items-center gap-2">

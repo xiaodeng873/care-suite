@@ -45,7 +45,7 @@ import { Portal } from '../components/Portal';
 import { generateDailyWorkflowRecords, generateBatchWorkflowRecords, generateWorkflowRecordsClient } from '../utils/workflowGenerator';
 import { diagnoseWorkflowDisplayIssue } from '../utils/diagnoseTool';
 import { isPrescriptionScheduledOnDate } from '../utils/prescriptionSchedule';
-import { formatMealTimingFrom } from '../utils/mealTiming';
+import { formatMealTimingFrom, getMealTimings, hasReplacePrefixSlot, formatMealTimingsWithPrefix } from '../utils/mealTiming';
 import DrugAdjustmentReminderModal from '../components/DrugAdjustmentReminderModal';
 import { drugAdjustItemKey, type DrugAdjustmentReminderItem } from '../utils/drugAdjustmentCheck';
 import { isPrescriptionExpired, isPrescriptionValidAt, normalizeTime, prescriptionOverlapsDateRange } from '../utils/prescriptionExpiry';
@@ -3253,59 +3253,64 @@ const MedicationWorkflow: React.FC = () => {
                                   style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
                                 >
                                   <div className="space-y-0.5">
+                                    {/* 次序同藥紙統一：途徑 → 需要時 → 時段 → 頻率 → 特殊用法 → 每次劑量 */}
                                     {prescription.administration_route && (
                                       <div>{prescription.administration_route}</div>
                                     )}
-                                    <div>
-                                      {(() => {
-                                        const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
-                                        const perDay = daily_frequency || (medication_time_slots?.length) || 1;
-                                        // 兩個正交軸：frequency_type 決定「逢邊日施藥」，daily_frequency 決定「施藥當日施幾多次」；
-                                        // PRN 只係「需要時」，唔改變逢日規則（PRN 隔日照印「隔日N次」）
-                                        switch (frequency_type) {
-                                          case 'every_x_days': {
-                                            const gap = Number(frequency_value) || 1;
-                                            if (gap === 1) return `每日${perDay}次`;
-                                            if (gap === 2) return `隔日${perDay}次`;
-                                            return `每${gap}日${perDay}次`;
-                                          }
-                                          case 'every_x_weeks': {
-                                            const gap = Number(frequency_value) || 1;
-                                            return `每${gap}星期${perDay}次`;
-                                          }
-                                          case 'every_x_months': return `每${frequency_value}月${perDay}次`;
-                                          case 'weekly_days': {
-                                            const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
-                                            const days = specific_weekdays?.map((d: number) => dayNames[d === 7 ? 0 : d]).join('、') ?? '';
-                                            return `逢${days}${perDay}次`;
-                                          }
-                                          case 'odd_even_days':
-                                            return is_odd_even_day === 'odd' ? `單日${perDay}次` : is_odd_even_day === 'even' ? `雙日${perDay}次` : `單雙日${perDay}次`;
-                                          case 'hourly': return `每${frequency_value}小時1次`;
-                                          case 'daily':
-                                          default: return `每日${perDay}次`;
-                                        }
-                                      })()}
-                                    </div>
-                                    {formatMealTimingFrom(prescription) && (
-                                      <div className="whitespace-pre-line">{formatMealTimingFrom(prescription)}</div>
+                                    {prescription.is_prn && (
+                                      <div className="text-red-600 font-medium">需要時</div>
                                     )}
                                     {(() => {
+                                      const mt = getMealTimings(prescription);
+                                      const mealLabel = hasReplacePrefixSlot(mt)
+                                        ? formatMealTimingsWithPrefix(mt, prescription.daily_frequency || prescription.medication_time_slots?.length || 1)
+                                        : formatMealTimingFrom(prescription);
+                                      return mealLabel ? <div className="whitespace-pre-line">{mealLabel}</div> : null;
+                                    })()}
+                                    {(() => {
+                                      // 「取代前綴」勾選咗嘅時段已嵌入次數，唔再顯示獨立頻率行
+                                      if (hasReplacePrefixSlot(getMealTimings(prescription))) return null;
+                                      const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
+                                      const perDay = daily_frequency || (medication_time_slots?.length) || 1;
+                                      // 兩個正交軸：frequency_type 決定「逢邊日施藥」，daily_frequency 決定「施藥當日施幾多次」；
+                                      // PRN 只係「需要時」，唔改變逢日規則（PRN 隔日照印「隔日N次」）
+                                      switch (frequency_type) {
+                                        case 'every_x_days': {
+                                          const gap = Number(frequency_value) || 1;
+                                          if (gap === 1) return <div>每日{perDay}次</div>;
+                                          if (gap === 2) return <div>隔日{perDay}次</div>;
+                                          return <div>每{gap}日{perDay}次</div>;
+                                        }
+                                        case 'every_x_weeks': {
+                                          const gap = Number(frequency_value) || 1;
+                                          return <div>每{gap}星期{perDay}次</div>;
+                                        }
+                                        case 'every_x_months': return <div>每{frequency_value}月{perDay}次</div>;
+                                        case 'weekly_days': {
+                                          const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+                                          const days = specific_weekdays?.map((d: number) => dayNames[d === 7 ? 0 : d]).join('、') ?? '';
+                                          return <div>逢{days}{perDay}次</div>;
+                                        }
+                                        case 'odd_even_days':
+                                          return <div>{is_odd_even_day === 'odd' ? `單日${perDay}次` : is_odd_even_day === 'even' ? `雙日${perDay}次` : `單雙日${perDay}次`}</div>;
+                                        case 'hourly': return <div>每{frequency_value}小時1次</div>;
+                                        case 'daily':
+                                        default: return <div>每日{perDay}次</div>;
+                                      }
+                                    })()}
+                                    {(() => {
                                       const parts: string[] = [];
+                                      if ((prescription as any).special_dosage_instruction) {
+                                        parts.push((prescription as any).special_dosage_instruction);
+                                      }
                                       if (prescription.dosage_amount) {
                                         const amt = String(prescription.dosage_amount);
                                         const unit = prescription.dosage_unit ?? '';
                                         const dosage = /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + unit : amt;
                                         parts.push(`每次${dosage}`);
                                       }
-                                      if ((prescription as any).special_dosage_instruction) {
-                                        parts.push((prescription as any).special_dosage_instruction);
-                                      }
                                       return parts.length > 0 ? <div>{parts.join(' / ')}</div> : null;
                                     })()}
-                                    {prescription.is_prn && (
-                                      <div className="text-red-600 font-medium">需要時</div>
-                                    )}
                                   </div>
                                 </td>
                               )}

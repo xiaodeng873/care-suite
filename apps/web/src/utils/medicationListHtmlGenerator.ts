@@ -23,7 +23,7 @@ interface MedicationPrescription {
   meal_timing?: string;
   meal_timing_2?: string;
   meal_timing_connector?: '或' | '及';
-  meal_timings?: { slots: string[]; connectors: ('或' | '及' | '')[] } | null;
+  meal_timings?: { slots: string[]; connectors: ('或' | '及' | '')[]; replacePrefix?: boolean[] } | null;
   special_dosage_instruction?: string;
   is_prn?: boolean;
   cannot_crush?: boolean;

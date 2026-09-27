@@ -1,10 +1,13 @@
 // 服用時段（可增減）：slots 為時段清單，connectors 為相鄰時段之間嘅連接詞
 // （「或」=任一時段給服皆合處方要求；「及」=該縫位兩時段皆需給服；''=無連接詞，顯示時換新行），長度 = slots.length - 1
+// replacePrefix 為每時段嘅「取代前綴」勾選（與 slots 對齊）：勾選後該時段取代頻率類型，
+// 直接做當日服用次數嘅前綴（「晚上1次」取代「晚上／每日1次」），eMAR 同藥紙顯示適用
 export type MealTimingConnector = '或' | '及' | '';
 
 export interface MealTimings {
   slots: string[];
   connectors: MealTimingConnector[];
+  replacePrefix?: boolean[];
 }
 
 interface MealTimingSource {
@@ -20,7 +23,7 @@ const clean = (s: unknown): string => String(s ?? '').trim();
 /** 從處方/藥物記錄取時段結構：優先 meal_timings jsonb，fallback 舊三欄 */
 export function getMealTimings(source: MealTimingSource | null | undefined): MealTimings {
   if (!source) return { slots: [], connectors: [] };
-  const raw = source.meal_timings as { slots?: unknown; connectors?: unknown } | null | undefined;
+  const raw = source.meal_timings as { slots?: unknown; connectors?: unknown; replacePrefix?: unknown } | null | undefined;
   if (raw && Array.isArray(raw.slots)) {
     const slots = (raw.slots as unknown[]).map(clean).filter(Boolean);
     if (slots.length) {
@@ -29,14 +32,36 @@ export function getMealTimings(source: MealTimingSource | null | undefined): Mea
         ? (raw.connectors as unknown[]).slice(0, need).map((c) => (c === '及' ? '及' : c === '' || c == null ? '' : '或'))
         : [];
       while (connectors.length < need) connectors.push('或');
-      return { slots, connectors };
+      const replacePrefix = Array.isArray(raw.replacePrefix)
+        ? (raw.replacePrefix as unknown[]).slice(0, slots.length).map(Boolean)
+        : [];
+      while (replacePrefix.length < slots.length) replacePrefix.push(false);
+      return { slots, connectors, replacePrefix };
     }
   }
   const slots = [clean(source.meal_timing ?? source.meal_timing_1), clean(source.meal_timing_2)].filter(Boolean);
   return {
     slots,
     connectors: slots.length > 1 ? [source.meal_timing_connector === '及' ? '及' : '或'] : [],
+    replacePrefix: slots.map(() => false),
   };
+}
+
+/** 有冇時段勾咗「取代前綴」：有嘅話顯示時唔再出獨立頻率行（次數已嵌入時段名） */
+export const hasReplacePrefixSlot = (t: MealTimings): boolean => (t.replacePrefix ?? []).some(Boolean);
+
+/** 「取代前綴」顯示組裝：勾選嘅時段顯示「{時段}{perDay}次」，其餘時段照舊；
+ *  冇任何勾選時同 formatMealTimings。perDay = 當日服用次數（daily_frequency 優先） */
+export function formatMealTimingsWithPrefix(t: MealTimings, perDay: number): string {
+  if (!t.slots.length) return '';
+  const rp = t.replacePrefix ?? [];
+  const piece = (i: number): string => (rp[i] ? `${t.slots[i]}${perDay}次` : t.slots[i]);
+  let out = piece(0);
+  for (let i = 1; i < t.slots.length; i++) {
+    const conn = t.connectors[i - 1] ?? '或';
+    out += conn === '' ? `\n${piece(i)}` : `${conn}${piece(i)}`;
+  }
+  return out;
 }
 
 /** 顯示格式：時段1或時段2及時段3 …（每個縫位用自己嘅連接詞，唔加空格；無連接詞='' → 換行 \n） */
@@ -87,17 +112,19 @@ export function toMealTimingPayload(
   t: MealTimings,
   slot1Key: 'meal_timing' | 'meal_timing_1' = 'meal_timing'
 ): Record<string, unknown> {
-  // 過濾空時段，連接詞跟住「呢個時段前面嗰個縫位」保持對齊
+  // 過濾空時段，連接詞同 replacePrefix 跟住「呢個時段前面嗰個縫位」保持對齊
   const slots: string[] = [];
   const connectors: MealTimingConnector[] = [];
+  const replacePrefix: boolean[] = [];
   t.slots.forEach((slot, i) => {
     const s = clean(slot);
     if (!s) return;
     if (slots.length > 0) connectors.push(t.connectors[i - 1] ?? '或');
     slots.push(s);
+    replacePrefix.push(Boolean(t.replacePrefix?.[i]));
   });
   return {
-    meal_timings: slots.length ? { slots, connectors } : null,
+    meal_timings: slots.length ? { slots, connectors, replacePrefix } : null,
     [slot1Key]: slots[0] || null,
     meal_timing_2: slots[1] || null,
     // 舊欄只識 或/及；無連接詞（''）喺舊欄存 null，完整結構以 meal_timings jsonb 為準

@@ -461,7 +461,7 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
           (_, i) => mt.connectors[i] ?? '或'
         );
         const commitMt = (newSlots: string[], newConnectors: MealTimingConnector[]) =>
-          commit(toMealTimingPayload({ slots: newSlots, connectors: newConnectors }));
+          commit(toMealTimingPayload({ slots: newSlots, connectors: newConnectors, replacePrefix: mt.replacePrefix ?? newSlots.map(() => false) }));
         return (
           <CompositeBox close={done}>
             {slots.map((slot, idx) => (

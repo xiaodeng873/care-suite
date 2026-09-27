@@ -16,7 +16,7 @@ import {
 import { isPrescriptionScheduledOnDate } from './prescriptionSchedule';
 import { isPrescriptionExpired, isPrescriptionAboutToExpire } from './prescriptionExpiry';
 import { mergeRecordSlots } from './workflowCellRule';
-import { formatMealTimingFrom } from './mealTiming';
+import { formatMealTimingFrom, getMealTimings, hasReplacePrefixSlot, formatMealTimingsWithPrefix } from './mealTiming';
 
 import { formatDisplayDate } from './dateFormat';
 import { getPrintBedNumber } from './bedTransferUtils';
@@ -650,6 +650,7 @@ const getBlockHeightMm = (block: PrescriptionBlock): number => {
     + (sourceText ? wrapLines(`藥物來源：${sourceText}`, 37) : 0);
   // c-route 可用闊 ~23mm：每個項目獨立一行，會換行嘅再加行
   const suppressFrequency = rx.frequency_type === 'each_time' ||
+    hasReplacePrefixSlot(getMealTimings(rx)) ||
     (rx.frequency_type !== 'hourly' && (rx.daily_frequency === 0 || rx.daily_frequency == null));
   const routeItems = [
     rx.administration_route ?? '',
@@ -980,6 +981,12 @@ export const orderPrescriptionsForSignatureEfficiency = <T>(prescriptions: T[], 
 };
 
 const getMealTimingLabel = (prescription: MedicationPrescription): string => {
+  // 「取代前綴」：勾選嘅時段直接做次數前綴（「晚上1次」），獨立頻率行由 suppressFrequency 隱藏
+  const mt = getMealTimings(prescription);
+  if (hasReplacePrefixSlot(mt)) {
+    const perDay = prescription.daily_frequency || prescription.medication_time_slots?.length || 1;
+    return formatMealTimingsWithPrefix(mt, perDay);
+  }
   const combined = formatMealTimingFrom(prescription);
   if (combined) return combined;
 
@@ -1306,6 +1313,7 @@ export const renderPrescriptionBlock = (
   // 每日服用次數為「無」(0) 或頻率類型為「每次」時，不顯示頻率類型；
   // hourly（每N小時）嘅次數由「每N小時」表達，唔受「無」壓制
   const suppressFrequency = prescription.frequency_type === 'each_time' ||
+    hasReplacePrefixSlot(getMealTimings(prescription)) ||
     (prescription.frequency_type !== 'hourly' && (prescription.daily_frequency === 0 || prescription.daily_frequency == null));
   const frequencyLine = suppressFrequency ? '' : getFrequencyDescription(prescription);
   const specialLine = prescription.special_dosage_instruction?.trim();

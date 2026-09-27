@@ -14,6 +14,7 @@ import DateInput from './DateInput';
 import InstitutionAutocomplete from './InstitutionAutocomplete';
 import { type MedicationInspectionRule } from '../lib/database';
 import { getMealTimings, toMealTimingPayload, formatMealTimings, type MealTimings, type MealTimingConnector } from '../utils/mealTiming';
+import { buildLabelContent, printPrescriptionLabels } from '../utils/prescriptionLabelHtmlGenerator';
 import { getDrugAdjustmentTriggersForSave, type DrugAdjustmentReminderItem } from '../utils/drugAdjustmentCheck';
 import { compressToJpegBlob, uploadImage, deleteImageByUrl, isStorageUrl } from '../utils/storageUpload';
 import { PRESCRIPTION_IMAGES_BUCKET } from '../utils/patientPhotoUpload';
@@ -1098,7 +1099,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                             setFormData(prev => {
                               const connectors = [...(prev.meal_timings?.connectors || [])];
                               connectors[idx - 1] = value;
-                              return { ...prev, meal_timings: { slots: [...prev.meal_timings.slots], connectors } };
+                              return { ...prev, meal_timings: { slots: [...prev.meal_timings.slots], connectors, replacePrefix: [...(prev.meal_timings?.replacePrefix ?? [])] } };
                             });
                           }}
                           className="form-input w-20"
@@ -1116,7 +1117,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                           setFormData(prev => {
                             const slots = [...(prev.meal_timings?.slots?.length ? prev.meal_timings.slots : [''])];
                             slots[idx] = value;
-                            return { ...prev, meal_timings: { slots, connectors: [...(prev.meal_timings?.connectors || [])] } };
+                            return { ...prev, meal_timings: { slots, connectors: [...(prev.meal_timings?.connectors || [])], replacePrefix: [...(prev.meal_timings?.replacePrefix ?? [])] } };
                           });
                         }}
                         className="form-input flex-1"
@@ -1124,6 +1125,25 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                         <option value="">時段{idx + 1}</option>
                         {medSettings.服用時段.map(v => <option key={v} value={v}>{v}</option>)}
                       </select>
+                      <label
+                        className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap cursor-pointer"
+                        title="取代前綴：以呢個時段取代頻率類型，做當日服用次數嘅前綴（例：晚上 每日1次 → 晚上1次）"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={Boolean(formData.meal_timings.replacePrefix?.[idx])}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setFormData(prev => {
+                              const replacePrefix = [...(prev.meal_timings?.replacePrefix ?? prev.meal_timings.slots.map(() => false))];
+                              replacePrefix[idx] = checked;
+                              return { ...prev, meal_timings: { ...prev.meal_timings, replacePrefix } };
+                            });
+                          }}
+                          className="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        取代前綴
+                      </label>
                       {idx > 0 && (
                         <button
                           type="button"
@@ -1131,7 +1151,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                             setFormData(prev => {
                               const slots = prev.meal_timings.slots.filter((_: string, i: number) => i !== idx);
                               const connectors = prev.meal_timings.connectors.filter((_: string, i: number) => i !== idx - 1);
-                              return { ...prev, meal_timings: { slots, connectors } };
+                              const replacePrefix = (prev.meal_timings.replacePrefix ?? prev.meal_timings.slots.map(() => false)).filter((_: boolean, i: number) => i !== idx);
+                              return { ...prev, meal_timings: { slots, connectors, replacePrefix } };
                             });
                           }}
                           className="text-red-600 hover:text-red-800"
@@ -1146,12 +1167,13 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                     type="button"
                     onClick={() => {
                       setFormData(prev => {
-                        const mt = prev.meal_timings?.slots?.length ? prev.meal_timings : { slots: [''], connectors: [] };
+                        const mt = prev.meal_timings?.slots?.length ? prev.meal_timings : { slots: [''], connectors: [], replacePrefix: [false] };
                         return {
                           ...prev,
                           meal_timings: {
                             slots: [...mt.slots, ''],
                             connectors: [...mt.connectors, '或' as MealTimingConnector],
+                            replacePrefix: [...(mt.replacePrefix ?? mt.slots.map(() => false)), false],
                           },
                         };
                       });
@@ -1548,6 +1570,62 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
               placeholder="輸入處方相關的注意事項或備註..."
             />
           </div>
+
+          {/* 處方標籤預覽（熱感紙 40mm × 30mm 橫向比例） */}
+          {(() => {
+            const label = buildLabelContent(
+              {
+                中文姓名: selectedPatient?.中文姓名,
+                中文姓氏: selectedPatient?.中文姓氏,
+                中文名字: selectedPatient?.中文名字,
+              },
+              {
+                medication_name: formData.medication_name,
+                medication_time_slots: formData.medication_time_slots,
+                dosage_amount: formData.dosage_amount,
+                dosage_unit: formData.dosage_unit,
+                is_prn: formData.is_prn,
+                end_date: formData.end_date || estimatedEndDate || undefined,
+                medication_quantity: formData.medication_quantity,
+                duration_days: formData.duration_days,
+              }
+            );
+            return (
+              <div>
+                <label className="form-label">處方標籤預覽</label>
+                <div className="flex items-start gap-4">
+                  <div
+                    className="border border-gray-300 bg-white"
+                    style={{ width: '240px', height: '180px', padding: '9px 12px 6px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+                  >
+                    <div style={{ fontSize: '13px', fontWeight: 700, lineHeight: 1.15 }}>{label.patientName || '（院友姓名）'}</div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, lineHeight: 1.15, marginTop: '2px', wordBreak: 'break-all' }}>{label.drugName || '（藥物名稱）'}</div>
+                    <div style={{ minHeight: '3px' }} />
+                    {label.dosageLines.length > 0 ? (
+                      label.dosageLines.map((l, i) => (
+                        <div key={i} style={{ fontSize: '19px', fontWeight: 900, lineHeight: 1.25 }}>{l}</div>
+                      ))
+                    ) : (
+                      <div style={{ fontSize: '12px', color: '#9ca3af' }}>（未設服用時間點）</div>
+                    )}
+                    {label.endDateLine && (
+                      <div style={{ marginTop: 'auto', fontSize: '13px', fontWeight: 700, lineHeight: 1.2 }}>{label.endDateLine}</div>
+                    )}
+                  </div>
+                  <div className="space-y-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => printPrescriptionLabels([label])}
+                      className="btn-secondary text-sm h-8 flex items-center gap-1"
+                    >
+                      列印
+                    </button>
+                    <p className="text-xs text-gray-500">熱感紙標籤 40mm × 30mm 橫向（比例預覽）</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* 提交按鈕 */}
           <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-gray-200">
