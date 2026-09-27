@@ -1,9 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   packBlocksForSignatureEfficiency,
   orderPrescriptionsForSignatureEfficiency,
   preparePages,
   renderPrescriptionBlock,
+  setMeasuredHeightsForTest,
+  setPunchZoneReservedForTest,
 } from './medicationRecordHtmlExporter';
 
 // 雷燕優（C209-1）2026-08 口服處方（真實資料）
@@ -65,7 +67,10 @@ describe('packBlocksForSignatureEfficiency（雷燕優個案）', () => {
   const blocks = scheduled.map((p) => ({ prescription: p, timeSlots: p.medication_time_slots }));
   // footerLegendMm=20 等同 estimateFooterLegendMm(0)（無職員代號）
   const pages = packBlocksForSignatureEfficiency(blocks, 20);
+  // 舊期望（每頁上限 4 個）係「預留打孔位置」語境嘅容量；預設唔勾會讓出 10mm 變 5 個
+  setPunchZoneReservedForTest(true);
   const pagesT3 = packBlocksForSignatureEfficiency(blocks, 20, true);
+  setPunchZoneReservedForTest(false);
 
   it('預設：頁面按首列處方的第一個時間點排序：{07:00} 頁在 {08:00} 頁之前', () => {
     expect(pages).toHaveLength(2);
@@ -99,7 +104,9 @@ describe('orderPrescriptionsForSignatureEfficiency（modal 預覽＝列印順序
   });
 
   it('template3：展平順序與分頁一致', () => {
+    setPunchZoneReservedForTest(true);
     const ordered = orderPrescriptionsForSignatureEfficiency(LEI_ORAL, true);
+    setPunchZoneReservedForTest(false);
     expect(ordered.map((p) => p.medication_name)).toEqual([
       ...PAGE3_1_NAMES,
       ...PAGE3_2_NAMES,
@@ -127,7 +134,10 @@ const ZHAN_ORAL = [
 describe('packBlocksForSignatureEfficiency（詹金花個案）', () => {
   const blocks = ZHAN_ORAL.map((p) => ({ prescription: p, timeSlots: p.medication_time_slots }));
   const pages = packBlocksForSignatureEfficiency(blocks, 20);
+  // 同雷燕優：上限 4 個嘅期望係「預留打孔位置」語境
+  setPunchZoneReservedForTest(true);
   const pagesT3 = packBlocksForSignatureEfficiency(blocks, 20, true);
+  setPunchZoneReservedForTest(false);
 
   it('預設：全域最優 3 頁、彙總區不同時段數合計為 6（舊貪心為 8，人手排法為 7）', () => {
     expect(pages).toHaveLength(3);
@@ -423,5 +433,64 @@ describe('renderPrescriptionBlock（PRN 無時間點：日期範圍標記）', (
     const html = renderPrescriptionBlock(prnBlock('2026-09-10', null), '2026-09', 30, [], {});
     expect(html).toContain('▶');
     expect(html).not.toContain('◀');
+  });
+});
+
+describe('preparePages（真實量度高度主導分頁）', () => {
+  afterEach(() => setMeasuredHeightsForTest(null));
+
+  const fiveRx = [
+    { id: 'rx1', medication_name: 'CALCIUM（CARBONATE）+VITAMIN D CHEW TAB 1000MG CA+800IU', administration_route: '口服', medication_time_slots: ['08:00', '16:00'], inspection_rules: [] },
+    { id: 'rx2', medication_name: 'LORATADINE 10MG', administration_route: '口服', medication_time_slots: ['08:00', '16:00'], inspection_rules: [] },
+    { id: 'rx3', medication_name: 'PREDNISOLONE TABLET 5MG', administration_route: '口服', medication_time_slots: ['08:00', '16:00'], inspection_rules: [] },
+    { id: 'rx4', medication_name: 'PREDNISOLONE TABLET 5MG', administration_route: '口服', medication_time_slots: ['08:00', '16:00'], inspection_rules: [] },
+    { id: 'rx5', medication_name: 'PROBIOTICS', administration_route: '口服', medication_time_slots: ['08:00', '16:00'], inspection_rules: [] },
+  ];
+
+  it('陳周文個案：量度出長藥名 block 真實高度 60mm → 5 個裝唔落一頁，自動分兩頁', () => {
+    // 正常估算每個 block 約 18mm（5 個一頁唔難）；但 iframe 量度話你知 CALCIUM 實際 60mm
+    setMeasuredHeightsForTest({
+      headerMm: 20, legendMm: 30, labelMm: 3,
+      blockMm: { rx1: 60, rx2: 18, rx3: 18, rx4: 18, rx5: 18 },
+    });
+    const pages = preparePages(PATIENT, fiveRx as any, false, 0, 'efficiency', false);
+    expect(pages.length).toBe(2);
+    expect(pages.flatMap((p) => p.blocks).length).toBe(5);
+  });
+
+  it('清除量度（fallback 估算）→ 5 個短藥名 block 裝到一頁，行為同舊', () => {
+    const pages = preparePages(PATIENT, fiveRx as any, false, 0, 'efficiency', false);
+    expect(pages.length).toBe(1);
+  });
+});
+
+describe('預留打孔位置（勾選項）', () => {
+  afterEach(() => {
+    setPunchZoneReservedForTest(false);
+    setMeasuredHeightsForTest(null);
+  });
+
+  const fiveRx = ['m1', 'm2', 'm3', 'm4', 'm5'].map((id) => ({
+    id, medication_name: 'A', administration_route: '口服', medication_time_slots: ['08:00'], inspection_rules: [],
+  }));
+  // 量度高度：每個 block 25mm；唔勾時 5×25+16(dayhead)=141 ≤ 可用 147 一頁裝到，
+  // 勾選後可用 137 < 141 → 要分兩頁
+  const measured = {
+    headerMm: 20, legendMm: 24, labelMm: 3,
+    blockMm: { m1: 25, m2: 25, m3: 25, m4: 25, m5: 25 },
+  };
+
+  it('唔勾（預設）：冇打孔區，讓出 10mm → 5 個處方一頁裝到', () => {
+    setMeasuredHeightsForTest(measured);
+    setPunchZoneReservedForTest(false);
+    const pages = preparePages(PATIENT, fiveRx as any, false, 0, 'efficiency', false, undefined, [], '2026-09', 'template1');
+    expect(pages.length).toBe(1);
+  });
+
+  it('勾選：預留 10mm 打孔區 → 裝唔落要分兩頁', () => {
+    setMeasuredHeightsForTest(measured);
+    setPunchZoneReservedForTest(true);
+    const pages = preparePages(PATIENT, fiveRx as any, false, 0, 'efficiency', false, undefined, [], '2026-09', 'template1');
+    expect(pages.length).toBe(2);
   });
 });

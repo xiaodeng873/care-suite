@@ -24,6 +24,32 @@ import { supabase } from '../lib/supabase';
 // 渲染為同步流程，故於各匯出入口（async）先取得院舍設定後存於模組層，供 renderHeaderRegion 讀取。
 let activeFacility: FacilitySettings = DEFAULT_FACILITY_SETTINGS;
 
+// ---- 真實量度分頁（two-pass）----
+// 字符闊度估算對長藥名／中英混排嘅換行預測唔可靠（陳周文 CALCIUM 個案：估算 3 行、實際 5 行），
+// 所以匯出前用隱藏 iframe 逐個區塊量度實際渲染高度（px→mm），分頁同 filler 計算全部用真實數字；
+// 量度失敗（非瀏覽器環境）或冇量度（modal 預覽排序）時 fallback 用字符估算。
+export interface MeasuredHeights {
+  headerMm: number;             // 頂置資訊區實際高度（含 margin-bottom）
+  legendMm: number;             // 彙總區主體實際高度（legend＋職員代號＋數量參考，同相片格取高者）
+  labelMm: number;              // 頁碼列實際高度
+  blockMm: Record<string, number>; // rx.id → 處方區塊 tbody 實際高度（唔含重複日期列）
+}
+let activeHeights: MeasuredHeights | null = null;
+
+// 測試用：注入／清除量度高度（null = 還原字符估算）
+export const setMeasuredHeightsForTest = (heights: MeasuredHeights | null): void => {
+  activeHeights = heights;
+};
+
+// 「預留打孔位置」：勾選時頁頂保留 10mm 打孔區；預設唔勾——唔打孔版讓出 10mm，
+// 同一頁可以塞更多處方列（一樣唔多過 5 個）。匯出入口設定，分頁同 renderPage 讀取。
+let punchZoneReserved = false;
+
+// 測試用：設定打孔區預留開關
+export const setPunchZoneReservedForTest = (reserved: boolean): void => {
+  punchZoneReserved = reserved;
+};
+
 // 此匯出器完全以程式自寫的語意化 HTML/CSS 產生列印版面（不再依賴 Excel 範本檔）。
 // 版面分三區：頂置院友資訊 / 中間動態處方區 / 底部指引＋給藥彙總；
 // 日格依當月天數填滿寬度；內容超頁自動分頁，且單一處方區塊不會被切割到兩頁。
@@ -105,10 +131,16 @@ export const exportMedicationRecordToHtml = async (
   includeBlankRows = false,
   prescriptionSortOrder?: string,
   template: MedicationRecordTemplate = 'template1',
-  separateInspectionPages = false
+  separateInspectionPages = false,
+  reservePunchZone = false
 ): Promise<void> => {
-  const html = await buildMedicationRecordHtml(patients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, template, separateInspectionPages);
-  printViaIframe(html);
+  punchZoneReserved = reservePunchZone;
+  try {
+    const html = await buildMedicationRecordHtml(patients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, template, separateInspectionPages);
+    printViaIframe(html);
+  } finally {
+    punchZoneReserved = false;
+  }
 };
 
 export const exportSelectedMedicationRecordToHtml = async (
@@ -119,34 +151,41 @@ export const exportSelectedMedicationRecordToHtml = async (
   includeBlankRows = false,
   prescriptionSortOrder?: string,
   template: MedicationRecordTemplate = 'template1',
-  separateInspectionPages = false
+  separateInspectionPages = false,
+  reservePunchZone = false
 ): Promise<void> => {
-  await exportMedicationRecordToHtml([{ ...patient, prescriptions }], selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, template, separateInspectionPages);
+  await exportMedicationRecordToHtml([{ ...patient, prescriptions }], selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, template, separateInspectionPages, reservePunchZone);
 };
 
 // 空白藥紙 HTML 版：每位院友、每個選定途徑各產生一頁，填入 MAX_PRESCRIPTIONS_PER_PAGE 個空白處方列。
 export const exportBlankMedicationRecordToHtml = async (
   patients: PatientWithPrescriptions[],
   selectedMonth: string,
-  routeTypes: PageRouteKind[]
+  routeTypes: PageRouteKind[],
+  reservePunchZone = false
 ): Promise<void> => {
-  activeFacility = await getFacilitySettings();
-  const renderedPages: string[] = [];
-  for (const patient of patients) {
-    for (const routeKind of routeTypes) {
-      const page: PageData = {
-        patient,
-        routeKind,
-        blocks: [],
-        pageIndexInRoute: 1,
-        pageCountInRoute: 1,
-        fillerCount: MAX_PRESCRIPTIONS_PER_PAGE,
-      };
-      renderedPages.push(renderPage(page, selectedMonth, [], {}, true));
+  punchZoneReserved = reservePunchZone;
+  try {
+    activeFacility = await getFacilitySettings();
+    const renderedPages: string[] = [];
+    for (const patient of patients) {
+      for (const routeKind of routeTypes) {
+        const page: PageData = {
+          patient,
+          routeKind,
+          blocks: [],
+          pageIndexInRoute: 1,
+          pageCountInRoute: 1,
+          fillerCount: MAX_PRESCRIPTIONS_PER_PAGE,
+        };
+        renderedPages.push(renderPage(page, selectedMonth, [], {}, true));
+      }
     }
+    const html = assembleDocument(renderedPages);
+    printViaIframe(html);
+  } finally {
+    punchZoneReserved = false;
   }
-  const html = assembleDocument(renderedPages);
-  printViaIframe(html);
 };
 
 /**
@@ -198,6 +237,116 @@ const fetchDrugWarningFlags = async (): Promise<Map<string, { cannot_crush: bool
   return map;
 };
 
+// ---- 真實量度（two-pass 分頁）----
+
+const MM_PER_PX = 25.4 / 96; // CSS px → mm（絕對單位，與裝置無關）
+
+// 將探針 HTML 寫入隱藏 iframe，等待圖片／字型後量度各探針實際高度（px）。
+// 同一 CSS／同一字體渲染，量出嚟就係列印時嘅真實高度。
+const measureInHiddenIframe = (html: string): Promise<{ headerPx: number; blockPx: number[]; footerPx: number; labelPx: number } | null> =>
+  new Promise((resolve) => {
+    if (typeof document === 'undefined') { resolve(null); return; }
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    // 須給 iframe 真實尺寸 (A4 橫向 @96dpi)，否則版面塌縮為 0
+    iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:1123px;height:794px;border:0;';
+    document.body.appendChild(iframe);
+    const win = iframe.contentWindow;
+    const doc = win?.document;
+    if (!win || !doc) { iframe.remove(); resolve(null); return; }
+    let settled = false;
+    const finish = (): void => {
+      if (settled) return;
+      settled = true;
+      try {
+        const px = (el: Element | null): number => (el ? el.getBoundingClientRect().height : 0);
+        resolve({
+          headerPx: px(doc.querySelector('[data-probe="header"]')),
+          blockPx: Array.from(doc.querySelectorAll('[data-probe="block"]')).map(px),
+          footerPx: px(doc.querySelector('[data-probe="footer"]')),
+          labelPx: px(doc.querySelector('.mr-pagelabel')),
+        });
+      } catch {
+        resolve(null);
+      }
+      iframe.remove();
+    };
+    doc.open();
+    doc.write(html);
+    doc.close();
+    const imagesReady = Promise.all(
+      Array.from(doc.images).map((img) => (img.complete ? Promise.resolve() : new Promise<void>((r) => {
+        img.addEventListener('load', () => r(), { once: true });
+        img.addEventListener('error', () => r(), { once: true });
+      })))
+    );
+    Promise.race([
+      imagesReady.then(() => doc.fonts?.ready ?? Promise.resolve()).then(() => new Promise<void>((r) => setTimeout(r, 100))),
+      new Promise<void>((r) => setTimeout(r, 4000)), // 上限：唔等死
+    ]).then(finish);
+  });
+
+// 量度一位院友嘅標頭／每個處方區塊／彙總區實際高度（mm），供分頁用真實數字。
+// 量度失敗（非瀏覽器環境／逾時）回傳 null，分頁自動 fallback 字符估算。
+const measureHeightsForPatient = async (
+  patient: PatientWithPrescriptions,
+  prescriptions: MedicationPrescription[],
+  workflowRecords: WorkflowRecord[],
+  staffMapping: StaffCodeMapping,
+  selectedMonth: string,
+  template: MedicationRecordTemplate,
+  separateInspectionPages: boolean,
+): Promise<MeasuredHeights | null> => {
+  if (typeof document === 'undefined') return null;
+  const dayCount = getDaysInMonth(selectedMonth);
+  const routeBlocks = buildRouteBlocks(prescriptions, workflowRecords, selectedMonth, separateInspectionPages);
+  const probes: string[] = [];
+  const keys: string[] = [];
+  probes.push(`<div data-probe="header">${renderHeaderRegion(patient, 'oral', selectedMonth, template)}</div>`);
+  for (const route of routeBlocks) {
+    for (const block of [...route.normalBlocks, ...route.inspectionBlocks]) {
+      keys.push(String(block.prescription.id ?? ''));
+      // withDayheadRow=false：重複日期列高度（DAYHEAD_REPEAT_MM）由分頁公式另外計，唔包喺量度內
+      probes.push(`<table class="mr-grid" data-probe="block">${colGroup(dayCount)}${renderPrescriptionBlock(block, selectedMonth, dayCount, [], staffMapping, toIsoDate(patient.入住日期), false)}</table>`);
+    }
+  }
+  const statOral = (patient.quantityStatPrescriptions ?? prescriptions).filter((p) => classifyRoute(p) === 'oral');
+  const probePage: PageData = {
+    patient, routeKind: 'oral', blocks: [], pageIndexInRoute: 1, pageCountInRoute: 1, fillerCount: 0,
+    oralQuantityStat: computeOralQuantityStat(statOral) || undefined,
+  };
+  probes.push(`<div data-probe="footer">${renderFooterRegion(probePage, selectedMonth, dayCount, [], staffMapping, '量度', template)}</div>`);
+
+  const html = `<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<style>${buildPageCss()}</style>
+</head>
+<body>
+${probes.join('\n')}
+</body>
+</html>`;
+
+  const result = await measureInHiddenIframe(html);
+  if (!result) return null;
+  const blockMm: Record<string, number> = {};
+  keys.forEach((key, i) => {
+    const px = result.blockPx[i];
+    if (key && px > 0) blockMm[key] = px * MM_PER_PX;
+  });
+  // footer 探針（空彙總、最少 4 列）= max(4×6, legend) + label；
+  // legendMm 係「減咗頁碼列」嘅彙總區主體高度，之後 bodyUsableMm 按每頁實際彙總列數同 legendMm 取高者，模型一致。
+  const labelMm = result.labelPx * MM_PER_PX || FOOTER_FIXED_MM;
+  const legendMm = Math.max(result.footerPx * MM_PER_PX - labelMm, SUMMARY_MIN_ROWS * ROW_SUMMARY_MM);
+  return {
+    headerMm: result.headerPx * MM_PER_PX + 1, // +1 = .mr-header margin-bottom
+    legendMm,
+    labelMm,
+    blockMm,
+  };
+};
+
 const buildMedicationRecordHtml = async (
   patients: PatientWithPrescriptions[],
   selectedMonth: string,
@@ -233,12 +382,58 @@ const buildMedicationRecordHtml = async (
     const staffMapping = generateStaffCodeMapping(extractStaffNamesFromWorkflowRecords(workflowRecords));
     const staffCount = Object.keys(staffMapping).length;
 
-    for (const page of preparePages(patient, prescriptions, includeBlankRows, staffCount, prescriptionSortOrder, separateInspectionPages, patient.quantityStatPrescriptions, workflowRecords, selectedMonth, template)) {
-      renderedPages.push(renderPage(page, selectedMonth, workflowRecords, staffMapping, includeBlankRows, template));
+    // 真實量度：hidden iframe 量出標頭／每個處方區塊／彙總區實際高度（mm），
+    // 分頁同空白列計算全部用真實數字；量度失敗則 fallback 字符估算
+    activeHeights = await measureHeightsForPatient(patient, prescriptions, workflowRecords, staffMapping, selectedMonth, template, separateInspectionPages);
+    try {
+      for (const page of preparePages(patient, prescriptions, includeBlankRows, staffCount, prescriptionSortOrder, separateInspectionPages, patient.quantityStatPrescriptions, workflowRecords, selectedMonth, template)) {
+        renderedPages.push(renderPage(page, selectedMonth, workflowRecords, staffMapping, includeBlankRows, template));
+      }
+    } finally {
+      activeHeights = null;
     }
   }
 
   return assembleDocument(renderedPages);
+};
+
+// 每位院友各途徑嘅處方區塊（時段已 merge）。分頁（preparePages）同真實量度（measureHeightsForPatient）
+// 共用同一份邏輯，確保量度嘅 block 同最終渲染嘅完全一致。
+const buildRouteBlocks = (
+  prescriptions: MedicationPrescription[],
+  workflowRecords: WorkflowRecord[],
+  selectedMonth: string | undefined,
+  separateInspectionPages: boolean,
+): Array<{ routeKind: PageRouteKind; normalBlocks: PrescriptionBlock[]; inspectionBlocks: PrescriptionBlock[] }> => {
+  // 時間列合併（業務規則：時間點隨時可改；舊時間點喺處方範圍內當月有記錄——
+  // 不論 pending 定已簽——都要出現喺藥紙）。喺 block 建立時就 merge，
+  // 令 getBlockHeightMm／rowsPerSlot／summaryRowCount／分頁全部用合併後嘅時段數計高度。
+  const mergeSlotsFor = (rx: MedicationPrescription): string[] => {
+    const current = resolvePrescriptionTimeSlots(rx);
+    if (!selectedMonth || workflowRecords.length === 0) return current;
+    const from = `${selectedMonth}-01`;
+    const to = toDateString(selectedMonth, getDaysInMonth(selectedMonth));
+    const rxRecords = workflowRecords.filter((r) => r.prescription_id === rx.id);
+    if (rxRecords.length === 0) return current;
+    return mergeRecordSlots(rx, current, rxRecords, from, to);
+  };
+  const categorized: Record<RouteKind, MedicationPrescription[]> = { oral: [], topical: [], subcutaneous: [], intramuscular: [] };
+  for (const prescription of prescriptions) {
+    categorized[classifyRoute(prescription)].push(prescription);
+  }
+  const build = (routeKind: PageRouteKind, rxList: MedicationPrescription[]) => ({
+    routeKind,
+    normalBlocks: (separateInspectionPages ? rxList.filter((rx) => !prescriptionHasInspection(rx)) : rxList)
+      .map((rx) => ({ prescription: rx, timeSlots: mergeSlotsFor(rx) })),
+    inspectionBlocks: (separateInspectionPages ? rxList.filter((rx) => prescriptionHasInspection(rx)) : [])
+      .map((rx) => ({ prescription: rx, timeSlots: mergeSlotsFor(rx) })),
+  });
+  return [
+    build('oral', categorized.oral),
+    build('topical', categorized.topical),
+    // 皮下注射 + 肌肉注射 合併至同一份注射藥紙
+    build('injection', [...categorized.subcutaneous, ...categorized.intramuscular]),
+  ];
 };
 
 // exported for testing（分頁／空白列邏輯驗證）
@@ -256,54 +451,34 @@ export const preparePages = (
 ): PageData[] => {
   // template1/3：每個處方區塊上方多重日期列（分頁高度要計埋重複列）
   const withDayhead = template === 'template1' || template === 'template3';
-  // template1 相片底置，頂置標頭冇相片（2 行資料表 ~14mm），分頁預算用真實高度，唔再當 30mm 高估
-  const headerMm = (template === 'template1') ? HEADER_NO_PHOTO_MM : HEADER_HEIGHT_MM;
-  // 時間列合併（業務規則：時間點隨時可改；舊時間點喺處方範圍內當月有記錄——
-  // 不論 pending 定已簽——都要出現喺藥紙）。喺 block 建立時就 merge，
-  // 令 getBlockHeightMm／rowsPerSlot／summaryRowCount／分頁全部用合併後嘅時段數計高度。
-  const mergeSlotsFor = (rx: MedicationPrescription): string[] => {
-    const current = resolvePrescriptionTimeSlots(rx);
-    if (!selectedMonth || workflowRecords.length === 0) return current;
-    const from = `${selectedMonth}-01`;
-    const to = toDateString(selectedMonth, getDaysInMonth(selectedMonth));
-    const rxRecords = workflowRecords.filter((r) => r.prescription_id === rx.id);
-    if (rxRecords.length === 0) return current;
-    return mergeRecordSlots(rx, current, rxRecords, from, to);
-  };
-  const categorized: Record<RouteKind, MedicationPrescription[]> = { oral: [], topical: [], subcutaneous: [], intramuscular: [] };
-  for (const prescription of prescriptions) {
-    categorized[classifyRoute(prescription)].push(prescription);
-  }
+  // template1 相片底置，頂置標頭冇相片；有真實量度（匯出流程）用真實數字
+  const headerMm = activeHeights?.headerMm
+    ?? ((template === 'template1') ? HEADER_NO_PHOTO_MM : HEADER_HEIGHT_MM);
+  const routeBlockList = buildRouteBlocks(prescriptions, workflowRecords, selectedMonth, separateInspectionPages);
+  const findRoute = (routeKind: PageRouteKind) =>
+    routeBlockList.find((r) => r.routeKind === routeKind) ?? { routeKind, normalBlocks: [], inspectionBlocks: [] };
+  const hasRx = (r: { normalBlocks: PrescriptionBlock[]; inspectionBlocks: PrescriptionBlock[] }) =>
+    r.normalBlocks.length > 0 || r.inspectionBlocks.length > 0;
 
-  const footerLegendMm = estimateFooterLegendMm(staffCount);
+  // 彙總區左格 legend 下方仲有「藥物數量參考」行（口服頁必有）——預埋高度，
+  // 否則 legend+qty 會撑高彙總表，頁碼被斬。有真實量度（匯出流程）用真實數字。
+  const footerLegendMm = activeHeights?.legendMm
+    ?? estimateFooterLegendMm(staffCount) + (hasRx(findRoute('oral')) ? QTY_LINE_MM : 0);
   const pages: PageData[] = [];
   // 數量統計用「而家喺服嘅全部口服處方」（modal 傳入），冇傳就 backward-compatible 用勾選清單嘅口服
   const statOral = quantityStatPrescriptions
     ? quantityStatPrescriptions.filter((p) => classifyRoute(p) === 'oral')
-    : categorized.oral;
+    : prescriptions.filter((p) => classifyRoute(p) === 'oral');
   const oralQuantityStat = computeOralQuantityStat(statOral);
 
-  const addRoute = (routeKind: PageRouteKind, rxList: MedicationPrescription[]): void => {
-    if (rxList.length === 0) return;
+  const addRoute = (routeKind: PageRouteKind, routeBlocks: { normalBlocks: PrescriptionBlock[]; inspectionBlocks: PrescriptionBlock[] }): void => {
+    if (!hasRx(routeBlocks)) return;
 
     // 「檢測項獨立分頁」：含檢測項（inspection_rules）的處方抽出裝入獨立頁
     // （時間點互斥 first-fit 共用，見 packInspectionBlocks），該頁永不插入處方空白列；
     // 其餘處方維持原有分頁方式
-    const inspectionRx = separateInspectionPages
-      ? rxList.filter((rx) => prescriptionHasInspection(rx))
-      : [];
-    const normalRx = separateInspectionPages
-      ? rxList.filter((rx) => !prescriptionHasInspection(rx))
-      : rxList;
-    const inspectionBlocks: PrescriptionBlock[] = inspectionRx.map((rx) => ({
-      prescription: rx,
-      timeSlots: mergeSlotsFor(rx),
-    }));
-
-    const blocks = normalRx.map((rx) => ({
-      prescription: rx,
-      timeSlots: mergeSlotsFor(rx),
-    }));
+    const inspectionBlocks: PrescriptionBlock[] = routeBlocks.inspectionBlocks;
+    const blocks = routeBlocks.normalBlocks;
 
     let grouped: PrescriptionBlock[][];
     if (prescriptionSortOrder === 'efficiency') {
@@ -335,7 +510,7 @@ export const preparePages = (
       if (includeBlankRows) {
         const realSumMm = blocksHeightMm(pb, withDayhead);
         const usableMm = bodyUsableMm(summaryRowCount(pb), footerLegendMm, headerMm);
-        // template3/4 每個空白處方區塊上方都有一列多重日期列（4mm），計可補列數時要計埋
+        // template1/3 每個空白處方區塊上方都有一列多重日期列（4mm），計可補列數時要計埋
         const fillerBlockMm = FILLER_BLOCK_MM + (withDayhead ? DAYHEAD_REPEAT_MM : 0);
         const roomForFillers = Math.floor((usableMm - realSumMm) / fillerBlockMm);
         fillerCount = Math.max(0, roomForFillers);
@@ -362,19 +537,21 @@ export const preparePages = (
     pages.push(...routePages);
   };
 
-  addRoute('oral', categorized.oral);
-  addRoute('topical', categorized.topical);
-  // 皮下注射 + 肌肉注射 合併至同一份注射藥紙
-  addRoute('injection', [...categorized.subcutaneous, ...categorized.intramuscular]);
+  addRoute('oral', findRoute('oral'));
+  addRoute('topical', findRoute('topical'));
+  addRoute('injection', findRoute('injection'));
 
   return pages;
 };
 
 // ---- 版面高度常數（毫米）& 高度感知分頁（全程以 mm 精算）----
 const PUNCH_ZONE_MM = 10;             // 頁頂打孔區高度（2cm，避免打孔機破壞表頭）
-const PAGE_HEIGHT_MM = 206 - PUNCH_ZONE_MM; // A4橫向含2mm邊距後可用高度（206mm 扣除打孔區）
+const PAGE_HEIGHT_MM = 206;           // A4 橫向含 2mm 邊距後可用高度
+//                                     // 勾「預留打孔位置」先喺頁頂扣除 10mm 打孔區（見 punchZoneReserved）
 const HEADER_HEIGHT_MM = 30;          // 頂置院友資訊區實際高度（含26mm相片+邊距）
-const HEADER_NO_PHOTO_MM = 14;        // template1/4 頂置資訊區無相片（2 行資料表約 13mm+邊距），分頁預算用
+const HEADER_NO_PHOTO_MM = 20;        // template1 頂置資訊區無相片：標題格係 rowspan=2，內容
+//                                     // 院舍名(15pt)+文件名(11.5pt)+年月途徑(11pt) 三行 ≈ 18mm，
+//                                     // 加 padding/border 實測約 19-20mm，舊值 14mm 係低估
 //                                     // 注意：只放寬標頭預算；列高 6mm 同 MIN_SLOT_ROWS=4 保留作安全緩衝
 const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
 const ROW_SIGN_MM = 6;                // 簽署列（mr-sign-row）實際列高
@@ -384,7 +561,9 @@ const ROW_INJECT_MM = 6;              // 注射位置列（mr-inject-body-row）
 const MIN_BLOCK_MM = 16;              // 單時段處方左欄多行內容（途徑最多4行）保守高度下限
 const FILLER_BLOCK_MM = MIN_SLOT_ROWS * ROW_SIGN_MM; // 一個空白處方區塊（4列）高度
 const FOOTER_FIXED_MM = 4;            // 頁碼標籤高度（8pt字體≈2.82mm + 瀏覽器行高差異安全邊距）
-const SAFETY_MARGIN_MM = 0;           // 移除安全邊距，讓 footer 能貼底填滿
+const QTY_LINE_MM = 4.5;              // 彙總區「藥物數量參考」行（margin-top 1mm + 7.6pt 一行約 3.5mm）
+const SAFETY_MARGIN_MM = 3;           // 全局安全邊距：吸收行高四捨五入／瀏覽器渲染差異，
+//                                     // 防止「睇落夠位塞第5列但列印時斬頁尾」
 const AM_SECTION_MIN = 2;             // 處方列上午時段區最少預留列數（≤12:00，PM 從第3行起）
 
 // 將時間點分為上午（≤12:00）和下午（>12:00）兩組。
@@ -400,28 +579,48 @@ const splitAmPm = (slots: string[]): { am: string[]; pm: string[] } => {
 };
 
 // 估算 footer 左側「給藥簽署指引」文字區高度（mm）。
-// 含：標題＋9個代號(約2行)＋2條註記；若有職員代號則再加標題與代號行。
+// 標題 + 9 個代號（含「R＝拒絕一種或以上藥物」長項，62mm 欄寬實際约 3 行）+ 標籤內距；
+// 註記現為 0 條。若有職員代號則再加標題（連 margin-top）與代號行。
+// 注意：「藥物數量參考」行唔喺度計，caller 自己加 QTY_LINE_MM。
 const estimateFooterLegendMm = (staffCount: number): number => {
-  let mm = 20; // 標題(約3.4) + 代號2行(約7.4) + 註記2行(約7) + 標籤內距(約2)
+  let mm = 3.4 + 11 + 2; // 標題(約3.4) + 代號3行(約11) + 標籤內距(約2)
   if (staffCount > 0) {
     const staffLines = Math.ceil(staffCount / 5); // 每行約可容納 5 個代號
-    mm += 4.4 + staffLines * 3.7;                 // 職員標題 + 代號各行
+    mm += 1 + 3.7 + staffLines * 3.7;             // 職員標題(連 margin-top) + 代號各行
   }
   return mm;
 };
 
 // 給定彙總時段數，計算 body 可用高度（mm）。
 // 需保留 footer（含頁碼）高度，避免頁尾被 body 擠出頁面造成裁切。
-// headerMm：template1/4 無頂置相片，用較低嘅真實標頭高度（預設 30mm 係 template2/3 頂置相片版）
+// headerMm：template1 無頂置相片，用較低嘅真實標頭高度（預設 30mm 係 template2/3 頂置相片版）
 const bodyUsableMm = (summaryRows: number, footerLegendMm: number, headerMm: number = HEADER_HEIGHT_MM): number => {
-  const footerMm = Math.max(summaryRows * ROW_SUMMARY_MM, footerLegendMm) + FOOTER_FIXED_MM;
-  return PAGE_HEIGHT_MM - headerMm - TABLE_HEADER_MM - footerMm - SAFETY_MARGIN_MM;
+  // 頁碼列高度：有真實量度用真實數字
+  const footerFixedMm = activeHeights?.labelMm ?? FOOTER_FIXED_MM;
+  const footerMm = Math.max(summaryRows * ROW_SUMMARY_MM, footerLegendMm) + footerFixedMm;
+  const contentHeightMm = PAGE_HEIGHT_MM - (punchZoneReserved ? PUNCH_ZONE_MM : 0);
+  return contentHeightMm - headerMm - TABLE_HEADER_MM - footerMm - SAFETY_MARGIN_MM;
 };
+
+// 左欄內容高度估算：c-date/c-name/c-route 係 rowspan 合併格，內容行數多過時段列數時
+// 會撑高成個 block（td height 只係下限）。8pt 字、line-height 1.15 → 每行約 3.3mm。
+const LINE_8PT_MM = 3.3;
+const textWidthMm = (s: string): number => {
+  let w = 0;
+  for (const ch of String(s)) w += ch.charCodeAt(0) > 0x2e7f ? 2.85 : 1.5;
+  return w;
+};
+const wrapLines = (s: string, availMm: number): number =>
+  Math.max(1, Math.ceil(textWidthMm(s) / availMm));
 
 // 計算一個處方區塊實際佔用高度（mm）。
 // 採 AM/PM 分區排列：上午（≤12:00）時段占前 AM_SECTION_MIN 列起，
 // 下午（>12:00）時段接續其後，整體合計不足 MIN_SLOT_ROWS（4）列時以空白列補齊。
 const getBlockHeightMm = (block: PrescriptionBlock): number => {
+  // 真實量度優先：匯出流程已用隱藏 iframe 量出呢個 block 嘅實際渲染高度
+  const measuredKey = String(block.prescription.id ?? '');
+  const measured = measuredKey ? activeHeights?.blockMm[measuredKey] : undefined;
+  if (measured != null) return measured;
   const inspCount = prescriptionHasInspection(block.prescription)
     ? new Set((block.prescription.inspection_rules as any[]).map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean)).size
     : 0;
@@ -433,7 +632,37 @@ const getBlockHeightMm = (block: PrescriptionBlock): number => {
   const amPadRows = Math.max(0, AM_SECTION_MIN - amActualRows);
   const pmActualRows = pm.length * rowsPerSlot;
   const pmPadRows = Math.max(0, MIN_SLOT_ROWS - (amActualRows + amPadRows + pmActualRows));
-  return (amActualRows + amPadRows + pmActualRows + pmPadRows) * ROW_SIGN_MM;
+  const slotRowsMm = (amActualRows + amPadRows + pmActualRows + pmPadRows) * ROW_SIGN_MM;
+
+  // 左欄內容行數：取三欄最多行數 × 行高 + padding
+  const rx = block.prescription;
+  const startLabel = rx.start_date ? formatDate(rx.start_date) : '不詳';
+  // c-date 可用闊 ~19mm：「開始日期：dd/mm/yyyy」每行多數爆格變 2 行
+  const dateColLines =
+    wrapLines(`開始日期：${startLabel}`, 19) + wrapLines(`處方日期：${formatDate(rx.prescription_date)}`, 19) + 0.5;
+  // c-name 可用闊 ~37mm
+  const sourceText = [rx.medication_source, rx.medication_source_specialty].filter(Boolean).join(' / ');
+  const nameColLines =
+    wrapLines(rx.medication_name ?? '', 37)
+    + (rx.dosage_form ? 1 : 0)
+    + (rx.show_last_taken_in_record && rx.last_taken_date ? 1 : 0)
+    + (formatInspectionRequirement(rx) ? wrapLines(formatInspectionRequirement(rx), 37) : 0)
+    + (sourceText ? wrapLines(`藥物來源：${sourceText}`, 37) : 0);
+  // c-route 可用闊 ~23mm：每個項目獨立一行，會換行嘅再加行
+  const suppressFrequency = rx.frequency_type === 'each_time' ||
+    (rx.frequency_type !== 'hourly' && (rx.daily_frequency === 0 || rx.daily_frequency == null));
+  const routeItems = [
+    rx.administration_route ?? '',
+    rx.is_prn ? '需要時' : '',
+    getMealTimingLabel(rx),
+    suppressFrequency ? '' : getFrequencyDescription(rx),
+    rx.special_dosage_instruction?.trim() ?? '',
+    rx.dosage_amount ? `每次${rx.dosage_amount}${rx.dosage_unit ?? ''}` : '',
+  ].filter((line) => line != null && String(line).trim() !== '');
+  const routeColLines = routeItems.reduce((sum, item) => sum + wrapLines(String(item), 23), 0);
+  const leftContentMm = Math.max(dateColLines, nameColLines, routeColLines, MIN_BLOCK_MM / LINE_8PT_MM) * LINE_8PT_MM + 1;
+
+  return Math.max(slotRowsMm, leftContentMm);
 };
 
 // 一頁內處方區塊連同「每區塊上方重複日期列」嘅總高度
@@ -610,7 +839,7 @@ export const packBlocksForSignatureEfficiency = (
 ): PrescriptionBlock[][] => {
   if (blocks.length === 0) return [];
 
-  // template3/4：每多一個區塊多一行重複日期列；template1/2 為 0（原有計法）
+  // template1/3：每多一個區塊多一行重複日期列；template2 為 0（原有計法）
   const dayheadRepeatMm = withDayhead ? DAYHEAD_REPEAT_MM : 0;
 
   const blockMm = new Map<PrescriptionBlock, number>();
@@ -860,7 +1089,9 @@ const renderPage = (
   const pageLabel = `${ROUTE_SHEET_LABELS[page.routeKind]} 共${page.pageIndexInRoute}/${page.pageCountInRoute}頁`;
 
   return '<section class="mr-page">'
-    + '<div class="mr-punch-zone" aria-hidden="true"><div class="mr-punch-hole"></div><div class="mr-punch-hole"></div></div>'
+    + (punchZoneReserved
+      ? '<div class="mr-punch-zone" aria-hidden="true"><div class="mr-punch-hole"></div><div class="mr-punch-hole"></div></div>'
+      : '')
     + renderHeaderRegion(page.patient, page.routeKind, selectedMonth, template)
     + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows, template === 'template1' || template === 'template3')}</div>`
     + '<div class="mr-top-spacer"></div>'
@@ -995,7 +1226,7 @@ const renderBodyTable = (
   if (missingSlots > 0) {
     const dayCells = Array(dayCount).fill(`<td class="c-day mr-diag">${renderDiagonalSvg('#9aa7b4')}</td>`).join('');
     // c-date 保留 4 行獨立格，行間無橫線；第 1 行「開始日期」、第 3 行「處方日期」作提示文字。
-    // c-name / c-route 以 rowspan 合併；template3/4 每個區塊（包括空白處方列）上方都有一列
+    // c-name / c-route 以 rowspan 合併；template1/3 每個區塊（包括空白處方列）上方都有一列
     // 多重日期列，左三欄由該列開始合併直下（同 renderPrescriptionBlock 嘅做法，rowspan 多一行）
     const nameRouteCells = withDayhead
       ? ''
@@ -1682,11 +1913,7 @@ const escapeHtml = (value: string): string => value
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
 
-const assembleDocument = (renderedPages: string[]): string => `<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-<meta charset="UTF-8">
-<style>
+const buildPageCss = (): string => `
 @page { size: A4 landscape; margin: 2mm; }
 html, body { margin: 0; padding: 0; background: #fff; }
 * { box-sizing: border-box; }
@@ -1886,8 +2113,13 @@ td.mr-insp-fail { color: #dc2626; font-weight: bold; }
   background: #fff;
 }
 .mr-punch-hole:first-child { left: calc(50% - 44mm); }
-.mr-punch-hole:last-child  { left: calc(50% + 36mm); }
-</style>
+.mr-punch-hole:last-child  { left: calc(50% + 36mm); }`;
+
+const assembleDocument = (renderedPages: string[]): string => `<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<style>${buildPageCss()}</style>
 </head>
 <body>
 ${renderedPages.join('\n')}
@@ -1925,17 +2157,28 @@ const printViaIframe = (html: string): void => {
   const win = iframe.contentWindow!;
   win.addEventListener('afterprint', () => setTimeout(cleanup, 200));
 
-  const triggerPrint = (): void => {
-    window.setTimeout(() => {
+  // 等埋所有圖片（院友相片係 storage URL，未 load 完就 print 會大片空白）先觸發列印；
+  // 5 秒上限，失敗嘅圖唔會阻塞列印
+  const waitForImagesThenPrint = (): void => {
+    const imagesReady = Promise.all(
+      Array.from(doc.images).map((img) => (img.complete ? Promise.resolve() : new Promise<void>((r) => {
+        img.addEventListener('load', () => r(), { once: true });
+        img.addEventListener('error', () => r(), { once: true });
+      })))
+    );
+    Promise.race([
+      imagesReady.then(() => new Promise<void>((r) => setTimeout(r, 400))),
+      new Promise<void>((r) => setTimeout(r, 5000)),
+    ]).then(() => {
       win.focus();
       win.print();
-    }, 400);
+    });
   };
 
   if (doc.readyState === 'complete') {
-    triggerPrint();
+    waitForImagesThenPrint();
   } else {
-    win.addEventListener('load', triggerPrint);
+    win.addEventListener('load', waitForImagesThenPrint);
   }
 
   // 後備清理：列印對話框未觸發 afterprint 時，仍移除 iframe。

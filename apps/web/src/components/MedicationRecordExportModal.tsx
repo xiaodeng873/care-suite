@@ -82,6 +82,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   const [prescriptionSortOrder, setPrescriptionSortOrder] = useState<PrescriptionSortOrder>('efficiency');
   const [includeBlankRows, setIncludeBlankRows] = useState(true);
   const [separateInspectionPages, setSeparateInspectionPages] = useState(false);
+  const [reservePunchZone, setReservePunchZone] = useState(false);
   const [recordTemplate, setRecordTemplate] = useState<MedicationRecordTemplate>('template1');
   // 個人藥物記錄日期範圍（不受月份局限）
   const [listStartDate, setListStartDate] = useState<string>(() => {
@@ -350,7 +351,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           return;
         }
 
-        await exportBlankMedicationRecordToHtml([currentPatient.patient], selectedMonth, selectedRouteTypes);
+        await exportBlankMedicationRecordToHtml([currentPatient.patient], selectedMonth, selectedRouteTypes, reservePunchZone);
 
         const routeNames = selectedRouteTypes.map((r) => r === 'oral' ? '口服' : r === 'injection' ? '注射' : '外用').join('、');
         alert(`匯出成功！\n\n【空白藥紙】\n已為 ${currentPatient.patient.中文姓氏}${currentPatient.patient.中文名字} 匯出空白藥紙\n（包含 ${routeNames} 工作表）`);
@@ -372,7 +373,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
         const selectedPatientsForBlank = activePatients.filter((p) => selectedPatientIds.has(p.院友id));
 
-        await exportBlankMedicationRecordToHtml(selectedPatientsForBlank, selectedMonth, selectedRouteTypes);
+        await exportBlankMedicationRecordToHtml(selectedPatientsForBlank, selectedMonth, selectedRouteTypes, reservePunchZone);
 
         const routeNames = selectedRouteTypes.map((r) => r === 'oral' ? '口服' : r === 'injection' ? '注射' : '外用').join('、');
         alert(`匯出成功！\n\n【空白藥紙】\n已為 ${selectedPatientsForBlank.length} 位院友匯出空白藥紙\n（每位院友包含 ${routeNames} 工作表）`);
@@ -395,7 +396,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
             quantityStatPrescriptions: activeQuantityStatPrescriptions
           }]);
           await exportMedicationRecordToHtml(hdCurrentPatients,
-          selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate, separateInspectionPages);
+          selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate, separateInspectionPages, reservePunchZone);
         }
 
         if (shouldExportPersonalMedicationList) {
@@ -474,7 +475,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
         if (shouldExportMedicationRecord && selectedPatients.length > 0) {
           const hdSelectedPatients = await withHdPatientPhotos(selectedPatients);
-          await exportMedicationRecordToHtml(hdSelectedPatients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate, separateInspectionPages);
+          await exportMedicationRecordToHtml(hdSelectedPatients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate, separateInspectionPages, reservePunchZone);
         }
 
         if (shouldExportPersonalMedicationList) {
@@ -747,6 +748,15 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                   <span className="text-sm text-gray-700">檢測項獨立分頁</span>
                 </label>
               }
+              <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                  type="checkbox"
+                  checked={reservePunchZone}
+                  onChange={(e) => setReservePunchZone(e.target.checked)}
+                  className="form-checkbox h-5 w-5 text-blue-600 rounded" />
+
+                  <span className="text-sm text-gray-700">預留打孔位置</span>
+                </label>
               {!isBlankMode &&
               <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-700 whitespace-nowrap">處方排列：</span>
