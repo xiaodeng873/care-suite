@@ -30,12 +30,11 @@ let activeFacility: FacilitySettings = DEFAULT_FACILITY_SETTINGS;
 
 type RouteKind = 'oral' | 'topical' | 'subcutaneous' | 'intramuscular'; // 處方分類（保留細分）
 type PageRouteKind = 'oral' | 'topical' | 'injection';                  // 藥紙頁面：皮下+肌肉合併為 injection
-export type MedicationRecordTemplate = 'template1' | 'template2' | 'template3' | 'template4';
-// template1: 簽署指引 → 院友相片 → 彙總區（相片在彙總區）
+export type MedicationRecordTemplate = 'template1' | 'template2' | 'template3';
+// template1: 簽署指引 → 院友相片（彙總區底置）→ 彙總區，另喺每個處方區塊上方加多重日期列（1–31 日），
+//            左三欄（日期／藥名／途徑）由日期列嗰行開始合併直下，區塊之間唔留空白帶（預設模板）
 // template2: 院友相片在頂部標題區（現有設計）
-// template3: 同 template2 版面，另喺每個處方區塊上方加多重日期列（1–31 日），
-//            左三欄（日期／藥名／途徑）由日期列嗰行開始合併直下，區塊之間唔留空白帶
-// template4: 同 template1 版面（簽署指引 → 院友相片 → 彙總區）+ 多重日期列
+// template3: 同 template2 版面，另喺每個處方區塊上方加多重日期列
 type MedicationPrescription = Record<string, any>;
 type PatientWithPrescriptions = Record<string, any> & {
   prescriptions?: MedicationPrescription[];
@@ -105,7 +104,7 @@ export const exportMedicationRecordToHtml = async (
   includeWorkflowRecords = false,
   includeBlankRows = false,
   prescriptionSortOrder?: string,
-  template: MedicationRecordTemplate = 'template2',
+  template: MedicationRecordTemplate = 'template1',
   separateInspectionPages = false
 ): Promise<void> => {
   const html = await buildMedicationRecordHtml(patients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, template, separateInspectionPages);
@@ -119,7 +118,7 @@ export const exportSelectedMedicationRecordToHtml = async (
   includeWorkflowRecords = false,
   includeBlankRows = false,
   prescriptionSortOrder?: string,
-  template: MedicationRecordTemplate = 'template2',
+  template: MedicationRecordTemplate = 'template1',
   separateInspectionPages = false
 ): Promise<void> => {
   await exportMedicationRecordToHtml([{ ...patient, prescriptions }], selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, template, separateInspectionPages);
@@ -205,7 +204,7 @@ const buildMedicationRecordHtml = async (
   includeWorkflowRecords: boolean,
   includeBlankRows: boolean,
   prescriptionSortOrder?: string,
-  template: MedicationRecordTemplate = 'template2',
+  template: MedicationRecordTemplate = 'template1',
   separateInspectionPages = false
 ): Promise<string> => {
   activeFacility = await getFacilitySettings();
@@ -253,10 +252,12 @@ export const preparePages = (
   quantityStatPrescriptions?: MedicationPrescription[],
   workflowRecords: WorkflowRecord[] = [],
   selectedMonth?: string,
-  template: MedicationRecordTemplate = 'template2',
+  template: MedicationRecordTemplate = 'template1',
 ): PageData[] => {
-  // template3/4：每個處方區塊上方多重日期列（分頁高度要計埋重複列）
-  const withDayhead = template === 'template3' || template === 'template4';
+  // template1/3：每個處方區塊上方多重日期列（分頁高度要計埋重複列）
+  const withDayhead = template === 'template1' || template === 'template3';
+  // template1 相片底置，頂置標頭冇相片（2 行資料表 ~14mm），分頁預算用真實高度，唔再當 30mm 高估
+  const headerMm = (template === 'template1') ? HEADER_NO_PHOTO_MM : HEADER_HEIGHT_MM;
   // 時間列合併（業務規則：時間點隨時可改；舊時間點喺處方範圍內當月有記錄——
   // 不論 pending 定已簽——都要出現喺藥紙）。喺 block 建立時就 merge，
   // 令 getBlockHeightMm／rowsPerSlot／summaryRowCount／分頁全部用合併後嘅時段數計高度。
@@ -309,7 +310,7 @@ export const preparePages = (
       // 1) 有時段處方：按頁裝箱，直接最小化各頁彙總區不同時段數（＝簽署列數）
       const scheduled = blocks.filter((b) => b.timeSlots.length > 0);
       const noSlot = blocks.filter((b) => b.timeSlots.length === 0);
-      grouped = packBlocksForSignatureEfficiency(scheduled, footerLegendMm, withDayhead);
+      grouped = packBlocksForSignatureEfficiency(scheduled, footerLegendMm, withDayhead, headerMm);
       // 2) 無時段處方（零彙總列成本）按頁序 first-fit 貪心塞入各頁剩餘空間，置該頁末尾；
       //    只受 mm 限制，不受 MAX_PRESCRIPTIONS_PER_PAGE 限制；塞不下才開尾頁
       const remaining: PrescriptionBlock[] = [];
@@ -317,23 +318,23 @@ export const preparePages = (
         const blockMm = getBlockHeightMm(block);
         const target = grouped.find((page) => {
           // 塞入後每多一個區塊多一行重複日期列（template3 才計）
-          return blocksHeightMm(page, withDayhead) + (withDayhead ? DAYHEAD_REPEAT_MM : 0) + blockMm <= bodyUsableMm(summaryRowCount(page), footerLegendMm);
+          return blocksHeightMm(page, withDayhead) + (withDayhead ? DAYHEAD_REPEAT_MM : 0) + blockMm <= bodyUsableMm(summaryRowCount(page), footerLegendMm, headerMm);
         });
         if (target) target.push(block); else remaining.push(block);
       }
-      if (remaining.length > 0) grouped.push(...paginateBlocks(remaining, footerLegendMm, withDayhead));
+      if (remaining.length > 0) grouped.push(...paginateBlocks(remaining, footerLegendMm, withDayhead, headerMm));
     } else {
-      grouped = paginateBlocks(blocks, footerLegendMm, withDayhead);
+      grouped = paginateBlocks(blocks, footerLegendMm, withDayhead, headerMm);
     }
 
     // 檢測項獨立頁排於本途徑常規頁之後（多個 block 按時間點互斥 first-fit 共用頁面）
-    const inspectionGroups = packInspectionBlocks(inspectionBlocks, footerLegendMm, withDayhead);
+    const inspectionGroups = packInspectionBlocks(inspectionBlocks, footerLegendMm, withDayhead, headerMm);
     const routePages: PageData[] = grouped.map((pb, i) => {
       // 空白處方列是最後程序：在最終頁面組成後，依本頁實際剩餘高度計算可補列數
       let fillerCount = 0;
       if (includeBlankRows) {
         const realSumMm = blocksHeightMm(pb, withDayhead);
-        const usableMm = bodyUsableMm(summaryRowCount(pb), footerLegendMm);
+        const usableMm = bodyUsableMm(summaryRowCount(pb), footerLegendMm, headerMm);
         // template3/4 每個空白處方區塊上方都有一列多重日期列（4mm），計可補列數時要計埋
         const fillerBlockMm = FILLER_BLOCK_MM + (withDayhead ? DAYHEAD_REPEAT_MM : 0);
         const roomForFillers = Math.floor((usableMm - realSumMm) / fillerBlockMm);
@@ -373,6 +374,8 @@ export const preparePages = (
 const PUNCH_ZONE_MM = 10;             // 頁頂打孔區高度（2cm，避免打孔機破壞表頭）
 const PAGE_HEIGHT_MM = 206 - PUNCH_ZONE_MM; // A4橫向含2mm邊距後可用高度（206mm 扣除打孔區）
 const HEADER_HEIGHT_MM = 30;          // 頂置院友資訊區實際高度（含26mm相片+邊距）
+const HEADER_NO_PHOTO_MM = 14;        // template1/4 頂置資訊區無相片（2 行資料表約 13mm+邊距），分頁預算用
+//                                     // 注意：只放寬標頭預算；列高 6mm 同 MIN_SLOT_ROWS=4 保留作安全緩衝
 const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
 const ROW_SIGN_MM = 6;                // 簽署列（mr-sign-row）實際列高
 const ROW_SUMMARY_MM = 6;             // 彙總列（mr-summary td）實際列高
@@ -409,9 +412,10 @@ const estimateFooterLegendMm = (staffCount: number): number => {
 
 // 給定彙總時段數，計算 body 可用高度（mm）。
 // 需保留 footer（含頁碼）高度，避免頁尾被 body 擠出頁面造成裁切。
-const bodyUsableMm = (summaryRows: number, footerLegendMm: number): number => {
+// headerMm：template1/4 無頂置相片，用較低嘅真實標頭高度（預設 30mm 係 template2/3 頂置相片版）
+const bodyUsableMm = (summaryRows: number, footerLegendMm: number, headerMm: number = HEADER_HEIGHT_MM): number => {
   const footerMm = Math.max(summaryRows * ROW_SUMMARY_MM, footerLegendMm) + FOOTER_FIXED_MM;
-  return PAGE_HEIGHT_MM - HEADER_HEIGHT_MM - TABLE_HEADER_MM - footerMm - SAFETY_MARGIN_MM;
+  return PAGE_HEIGHT_MM - headerMm - TABLE_HEADER_MM - footerMm - SAFETY_MARGIN_MM;
 };
 
 // 計算一個處方區塊實際佔用高度（mm）。
@@ -445,6 +449,7 @@ const paginateBlocks = (
   blocks: PrescriptionBlock[],
   footerLegendMm: number,
   withDayhead = false,
+  headerMm: number = HEADER_HEIGHT_MM,
 ): PrescriptionBlock[][] => {
   const result: PrescriptionBlock[][] = [];
   let current: PrescriptionBlock[] = [];
@@ -452,7 +457,7 @@ const paginateBlocks = (
   for (const block of blocks) {
     if (current.length > 0) {
       const projected = [...current, block];
-      const usableMm = bodyUsableMm(summaryRowCount(projected), footerLegendMm);
+      const usableMm = bodyUsableMm(summaryRowCount(projected), footerLegendMm, headerMm);
       if (blocksHeightMm(projected, withDayhead) > usableMm || current.length >= MAX_PRESCRIPTIONS_PER_PAGE) {
         result.push(current);
         current = [];
@@ -473,6 +478,7 @@ const packInspectionBlocks = (
   blocks: PrescriptionBlock[],
   footerLegendMm: number,
   withDayhead = false,
+  headerMm: number = HEADER_HEIGHT_MM,
 ): PrescriptionBlock[][] => {
   const pages: PrescriptionBlock[][] = [];
   for (const block of blocks) {
@@ -483,7 +489,7 @@ const packInspectionBlocks = (
         b.timeSlots.some((s) => block.timeSlots.includes(s)));
       if (conflict) continue;
       const projected = [...page, block];
-      if (blocksHeightMm(projected, withDayhead) > bodyUsableMm(summaryRowCount(projected), footerLegendMm)) continue;
+      if (blocksHeightMm(projected, withDayhead) > bodyUsableMm(summaryRowCount(projected), footerLegendMm, headerMm)) continue;
       target = page;
       break;
     }
@@ -599,12 +605,13 @@ export const resolvePrescriptionTimeSlots = (prescription: MedicationPrescriptio
 export const packBlocksForSignatureEfficiency = (
   blocks: PrescriptionBlock[],
   footerLegendMm: number,
-  withDayhead = false
+  withDayhead = false,
+  headerMm: number = HEADER_HEIGHT_MM
 ): PrescriptionBlock[][] => {
   if (blocks.length === 0) return [];
 
-  // template3：每多一個區塊多一行重複日期列；template1/2 為 0（原有計法）
-  const headerMm = withDayhead ? DAYHEAD_REPEAT_MM : 0;
+  // template3/4：每多一個區塊多一行重複日期列；template1/2 為 0（原有計法）
+  const dayheadRepeatMm = withDayhead ? DAYHEAD_REPEAT_MM : 0;
 
   const blockMm = new Map<PrescriptionBlock, number>();
   for (const b of blocks) blockMm.set(b, getBlockHeightMm(b));
@@ -612,7 +619,7 @@ export const packBlocksForSignatureEfficiency = (
   const pageUsedMm = (page: PrescriptionBlock[]): number => blocksHeightMm(page, withDayhead);
   const pageCapacityMm = (union: Set<string>): number => {
     const { am, pm } = splitAmPm([...union]);
-    return bodyUsableMm(computeSummaryLayout(am, pm).totalRows, footerLegendMm);
+    return bodyUsableMm(computeSummaryLayout(am, pm).totalRows, footerLegendMm, headerMm);
   };
   const unionOf = (page: PrescriptionBlock[]): Set<string> =>
     new Set(page.flatMap((b) => b.timeSlots));
@@ -638,15 +645,15 @@ export const packBlocksForSignatureEfficiency = (
     for (const item of g.items) {
       const m = blockMm.get(item) ?? 0;
       // 加入後區塊數 = chunk.length + 1，重複日期列 = chunk.length 行
-      if (chunk.length > 0 && (chunk.length >= MAX_PRESCRIPTIONS_PER_PAGE || chunkMm + m + headerMm * chunk.length > capMm)) {
-        groups.push({ slots: g.slots, items: chunk, mm: chunkMm + headerMm * (chunk.length - 1) });
+      if (chunk.length > 0 && (chunk.length >= MAX_PRESCRIPTIONS_PER_PAGE || chunkMm + m + dayheadRepeatMm * chunk.length > capMm)) {
+        groups.push({ slots: g.slots, items: chunk, mm: chunkMm + dayheadRepeatMm * (chunk.length - 1) });
         chunk = [];
         chunkMm = 0;
       }
       chunk.push(item);
       chunkMm += m;
     }
-    if (chunk.length > 0) groups.push({ slots: g.slots, items: chunk, mm: chunkMm + headerMm * (chunk.length - 1) });
+    if (chunk.length > 0) groups.push({ slots: g.slots, items: chunk, mm: chunkMm + dayheadRepeatMm * (chunk.length - 1) });
   }
   // 大組優先（搜尋更快收斂），平手按時段字串
   groups.sort((a, b) => b.items.length - a.items.length || a.slots.join('|').localeCompare(b.slots.join('|')));
@@ -681,7 +688,7 @@ export const packBlocksForSignatureEfficiency = (
       for (const page of pages) {
         const newUnion = new Set([...unionOf(page), ...g.slots]);
         if (page.length + g.items.length <= MAX_PRESCRIPTIONS_PER_PAGE
-          && pageUsedMm(page) + g.mm + headerMm <= pageCapacityMm(newUnion)) {
+          && pageUsedMm(page) + g.mm + dayheadRepeatMm <= pageCapacityMm(newUnion)) {
           page.push(...g.items);
           placed = true;
           break;
@@ -710,7 +717,7 @@ export const packBlocksForSignatureEfficiency = (
       if (pages[i].length + g.items.length > MAX_PRESCRIPTIONS_PER_PAGE) continue;
       const oldSize = unionOf(pages[i]).size;
       const newUnion = new Set([...unionOf(pages[i]), ...g.slots]);
-      if (pageUsedMm(pages[i]) + g.mm + headerMm > pageCapacityMm(newUnion)) continue;
+      if (pageUsedMm(pages[i]) + g.mm + dayheadRepeatMm > pageCapacityMm(newUnion)) continue;
       pages[i].push(...g.items);
       dfs(gi + 1, pages, rowsSoFar - oldSize + newUnion.size);
       pages[i].splice(pages[i].length - g.items.length, g.items.length);
@@ -847,7 +854,7 @@ const renderPage = (
   workflowRecords: WorkflowRecord[],
   staffMapping: StaffCodeMapping,
   includeBlankRows: boolean,
-  template: MedicationRecordTemplate = 'template2'
+  template: MedicationRecordTemplate = 'template1'
 ): string => {
   const dayCount = getDaysInMonth(selectedMonth);
   const pageLabel = `${ROUTE_SHEET_LABELS[page.routeKind]} 共${page.pageIndexInRoute}/${page.pageCountInRoute}頁`;
@@ -855,7 +862,7 @@ const renderPage = (
   return '<section class="mr-page">'
     + '<div class="mr-punch-zone" aria-hidden="true"><div class="mr-punch-hole"></div><div class="mr-punch-hole"></div></div>'
     + renderHeaderRegion(page.patient, page.routeKind, selectedMonth, template)
-    + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows, template === 'template3' || template === 'template4')}</div>`
+    + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows, template === 'template1' || template === 'template3')}</div>`
     + '<div class="mr-top-spacer"></div>'
     + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel, template)
     + '</section>';
@@ -868,7 +875,7 @@ const formatYearMonth = (selectedMonth: string): string => {
   return `${year}年${month}月`;
 };
 
-const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRouteKind, selectedMonth: string, template: MedicationRecordTemplate = 'template2'): string => {
+const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRouteKind, selectedMonth: string, template: MedicationRecordTemplate = 'template1'): string => {
   const name = patient.中文姓氏 != null || patient.中文名字 != null
     ? `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`
     : (patient.中文姓名 ?? '');
@@ -881,8 +888,8 @@ const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRo
 
   const facilityNameZh = activeFacility.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
 
-  if (template === 'template1' || template === 'template4') {
-    // 模板1/4：保留原有 col 寬度，只把「院友資料」與「過敏/不良反應」的欄寬交換
+  if (template === 'template1') {
+    // 模板1（相片底置）：保留原有 col 寬度，只把「院友資料」與「過敏/不良反應」的欄寬交換
     // colgroup 順序調為 react（剩餘）/ title（94mm）/ info（42mm）/ info（42mm）
     // 左=過敏/不良反應（兩個獨立 td，與右區同樣有橫向分格），中=院舍/年月，右=院友資料
     const reactInfoCell = (label: string, value: string) =>
@@ -1342,7 +1349,7 @@ const renderFooterRegion = (
   workflowRecords: WorkflowRecord[],
   staffMapping: StaffCodeMapping,
   pageLabel: string,
-  template: MedicationRecordTemplate = 'template2'
+  template: MedicationRecordTemplate = 'template1'
 ): string => {
   const pageSlots = sortDistinctTimeSlots(page.blocks.flatMap((block) => block.timeSlots));
   const { am: amPageSlots, pm: pmPageSlots } = splitAmPm(pageSlots);
@@ -1382,7 +1389,7 @@ const renderFooterRegion = (
   for (const slot of summarySlots) {
     let leftCells = '';
     if (!labelEmitted) {
-      if (template === 'template1' || template === 'template4') {
+      if (template === 'template1') {
         leftCells = `<td class="mr-sum-label" colspan="2" rowspan="${totalRows}"><div class="mr-legend-wrap">${legendHtml}</div></td>`
           + `<td class="mr-sum-photo" rowspan="${totalRows}">${photoHtml}</td>`;
       } else {

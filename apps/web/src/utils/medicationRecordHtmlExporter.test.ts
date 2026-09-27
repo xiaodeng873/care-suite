@@ -193,8 +193,8 @@ describe('preparePages（檢測項獨立分頁：關閉）', () => {
   });
 });
 
-describe('preparePages（template3/4 多重日期列）', () => {
-  it.each(['template3', 'template4'] as const)('%s 參數照常用：分頁正常、全部處方都在頁面上', (template) => {
+describe('preparePages（template1/3 多重日期列）', () => {
+  it.each(['template1', 'template3'] as const)('%s 參數照常用：分頁正常、全部處方都在頁面上', (template) => {
     const pages = preparePages(PATIENT, RXS, true, 0, 'efficiency', false, undefined, [], undefined, template);
     expect(pages.length).toBeGreaterThan(0);
     expect(pages.flatMap((p) => p.blocks).map((b) => b.prescription.medication_name).sort())
