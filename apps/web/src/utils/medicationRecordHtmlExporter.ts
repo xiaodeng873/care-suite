@@ -334,7 +334,9 @@ export const preparePages = (
       if (includeBlankRows) {
         const realSumMm = blocksHeightMm(pb, withDayhead);
         const usableMm = bodyUsableMm(summaryRowCount(pb), footerLegendMm);
-        const roomForFillers = Math.floor((usableMm - realSumMm) / FILLER_BLOCK_MM);
+        // template3/4 每個空白處方區塊上方都有一列多重日期列（4mm），計可補列數時要計埋
+        const fillerBlockMm = FILLER_BLOCK_MM + (withDayhead ? DAYHEAD_REPEAT_MM : 0);
+        const roomForFillers = Math.floor((usableMm - realSumMm) / fillerBlockMm);
         fillerCount = Math.max(0, roomForFillers);
       }
       return {
@@ -985,17 +987,27 @@ const renderBodyTable = (
   let fillerBodies = '';
   if (missingSlots > 0) {
     const dayCells = Array(dayCount).fill(`<td class="c-day mr-diag">${renderDiagonalSvg('#9aa7b4')}</td>`).join('');
-    // c-date 保留 4 行獨立格，行間無橫線；第 1 行「開始日期」、第 3 行「處方日期」作提示文字
-    // c-name / c-route 仍以 rowspan=MIN_SLOT_ROWS 合併
+    // c-date 保留 4 行獨立格，行間無橫線；第 1 行「開始日期」、第 3 行「處方日期」作提示文字。
+    // c-name / c-route 以 rowspan 合併；template3/4 每個區塊（包括空白處方列）上方都有一列
+    // 多重日期列，左三欄由該列開始合併直下（同 renderPrescriptionBlock 嘅做法，rowspan 多一行）
+    const nameRouteCells = withDayhead
+      ? ''
+      : `<td class="c-name" rowspan="${MIN_SLOT_ROWS}"><div class="mr-med-source mr-filler-source">藥物來源：</div></td>`
+        + `<td class="c-route" rowspan="${MIN_SLOT_ROWS}">&nbsp;</td>`;
+    const fillerDayhead = withDayhead
+      ? `<tr class="mr-dayhead mr-dayhead-repeat"><td class="c-date">&nbsp;</td>`
+        + `<td class="c-name" rowspan="${MIN_SLOT_ROWS + 1}"><div class="mr-med-source mr-filler-source">藥物來源：</div></td>`
+        + `<td class="c-route" rowspan="${MIN_SLOT_ROWS + 1}">&nbsp;</td>`
+        + `<td class="c-time">&nbsp;</td>${dayNumberCells(dayCount)}</tr>`
+      : '';
     const fillerRow1 = `<tr class="mr-sign-row mr-filler-row">`
       + `<td class="c-date mr-filler-date">開始日期</td>`
-      + `<td class="c-name" rowspan="${MIN_SLOT_ROWS}"><div class="mr-med-source mr-filler-source">藥物來源：</div></td>`
-      + `<td class="c-route" rowspan="${MIN_SLOT_ROWS}">&nbsp;</td>`
+      + nameRouteCells
       + `<td class="c-time">&nbsp;</td>${dayCells}</tr>`;
     const fillerRow2 = `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">&nbsp;</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
     const fillerRow3 = `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">處方日期</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
     const fillerRow4 = `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">&nbsp;</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
-    const fillerBlock = fillerRow1 + fillerRow2 + fillerRow3 + fillerRow4;
+    const fillerBlock = fillerDayhead + fillerRow1 + fillerRow2 + fillerRow3 + fillerRow4;
     fillerBodies = Array(missingSlots).fill(`<tbody class="mr-filler-block">${fillerBlock}</tbody>`).join('');
   }
 

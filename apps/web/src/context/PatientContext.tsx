@@ -854,7 +854,15 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   const addPatient = async (patient: Omit<db.Patient, '院友id'>) => {
     try {
       const newPatient = await db.createPatient(patient);
+      // 新院友可能帶住剛上傳嘅相片：清 session 級 photoMap cache，
+      // 否則背景補載會重用舊 map，新院友相片要 F5 先見到
+      patientPhotoLoadRef.current = null;
       await refreshData();
+      // 背景 photoMap 有 3 秒延遲，先用已知 URL 即刻 merge 落 state
+      if (newPatient.院友相片) {
+        setAllPatientsData(prev => prev.map(p =>
+          p.院友id === newPatient.院友id ? { ...p, 院友相片: newPatient.院友相片 } : p));
+      }
       return newPatient;
     } catch (error) {
       console.error('Error adding patient:', error);
@@ -864,7 +872,14 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   const updatePatient = async (patient: db.Patient) => {
     try {
       await db.updatePatient(patient);
+      // 相片可能已更新：清 session 級 photoMap cache，否則 refreshData 會用舊 map 蓋返新 URL
+      patientPhotoLoadRef.current = null;
       await refreshData();
+      // 背景 photoMap 有 3 秒延遲，先用已知 URL 即刻 merge 落 state
+      setAllPatientsData(prev => prev.map(p =>
+        p.院友id === patient.院友id
+          ? { ...p, 院友相片: patient.院友相片, 院友相片高清: patient.院友相片高清 }
+          : p));
     } catch (error) {
       console.error('Error updating patient:', error);
       throw error;
@@ -873,6 +888,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   const deletePatient = async (id: number) => {
     try {
       await db.deletePatient(id);
+      patientPhotoLoadRef.current = null;
       await refreshData();
     } catch (error) {
       console.error('Error deleting patient:', error);

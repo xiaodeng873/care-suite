@@ -203,6 +203,17 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
       if (!formData.username || !formData.name_zh || !formData.department || !formData.hire_date) {
         throw new Error('請填寫所有必填欄位');
       }
+
+      // 部門對應職位為資料庫 CHECK 約束必填（valid_nursing_position 等），留空會導致伺服器 400
+      if (formData.department === '護理' && !formData.nursing_position) {
+        throw new Error('請選擇職位');
+      }
+      if (formData.department === '專職' && !formData.allied_health_position) {
+        throw new Error('請選擇職位');
+      }
+      if (formData.department === '衛生' && !formData.hygiene_position) {
+        throw new Error('請選擇職位');
+      }
       
       // 新增用戶需要密碼
       if (!user && !formData.password) {
@@ -950,7 +961,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
 // =====================================================
 
 const Settings: React.FC = () => {
-  const { canManageUsers, isDeveloper, isAdmin, customToken, user, session, hasPermission, isAuthenticated } = useAuth();
+  const { canManageUsers, isDeveloper, isAdmin, customToken, user, session, hasPermission, isAuthenticated, getValidAccessToken, dbFacilityId } = useAuth();
   const { theme, setTheme } = useTheme();
   
   // 設定分類
@@ -1131,7 +1142,7 @@ const Settings: React.FC = () => {
 
       // 如果有新密碼，更新密碼
       if (formData.password) {
-        const authToken = customToken || session?.access_token;
+        const authToken = await getValidAccessToken();
         
         if (!authToken) {
           throw new Error('未授權：請重新登入');
@@ -1155,7 +1166,7 @@ const Settings: React.FC = () => {
     } else {
       // 新增用戶 - 透過 Edge Function
       // 獲取適當的 token：開發者用 session token，員工/主管用 custom token
-      const authToken = customToken || session?.access_token;
+      const authToken = await getValidAccessToken();
       
       if (!authToken) {
         throw new Error('未授權：請重新登入');
@@ -1185,6 +1196,7 @@ const Settings: React.FC = () => {
           employment_type: formData.employment_type,
           monthly_hour_limit: formData.employment_type === '兼職' ? formData.monthly_hour_limit : null,
           role: formData.role,
+          facility_id: dbFacilityId,
         }),
       });
 
@@ -1206,6 +1218,8 @@ const Settings: React.FC = () => {
     }
 
     await fetchUsers();
+    // 通知排班頁等即時刷新員工列表／大頭照
+    window.dispatchEvent(new CustomEvent('care-suite-users-updated'));
   };
 
   // 儲存權限
@@ -1317,7 +1331,7 @@ const Settings: React.FC = () => {
   const handleRegenerateQRCode = async (userId: string) => {
     const supabaseUrl = getSupabaseUrl();
     const supabaseAnonKey = getSupabaseAnonKey();
-    const authToken = customToken || session?.access_token;
+    const authToken = await getValidAccessToken();
 
     if (!authToken) {
       throw new Error('未授權：請重新登入');

@@ -305,8 +305,7 @@ const RosterManagement: React.FC = () => {
   }, []);
 
   // 載入員工與僱傭詳情
-  useEffect(() => {
-    const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
       const { data: profiles, error: e1 } = await supabase
         .from('user_profiles')
         .select('*')
@@ -339,13 +338,20 @@ const RosterManagement: React.FC = () => {
         } as UserEmploymentDetails;
       }
       setEmploymentMap(map);
-    };
+  }, []);
 
+  useEffect(() => {
     loadUsers().catch((err) => {
       console.error('載入員工失敗:', err);
       alert('載入員工失敗');
     });
-  }, []);
+    // 用戶管理儲存用戶／大頭照後會廣播 care-suite-users-updated，即時刷新員工列表同相片
+    const handleUsersUpdated = () => {
+      loadUsers().catch((err) => console.error('重新載入員工失敗:', err));
+    };
+    window.addEventListener('care-suite-users-updated', handleUsersUpdated);
+    return () => window.removeEventListener('care-suite-users-updated', handleUsersUpdated);
+  }, [loadUsers]);
 
   // 僱傭詳情 modal 儲存後重新載入，令禁區／特定上班時間等修改即時對排班生效
   const reloadEmploymentMap = useCallback(async () => {

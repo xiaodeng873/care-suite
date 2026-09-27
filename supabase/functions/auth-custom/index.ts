@@ -836,6 +836,17 @@ async function handleCreateUser(req: CreateUserRequest, authHeader: string) {
     };
   }
 
+  // 部門對應職位為資料庫 CHECK 約束必填（valid_nursing_position 等），留空會撞 constraint 變 raw 400
+  if (req.department === "護理" && !req.nursing_position) {
+    return { success: false, error: "請選擇職位" };
+  }
+  if (req.department === "專職" && !req.allied_health_position) {
+    return { success: false, error: "請選擇職位" };
+  }
+  if (req.department === "衛生" && !req.hygiene_position) {
+    return { success: false, error: "請選擇職位" };
+  }
+
   // 驗證操作者權限
   const token = authHeader?.replace("Bearer ", "");
   if (!token) {
@@ -914,6 +925,22 @@ async function handleCreateUser(req: CreateUserRequest, authHeader: string) {
       success: false,
       error: "用戶名已存在",
     };
+  }
+
+  // 如有指定院舍，驗證存在（開發者開戶時由 frontend 帶入 dbToken claim 嘅院舍；
+  // 自訂認證管理員會喺上面 session 分支被強制鎖定自己院舍）
+  if (req.facility_id != null) {
+    const { data: facility } = await supabase
+      .from("facilities")
+      .select("id")
+      .eq("id", req.facility_id)
+      .single();
+    if (!facility) {
+      return {
+        success: false,
+        error: "院舍不存在",
+      };
+    }
   }
 
   // 加密密碼

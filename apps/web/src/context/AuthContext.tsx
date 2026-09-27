@@ -110,6 +110,14 @@ interface AuthContextType {
   isDeveloper: () => boolean;
   isAdmin: () => boolean;
   canManageUsers: () => boolean;
+
+  /**
+   * 攞一個 edge function（auth-custom）認證到嘅 token：
+   * 自訂認證用 customToken（10 年有效）；
+   * 開發者用 Supabase access_token——佢 1 小時過期，而 auth client 設咗 autoRefreshToken: false，
+   * 長開頁面會拎到過期 token 搞到 create-user 等報「無權限」，所以用 refresh token 換新先送出。
+   */
+  getValidAccessToken: () => Promise<string | null>;
   
   // 密碼管理
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ error: any }>;
@@ -846,6 +854,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return isAdmin();
   }, [isAdmin]);
 
+  const getValidAccessToken = useCallback(async (): Promise<string | null> => {
+    if (customToken) return customToken;
+    // 開發者：access_token 1 小時過期，refreshSession 用 in-memory refresh token 換新
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (!error && data.session) {
+        setSession(data.session);
+        setUser(data.session.user);
+        return data.session.access_token;
+      }
+    } catch (refreshError) {
+      console.warn('刷新 access token 失敗:', refreshError);
+    }
+    return session?.access_token ?? null;
+  }, [customToken, session]);
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -879,6 +903,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isDeveloper,
       isAdmin,
       canManageUsers,
+      getValidAccessToken,
       changePassword,
       verifyPassword,
       verifyStaffIdentity,
