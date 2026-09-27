@@ -13,7 +13,8 @@ import {
   ChevronUp,
   ChevronDown,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Printer
 } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -25,6 +26,8 @@ import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { type InfectionControlRecord } from '../lib/database';
 import { formatDisplayDate } from '../utils/dateFormat';
+import PatientPrintModal from '../components/PatientPrintModal';
+import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 
 
 type SortField = '院友姓名' | 'diagnosis_date' | 'recovery_date' | 'created_at';
@@ -50,6 +53,7 @@ const InfectionControl: React.FC = () => {
   const { infectionControlRecords, allPatients, deleteInfectionControlRecord, refreshData, loading } = usePatientData();
   const [showModal, setShowModal] = useState(false);
   const [showRecycleBin, setShowRecycleBin] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<InfectionControlRecord | null>(null);
   const [prefilledPatientId, setPrefilledPatientId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -63,6 +67,15 @@ const InfectionControl: React.FC = () => {
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>(DEFAULT_ADVANCED_FILTERS);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
+
+  // 主表格勾選嘅記錄 → 所屬院友 id（帶入「列印綜合文件」modal 嘅勾選）
+  const printSelectedPatientIds = useMemo(() => {
+    const ids = new Set<number>();
+    infectionControlRecords.forEach((r) => {
+      if (selectedRows.has(r.id)) ids.add(r.patient_id);
+    });
+    return Array.from(ids);
+  }, [infectionControlRecords, selectedRows]);
 
   React.useEffect(() => {
     setCurrentPage(1);
@@ -362,6 +375,14 @@ const InfectionControl: React.FC = () => {
             >
               <Plus className="h-4 w-4" />
               <span>新增感染控制記錄</span>
+            </button>
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="btn-secondary flex items-center gap-2"
+              title="列印感染控制報表（勾選嘅院友會預設帶入）"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印</span>
             </button>
             <button
               onClick={() => setShowRecycleBin(true)}
@@ -842,6 +863,33 @@ const InfectionControl: React.FC = () => {
           dateField="diagnosis_date"
           onRestored={refreshData}
           onClose={() => setShowRecycleBin(false)}
+        />
+      )}
+
+      {/* 列印綜合文件：預設勾選感染控制報表＋主表格已勾選嘅院友 */}
+      {showPrintModal && (
+        <PatientPrintModal
+          patients={allPatients}
+          onClose={() => setShowPrintModal(false)}
+          initialTab="統計報表"
+          initialSelectedDocumentIds={['infection_control_statistics_report']}
+          initialSelectedPatientIds={printSelectedPatientIds}
+          onPrint={async (selectedPatients, documentIds, startDate, endDate, contentMode, printOptions) => {
+            setShowPrintModal(false);
+            try {
+              await generatePatientPrintBundle({
+                patients: selectedPatients,
+                documentIds,
+                startDate,
+                endDate,
+                contentMode,
+                printOptions,
+              });
+            } catch (error) {
+              console.error('列印失敗:', error);
+              alert('列印失敗，請稍後再試');
+            }
+          }}
         />
       )}
     </div>

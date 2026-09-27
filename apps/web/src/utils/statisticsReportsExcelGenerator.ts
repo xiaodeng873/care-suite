@@ -11,6 +11,7 @@ import type {
   VitalSignType,
   MonitoringTaskNotes,
   DiaperChangeRecord,
+  PatientRestraintAssessment,
   PatientCareTab
 } from '../lib/database';
 import { formatFrequencyDescription } from './taskScheduler';
@@ -48,6 +49,10 @@ export interface DiaperStatisticsReportOptions extends BaseStatisticsReportOptio
   patientCareTabs?: PatientCareTab[];
   /** 指定統計月份範圍（YYYY-MM）；未指定則預設最近 9 個月（以最後記錄月份為結束） */
   monthRange?: { startMonth: string; endMonth: string };
+}
+
+export interface RestraintStatisticsReportOptions extends BaseStatisticsReportOptions {
+  restraintAssessments: PatientRestraintAssessment[];
 }
 
 /** 月份字串（YYYY-MM）加減月數 */
@@ -1052,6 +1057,169 @@ export async function exportDiaperStatisticsToExcel(options: DiaperStatisticsRep
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
+// 約束物品報表
+// ───────────────────────────────────────────────────────────────────────────────
+
+const RESTRAINT_COLUMNS: SheetColumn[] = [
+  { header: '居住區', width: 18 },
+  { header: '床號', width: 12, align: 'center' },
+  { header: '姓名', width: 18 },
+  { header: '醫生簽署日期', width: 16, align: 'center' },
+  { header: '下次到期日', width: 16, align: 'center' },
+  { header: '約束物品種類', width: 30 },
+  { header: '各種類使用情況', width: 40 },
+  { header: '使用時段', width: 40 },
+];
+
+/** 時段代碼 → 24 小時制小時字串，與 restraintSummaryPrintGenerator 一致 */
+const restraintTimeToHour = (t: string | undefined | null): string => {
+  if (!t) return '';
+  if (t === '12N') return '12';
+  if (t === '12M') return '0';
+  const match = t.match(/^(\d+)([APN])$/i);
+  if (!match) return t;
+  const num = parseInt(match[1], 10);
+  const period = match[2].toUpperCase();
+  if (period === 'A') return String(num);
+  if (period === 'P') return String(num === 12 ? 12 : num + 12);
+  return t;
+};
+
+const restraintTimeCodeToHM = (t: string | undefined | null): string => {
+  const hour = restraintTimeToHour(t);
+  if (hour === '' || hour === (t ?? '')) return hour;
+  const n = parseInt(hour, 10);
+  if (Number.isNaN(n)) return '';
+  return `${String(n).padStart(2, '0')}:00`;
+};
+
+const restraintTypeDisplayName = (key: string, config: any): string => {
+  if (key === '其他：') {
+    const other = (config?.otherRestraintType ?? '').toString().trim();
+    if (other) return `${key}${other}`;
+  }
+  return key;
+};
+
+/** 使用時段：全日 / 日間 HH:MM-HH:MM、晚上 HH:MM-HH:MM、其他文字（與 HTML 總表一致） */
+const restraintTimeSlotText = (config: any): string => {
+  if (config?.allDay) return '全日';
+  const parts: string[] = [];
+  if (config?.dayTime) {
+    let part = '日間';
+    const start = restraintTimeCodeToHM(config?.dayStartTime);
+    const end = restraintTimeCodeToHM(config?.dayEndTime);
+    if (start || end) part += ` ${start || '??:??'}-${end || '??:??'}`;
+    parts.push(part);
+  }
+  if (config?.nightTime) {
+    let part = '晚上';
+    const start = restraintTimeCodeToHM(config?.nightStartTime);
+    const end = restraintTimeCodeToHM(config?.nightEndTime);
+    if (start || end) part += ` ${start || '??:??'}-${end || '??:??'}`;
+    parts.push(part);
+  }
+  const otherTime = (config?.otherTime ?? '').toString().trim();
+  if (otherTime) parts.push(otherTime);
+  return parts.join('、') || '—';
+};
+
+export async function exportRestraintStatisticsToExcel(options: RestraintStatisticsReportOptions): Promise<void> {
+  const { patients, stations, restraintAssessments, separateSheetsPerStation = false, filename } = options;
+
+  // 每位院友只取最新一份評估（同 HTML 總表：每院友一行，取最新）
+  const latestByPatient = new Map<number, PatientRestraintAssessment>();
+  for (const a of [...restraintAssessments].sort((x, y) => (x.created_at || '').localeCompare(y.created_at || ''))) {
+    latestByPatient.set(a.patient_id, a);
+  }
+
+  const activePatients = patients.filter(p => p.在住狀態 === '在住');
+  const groups = groupPatientsByStation(activePatients, stations);
+  const exportDate = formatDisplayDate(new Date());
+
+  if (!activePatients.some(p => latestByPatient.has(p.院友id))) {
+    alert('沒有可匯出的約束物品評估記錄');
+    return;
+  }
+
+  const buildRows = (groupPatients: Patient[]) => {
+    const rows: (string | number | null)[][] = [];
+    const sortedPatients = [...groupPatients].sort((a, b) => {
+      const bedA = a.床號 || '';
+      const bedB = b.床號 || '';
+      if (bedA !== bedB) return bedA.localeCompare(bedB, 'zh-Hant');
+      return patientDisplayName(a).localeCompare(patientDisplayName(b), 'zh-Hant');
+    });
+    for (const patient of sortedPatients) {
+      const assessment = latestByPatient.get(patient.院友id);
+      if (!assessment) continue;
+      const entries: Array<{ key: string; config: any }> = Object.entries(assessment.suggested_restraints ?? {})
+        .filter(([, config]: [string, any]) => !!config?.checked)
+        .map(([key, config]: [string, any]) => ({ key, config }));
+
+      const typesCell = entries.map(({ key, config }) => restraintTypeDisplayName(key, config)).join('、');
+      const conditionsCell = entries.map(({ key, config }) => {
+        const raw = config?.usageConditions;
+        const cond = (Array.isArray(raw) ? raw.join('、') : (raw ?? '').toString()).trim();
+        return `${restraintTypeDisplayName(key, config)}：${cond || '—'}`;
+      }).join('\n');
+      const timeCell = entries.map(({ key, config }) =>
+        `${restraintTypeDisplayName(key, config)}：${restraintTimeSlotText(config)}`
+      ).join('\n');
+
+      rows.push([
+        '',
+        patientBedNumber(patient),
+        patientDisplayName(patient),
+        assessment.doctor_signature_date ? formatDisplayDate(assessment.doctor_signature_date) : '',
+        assessment.next_due_date ? formatDisplayDate(assessment.next_due_date) : '',
+        typesCell || '—',
+        conditionsCell || '—',
+        timeCell || '—',
+      ]);
+    }
+    return rows;
+  };
+
+  const applyWrapText = (worksheet: ExcelJS.Worksheet, rowCount: number) => {
+    for (let i = 0; i < rowCount; i++) {
+      const row = worksheet.getRow(5 + i);
+      for (const col of [6, 7, 8]) {
+        const cell = row.getCell(col);
+        cell.alignment = { ...(cell.alignment || {}), horizontal: 'left', vertical: 'middle', wrapText: true };
+      }
+    }
+  };
+
+  const workbook = new ExcelJS.Workbook();
+  if (separateSheetsPerStation) {
+    for (const group of groups) {
+      const rows = buildRows(group.patients);
+      if (rows.length === 0) continue;
+      const worksheet = workbook.addWorksheet(group.stationName.slice(0, 31));
+      createSheetCore(worksheet, `${group.stationName} 約束物品報表`, exportDate, RESTRAINT_COLUMNS);
+      fillDataRows(worksheet, rows, 5, RESTRAINT_COLUMNS);
+      applyWrapText(worksheet, rows.length);
+    }
+  } else {
+    const allRows: (string | number | null)[][] = [];
+    for (const group of groups) {
+      const groupRows = buildRows(group.patients);
+      for (const row of groupRows) {
+        row[0] = group.stationName;
+      }
+      allRows.push(...groupRows);
+    }
+    const worksheet = workbook.addWorksheet('約束物品報表');
+    createSheetCore(worksheet, '約束物品報表', exportDate, RESTRAINT_COLUMNS);
+    fillDataRows(worksheet, allRows, 5, RESTRAINT_COLUMNS);
+    applyWrapText(worksheet, allRows.length);
+  }
+
+  await writeWorkbook(workbook, filename || `約束物品報表_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
 // 集中路由：依 document ID 匯出
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -1061,7 +1229,8 @@ export type StatisticsReportDocumentId =
   | 'infection_control_statistics_report'
   | 'special_care_statistics_report'
   | 'drug_sensitivity_statistics_report'
-  | 'diaper_statistics_report';
+  | 'diaper_statistics_report'
+  | 'restraint_statistics_report';
 
 export interface StatisticsReportBundleOptions {
   documentId: StatisticsReportDocumentId;
@@ -1072,6 +1241,7 @@ export interface StatisticsReportBundleOptions {
   patientTubeCareRecords?: PatientTubeCareRecord[];
   infectionControlRecords?: InfectionControlRecord[];
   diaperChangeRecords?: DiaperChangeRecord[];
+  restraintAssessments?: PatientRestraintAssessment[];
   patientCareTabs?: PatientCareTab[];
   /** 尿片統計：指定月份範圍（YYYY-MM） */
   diaperMonthRange?: { startMonth: string; endMonth: string };
@@ -1079,7 +1249,7 @@ export interface StatisticsReportBundleOptions {
 }
 
 export async function exportStatisticsReportToExcel(options: StatisticsReportBundleOptions): Promise<void> {
-  const { documentId, patients, stations, mealGuidances, patientHealthTasks, patientTubeCareRecords, infectionControlRecords, diaperChangeRecords, patientCareTabs, diaperMonthRange, separateSheetsPerStation } = options;
+  const { documentId, patients, stations, mealGuidances, patientHealthTasks, patientTubeCareRecords, infectionControlRecords, diaperChangeRecords, restraintAssessments, patientCareTabs, diaperMonthRange, separateSheetsPerStation } = options;
   switch (documentId) {
     case 'meal_statistics_report':
       await exportMealStatisticsToExcel({ patients, stations, mealGuidances: mealGuidances || [], separateSheetsPerStation });
@@ -1098,6 +1268,9 @@ export async function exportStatisticsReportToExcel(options: StatisticsReportBun
       break;
     case 'diaper_statistics_report':
       await exportDiaperStatisticsToExcel({ patients, stations, diaperChangeRecords: diaperChangeRecords || [], patientCareTabs, monthRange: diaperMonthRange, separateSheetsPerStation });
+      break;
+    case 'restraint_statistics_report':
+      await exportRestraintStatisticsToExcel({ patients, stations, restraintAssessments: restraintAssessments || [], separateSheetsPerStation });
       break;
     default:
       throw new Error(`未知的統計報表類型: ${documentId}`);

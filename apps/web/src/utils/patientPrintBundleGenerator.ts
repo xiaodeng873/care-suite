@@ -43,6 +43,7 @@ export interface PrintBundleOptions {
   patientTubeCareRecords?: PatientTubeCareRecord[];
   infectionControlRecords?: InfectionControlRecord[];
   diaperChangeRecords?: DiaperChangeRecord[];
+  restraintAssessments?: PatientRestraintAssessment[];
 }
 
 export interface DocumentGeneratorContext {
@@ -707,6 +708,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     'special_care_statistics_report',
     'drug_sensitivity_statistics_report',
     'diaper_statistics_report',
+    'restraint_statistics_report',
   ]);
 
   // Excel 匯出文件（統計報表）與 HTML 文件分開處理
@@ -915,12 +917,14 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
       let patientTubeCareRecords = options.patientTubeCareRecords || [];
       let infectionControlRecords = options.infectionControlRecords || [];
       let diaperChangeRecords = options.diaperChangeRecords || [];
+      let restraintAssessments = options.restraintAssessments || [];
 
       const needsMeal = statisticsDocumentIds.includes('meal_statistics_report');
       const needsTube = statisticsDocumentIds.includes('tube_care_statistics_report');
       const needsSpecial = statisticsDocumentIds.includes('special_care_statistics_report');
       const needsInfection = statisticsDocumentIds.includes('infection_control_statistics_report');
       const needsDiaper = statisticsDocumentIds.includes('diaper_statistics_report');
+      const needsRestraint = statisticsDocumentIds.includes('restraint_statistics_report');
 
       if (needsMeal && mealGuidances.length === 0) {
         const { data, error } = await supabase.from('meal_guidance').select('*').in('patient_id', patientIds);
@@ -947,6 +951,11 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
         if (error) throw error;
         diaperChangeRecords = (data || []) as DiaperChangeRecord[];
       }
+      if (needsRestraint && restraintAssessments.length === 0) {
+        const { data, error } = await supabase.from('patient_restraint_assessments').select('*').in('patient_id', patientIds);
+        if (error) throw error;
+        restraintAssessments = (data || []) as PatientRestraintAssessment[];
+      }
 
       // 尿片統計需要開啟「換片記錄」tab 的院友名單
       let patientCareTabs: PatientCareTab[] = [];
@@ -965,6 +974,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
             patientTubeCareRecords,
             infectionControlRecords,
             diaperChangeRecords,
+            restraintAssessments,
             patientCareTabs,
             diaperMonthRange: printOptions?.diaperMonthRange,
             separateSheetsPerStation: printOptions?.separateSheetsPerStation ?? false,

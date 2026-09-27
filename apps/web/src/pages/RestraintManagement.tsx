@@ -19,7 +19,8 @@ import {
   X,
   Copy,
   Ban,
-  Table2
+  Table2,
+  Printer
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type PatientRestraintAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -33,6 +34,8 @@ import { exportRestraintObservationsRangeHtml } from '../utils/restraintObservat
 import { printRestraintConsentForms } from '../utils/restraintConsentPrintGenerator';
 import { printRestraintUsageRecords } from '../utils/restraintUsageRecordPrintGenerator';
 import { printRestraintSummary } from '../utils/restraintSummaryPrintGenerator';
+import PatientPrintModal from '../components/PatientPrintModal';
+import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 import { getPrintBedNumber } from '../utils/bedTransferUtils';
 import * as db from '../lib/database';
 import { formatDisplayDate } from '../utils/dateFormat';
@@ -88,6 +91,7 @@ const RestraintManagement: React.FC = () => {
   });
   const [observationIncludeDayNumber, setObservationIncludeDayNumber] = useState(true);
   const [showRecycleBin, setShowRecycleBin] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   // Reset to first page when filters change
   React.useEffect(() => {
@@ -616,6 +620,14 @@ const RestraintManagement: React.FC = () => {
     </th>
   );
 
+  const printSelectedPatientIds = useMemo(() => {
+    const ids = new Set<number>();
+    patientRestraintAssessments
+      .filter(a => selectedRows.has(a.id))
+      .forEach(a => ids.add(a.patient_id));
+    return Array.from(ids);
+  }, [patientRestraintAssessments, selectedRows]);
+
   const latestAssessments = groupedAssessments.map(g => g.assessments[0]);
   const stats = {
     total: groupedAssessments.length,
@@ -630,6 +642,13 @@ const RestraintManagement: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">約束物品管理</h1>
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印</span>
+            </button>
             <div className="relative group">
               <button className="btn-secondary flex flex-wrap items-center gap-2">
                 <span>其他</span>
@@ -1332,6 +1351,25 @@ const RestraintManagement: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {showPrintModal && (
+        <PatientPrintModal
+          patients={patients}
+          onClose={() => setShowPrintModal(false)}
+          initialTab="統計報表"
+          initialSelectedDocumentIds={['restraint_statistics_report']}
+          initialSelectedPatientIds={printSelectedPatientIds}
+          onPrint={async (selectedPatients, documentIds, startDate, endDate, contentMode, printOptions) => {
+            setShowPrintModal(false);
+            try {
+              await generatePatientPrintBundle({ patients: selectedPatients, documentIds, startDate, endDate, contentMode, printOptions });
+            } catch (error) {
+              console.error('列印失敗:', error);
+              alert('列印失敗，請稍後再試');
+            }
+          }}
+        />
       )}
 
       {showRecycleBin && (

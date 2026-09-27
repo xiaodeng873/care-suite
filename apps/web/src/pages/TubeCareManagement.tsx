@@ -17,6 +17,7 @@ import {
   Ban,
   Filter,
   X,
+  Printer,
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type PatientTubeCareRecord } from '../context/PatientContext';
 import { useAssessment } from '../context/merged/RecordsContext';
@@ -29,6 +30,8 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compar
 import { formatDisplayDate } from '../utils/dateFormat';
 import { getTubeCareStatus } from '../utils/taskScheduler';
 import DateInput from '../components/DateInput';
+import PatientPrintModal from '../components/PatientPrintModal';
+import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 
 type SortField = '院友姓名' | 'execution_date' | 'next_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -89,6 +92,7 @@ const TubeCareManagement: React.FC = () => {
   const { refreshAssessmentData } = useAssessment();
   const [showModal, setShowModal] = useState(false);
   const [showRecycleBin, setShowRecycleBin] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<PatientTubeCareRecord | null>(null);
   const [renewFromRecord, setRenewFromRecord] = useState<PatientTubeCareRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -111,6 +115,15 @@ const TubeCareManagement: React.FC = () => {
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
+
+  // 主表格勾選嘅記錄 → 所屬院友 id（帶入「列印綜合文件」modal 嘅勾選）
+  const printSelectedPatientIds = useMemo(() => {
+    const ids = new Set<number>();
+    patientTubeCareRecords.forEach((r) => {
+      if (selectedRows.has(r.id)) ids.add(r.patient_id);
+    });
+    return Array.from(ids);
+  }, [patientTubeCareRecords, selectedRows]);
 
   React.useEffect(() => {
     setCurrentPage(1);
@@ -427,6 +440,14 @@ const TubeCareManagement: React.FC = () => {
             <button onClick={handleAdd} className="btn-primary flex flex-wrap items-center gap-2">
               <Plus className="h-4 w-4" />
               <span>新增記錄</span>
+            </button>
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="btn-secondary flex items-center gap-2"
+              title="列印喉管護理報表（勾選嘅院友會預設帶入）"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印</span>
             </button>
             <button
               onClick={() => setShowRecycleBin(true)}
@@ -798,6 +819,33 @@ const TubeCareManagement: React.FC = () => {
             setShowModal(false);
             setSelectedRecord(null);
             setRenewFromRecord(null);
+          }}
+        />
+      )}
+
+      {/* 列印綜合文件：預設勾選喉管護理報表＋主表格已勾選嘅院友 */}
+      {showPrintModal && (
+        <PatientPrintModal
+          patients={patients}
+          onClose={() => setShowPrintModal(false)}
+          initialTab="統計報表"
+          initialSelectedDocumentIds={['tube_care_statistics_report']}
+          initialSelectedPatientIds={printSelectedPatientIds}
+          onPrint={async (selectedPatients, documentIds, startDate, endDate, contentMode, printOptions) => {
+            setShowPrintModal(false);
+            try {
+              await generatePatientPrintBundle({
+                patients: selectedPatients,
+                documentIds,
+                startDate,
+                endDate,
+                contentMode,
+                printOptions,
+              });
+            } catch (error) {
+              console.error('列印失敗:', error);
+              alert('列印失敗，請稍後再試');
+            }
           }}
         />
       )}

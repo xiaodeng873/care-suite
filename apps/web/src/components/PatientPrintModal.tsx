@@ -67,6 +67,7 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
 { id: 'special_care_statistics_report', name: '特別關顧報表', category: '統計報表', defaultChecked: false },
 { id: 'drug_sensitivity_statistics_report', name: '藥物反應報表', category: '統計報表', defaultChecked: false },
 { id: 'diaper_statistics_report', name: '尿片統計報表', category: '統計報表', defaultChecked: false },
+{ id: 'restraint_statistics_report', name: '約束物品報表', category: '統計報表', defaultChecked: false },
 { id: 'fee_statistics_report', name: '雜費記錄報表', category: '統計報表', defaultChecked: false },
 { id: 'home_activities_report', name: '院舍活動報表', category: '統計報表', defaultChecked: false },
 // 排班管理
