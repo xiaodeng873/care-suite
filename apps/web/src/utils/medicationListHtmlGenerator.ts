@@ -268,15 +268,14 @@ function extractTemplateBodyContent(template: string): string {
   return match ? match[1].trim() : template;
 }
 
-function renderPage(
+function composePageHtml(
   template: string,
   patient: PatientForMedicationList,
-  prescriptions: MedicationPrescription[],
   termType: MedicationTermType,
-  pageIndex: number,
   totalPages: number,
   facilityNameZh: string,
-  headerLabel?: string | null
+  headerLabel: string | null | undefined,
+  tbodyRowsHtml: string
 ): string {
   const name = patient.中文姓名 || `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`;
   const allergies = patient.藥物敏感 ?? [];
@@ -346,11 +345,10 @@ function renderPage(
     `<td style="text-align: right; padding-right: 15px;" class="id-number-cell">身份證號碼：<span class="id-number-text">${escapeHtml(hkid)}</span></td>`
   );
 
-  // Replace main table rows
-  const rows = prescriptions.map(renderMedicationRow).join('') + renderEmptyRows(Math.max(0, 24 - prescriptions.length));
+  // Replace main table rows（tbody 內容由 caller 提供：正式頁 = 真實列＋空白列；探針 = 量度用列）
   html = html.replace(
     /<tbody>[\s\S]*?<\/tbody>/,
-    `<tbody>${rows}</tbody>`
+    `<tbody>${tbodyRowsHtml}</tbody>`
   );
 
   // 底部頁碼固定顯示 2
@@ -365,21 +363,169 @@ function renderPage(
   return extractTemplateBodyContent(html);
 }
 
-function assembleDocument(pages: string[], usedTemplates: string[]): string {
-  if (pages.length === 0) return '';
-  const css = usedTemplates.map(extractTemplateCss).join('\n');
-  const wrapped = pages.map((pageHtml, index) => {
-    const isLast = index === pages.length - 1;
-    return `<div class="print-page" style="page-break-after: ${isLast ? 'auto' : 'always'};">${pageHtml}</div>`;
-  }).join('\n');
+function renderPage(
+  template: string,
+  patient: PatientForMedicationList,
+  prescriptions: MedicationPrescription[],
+  termType: MedicationTermType,
+  pageIndex: number,
+  totalPages: number,
+  facilityNameZh: string,
+  headerLabel?: string | null,
+  padRows?: number
+): string {
+  const rows = prescriptions.map(renderMedicationRow).join('')
+    + renderEmptyRows(padRows ?? Math.max(0, MAX_ROWS_PER_PAGE - prescriptions.length));
+  return composePageHtml(template, patient, termType, totalPages, facilityNameZh, headerLabel ?? null, rows);
+}
 
-  return `<!DOCTYPE html>
-<html lang="zh-HK">
-<head>
-  <meta charset="UTF-8">
-  <title>院友服用藥物一覽表</title>
-  <style>
-    ${css}
+// ---- 高度感知分頁：列高因內容彈性（長藥名/注意事項會令列變高），
+// 用 hidden iframe 量度每列真實高度後，按頁預算彈性決定每頁列數（上限維持 24），
+// 避免「列高咗但仲係硬塞 24 列」令頁尾（文件編碼/頁碼）超頁。量度失敗 fallback 固定 24 列。
+
+const MM_TO_PX = 96 / 25.4;
+const LIST_PAGE_CONTENT_PX = Math.round(287 * MM_TO_PX); // .container min-height（A4 直向減邊距）
+const MAX_ROWS_PER_PAGE = 24;
+const LIST_SAFETY_PX = Math.round(3 * MM_TO_PX);         // 3mm 安全邊距（渲染差異）
+
+// 以開始日期先後排序（冇開始日期用處方日期；都冇就排最後，保持原有相對次序）
+const sortByStartDate = (list: MedicationPrescription[]): MedicationPrescription[] => {
+  const timeOf = (p: MedicationPrescription): number => {
+    const d = p.start_date || p.prescription_date;
+    const t = d ? new Date(d).getTime() : NaN;
+    return Number.isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
+  };
+  return [...list].sort((a, b) => timeOf(a) - timeOf(b));
+};
+
+interface ListLayoutMetrics {
+  fixedPx: number;    // 標題＋院友資料表＋主表表頭＋頁尾
+  emptyRowPx: number; // 空白列高度
+  rowPx: number[];    // 每條真實處方列高度（與傳入列順序對應）
+}
+
+const lengthToPx = (value: string): number | null => {
+  const m = value.match(/^([\d.]+)(mm|cm|in|pt|px)$/);
+  if (!m) return null;
+  const n = parseFloat(m[1]);
+  switch (m[2]) {
+    case 'mm': return n * 96 / 25.4;
+    case 'cm': return n * 96 / 2.54;
+    case 'in': return n * 96;
+    case 'pt': return n * 96 / 72;
+    default: return n;
+  }
+};
+
+// 可印寬度 = A4 闊（210mm）− @page 左右邊距。模板係 margin: 5mm 0.25in → 左右各 0.25in。
+// 量度 iframe 必須用可印寬度：用成 794px 會令文字換行比真實列印少，量出嘅列高偏低，導致頁尾超頁。
+export const printableWidthPx = (template: string): number => {
+  const pageCss = template.match(/@page\s*\{([\s\S]*?)\}/)?.[1] ?? '';
+  const marginDecl = pageCss.match(/margin\s*:\s*([^;}]+)/)?.[1].trim() ?? '';
+  const parts = marginDecl.split(/\s+/).filter(Boolean);
+  let horizontalPx = 0.25 * 96; // fallback：0.25in
+  if (parts.length === 1) horizontalPx = lengthToPx(parts[0]) ?? horizontalPx;
+  else if (parts.length === 2 || parts.length === 3) horizontalPx = lengthToPx(parts[1]) ?? horizontalPx;
+  else if (parts.length >= 4) horizontalPx = lengthToPx(parts[3]) ?? horizontalPx;
+  return Math.round(210 * 96 / 25.4) - Math.round(horizontalPx * 2);
+};
+
+const measureListLayout = async (
+  template: string,
+  patient: PatientForMedicationList,
+  termType: MedicationTermType,
+  facilityNameZh: string,
+  headerLabel: string | null,
+  realRowsHtml: string[]
+): Promise<ListLayoutMetrics | null> => {
+  if (typeof document === 'undefined' || realRowsHtml.length === 0) return null;
+  // 探針頁 = 全部真實列 + 1 空白列（量 emptyRowPx）；唔補滿 24，因為只係量度
+  const probeRows = [...realRowsHtml, renderEmptyRows(1)].join('');
+  const pageHtml = composePageHtml(template, patient, termType, 1, facilityNameZh, headerLabel, probeRows);
+  const css = `${extractTemplateCss(template)}\n${buildOverrideCss()}`;
+  const html = `<!DOCTYPE html><html lang="zh-HK"><head><meta charset="UTF-8"><style>${css}</style></head><body>${pageHtml}</body></html>`;
+  const probeWidth = printableWidthPx(template);
+  return new Promise((resolve) => {
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${probeWidth}px;height:1123px;border:0;`;
+    document.body.appendChild(iframe);
+    const win = iframe.contentWindow;
+    const doc = win?.document;
+    if (!win || !doc) { iframe.remove(); resolve(null); return; }
+    let settled = false;
+    const finish = (): void => {
+      if (settled) return;
+      settled = true;
+      try {
+        const px = (el: Element | null): number => (el ? el.getBoundingClientRect().height : 0);
+        const fixedPx =
+          px(doc.querySelector('.header-section'))
+          + Array.from(doc.querySelectorAll('table.info-table')).reduce((s, el) => s + px(el), 0)
+          + px(doc.querySelector('table.main-table thead'))
+          + px(doc.querySelector('.footer'));
+        const rows = Array.from(doc.querySelectorAll('tr.data-row')).map(px);
+        const emptyRowPx = rows[rows.length - 1] || 0;
+        const rowPx = rows.slice(0, realRowsHtml.length);
+        resolve({ fixedPx, emptyRowPx, rowPx });
+      } catch {
+        resolve(null);
+      }
+      iframe.remove();
+    };
+    doc.open();
+    doc.write(html);
+    doc.close();
+    Promise.race([
+      (doc.fonts?.ready ?? Promise.resolve()).then(() => new Promise<void>((r) => setTimeout(r, 100))),
+      new Promise<void>((r) => setTimeout(r, 4000)),
+    ]).then(finish);
+  });
+};
+
+// 按量度高度分頁：模板 .container 係 flex 欄 min-height:287mm、.footer margin-top:auto——
+// footer 釘死頁底，空白列純粹裝飾。所以一頁只要求「真實列高度和 ≤ 頁預算」，
+// 空白列盡量補滿 24 格（裝唔晒就補到嗰度），唔會因為 padding 塞唔晒就硬拆頁。冇量度則固定 24 列。
+export interface ListPageGroup<T> {
+  items: T[];
+  padRows: number;
+}
+
+export const paginateListRows = <T,>(items: T[], metrics: ListLayoutMetrics | null): ListPageGroup<T>[] => {
+  const fallbackPage = (slice: T[]): ListPageGroup<T> => ({
+    items: slice,
+    padRows: MAX_ROWS_PER_PAGE - slice.length,
+  });
+  if (!metrics || metrics.emptyRowPx <= 0) {
+    const pages: ListPageGroup<T>[] = [];
+    for (let i = 0; i < items.length; i += MAX_ROWS_PER_PAGE) pages.push(fallbackPage(items.slice(i, i + MAX_ROWS_PER_PAGE)));
+    return pages.length > 0 ? pages : [fallbackPage([])];
+  }
+  const budgetPx = LIST_PAGE_CONTENT_PX - metrics.fixedPx - LIST_SAFETY_PX;
+  const buildPage = (pageItems: T[], sumPx: number): ListPageGroup<T> => {
+    const fit = Math.floor((budgetPx - sumPx) / metrics.emptyRowPx);
+    const padRows = Math.max(0, Math.min(MAX_ROWS_PER_PAGE - pageItems.length, fit));
+    return { items: pageItems, padRows };
+  };
+  const pages: ListPageGroup<T>[] = [];
+  let current: T[] = [];
+  let sumPx = 0;
+  items.forEach((item, i) => {
+    const h = metrics.rowPx[i] || metrics.emptyRowPx;
+    if (current.length > 0 && (current.length >= MAX_ROWS_PER_PAGE || sumPx + h > budgetPx)) {
+      pages.push(buildPage(current, sumPx));
+      current = [];
+      sumPx = 0;
+    }
+    current.push(item);
+    sumPx += h;
+  });
+  if (current.length > 0) pages.push(buildPage(current, sumPx));
+  return pages.length > 0 ? pages : [fallbackPage([])];
+};
+
+function buildOverrideCss(): string {
+  return `
     /* 覆蓋：欄寬調整 */
     .col-drug { width: 45% !important; }
     .col-notice { width: 11% !important; }
@@ -428,6 +574,25 @@ function assembleDocument(pages: string[], usedTemplates: string[]): string {
       .print-page { page-break-after: always; }
       .print-page:last-child { page-break-after: auto; }
     }
+  `;
+}
+
+function assembleDocument(pages: string[], usedTemplates: string[]): string {
+  if (pages.length === 0) return '';
+  const css = usedTemplates.map(extractTemplateCss).join('\n');
+  const wrapped = pages.map((pageHtml, index) => {
+    const isLast = index === pages.length - 1;
+    return `<div class="print-page" style="page-break-after: ${isLast ? 'auto' : 'always'};">${pageHtml}</div>`;
+  }).join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <title>院友服用藥物一覽表</title>
+  <style>
+    ${css}
+    ${buildOverrideCss()}
   </style>
 </head>
 <body>
@@ -463,7 +628,7 @@ export async function generateMedicationListHtml(
     const shortTerm = filtered.filter(p => classifyMedicationTerm(p) === 'short');
     const longTerm = filtered.filter(p => classifyMedicationTerm(p) === 'long');
 
-    const addPages = (prescriptions: MedicationPrescription[], type: MedicationTermType) => {
+    const addPages = async (prescriptions: MedicationPrescription[], type: MedicationTermType) => {
       const template = type === 'short' ? shortTermTemplate : longTermTemplate;
       if (prescriptions.length === 0) {
         if (allowBlankPage) {
@@ -478,21 +643,25 @@ export async function generateMedicationListHtml(
       if (!usedTemplates.includes(template)) {
         usedTemplates.push(template);
       }
-      const totalPages = Math.ceil(prescriptions.length / 24);
       const label = type === 'short' ? '短期藥' : '長期藥';
+      // 開始日期先後排序；高度感知分頁：量度每列實際高度， tall 列多就每頁少啲列，避免頁尾（文件編碼/頁碼）超頁
+      const sorted = sortByStartDate(prescriptions);
+      const realRowsHtml = sorted.map(renderMedicationRow);
+      const metrics = await measureListLayout(template, patient, type, facilityNameZh, label, realRowsHtml);
+      const pageGroups = paginateListRows(sorted, metrics);
+      const totalPages = pageGroups.length;
       for (let i = 0; i < totalPages; i++) {
-        const pagePrescriptions = prescriptions.slice(i * 24, (i + 1) * 24);
-        pages.push(renderPage(template, patient, pagePrescriptions, type, i + 1, totalPages, facilityNameZh, label));
+        pages.push(renderPage(template, patient, pageGroups[i].items, type, i + 1, totalPages, facilityNameZh, label, pageGroups[i].padRows));
       }
     };
 
     if (termType === 'short') {
-      addPages(shortTerm, 'short');
+      await addPages(shortTerm, 'short');
     } else if (termType === 'long') {
-      addPages(longTerm, 'long');
+      await addPages(longTerm, 'long');
     } else {
-      addPages(shortTerm, 'short');
-      addPages(longTerm, 'long');
+      await addPages(shortTerm, 'short');
+      await addPages(longTerm, 'long');
     }
   }
 
@@ -588,11 +757,15 @@ export async function generateMedicationListAttachment(
   const facilityNameZh = facility.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
 
   const template = longTermTemplate;
-  const totalPages = Math.max(1, Math.ceil(prescriptions.length / 24));
+  // 開始日期先後排序；高度感知分頁（同 generateMedicationListHtml）：量度列高後按頁預算裝列
+  const sorted = sortByStartDate(prescriptions);
+  const realRowsHtml = sorted.map(renderMedicationRow);
+  const metrics = await measureListLayout(template, patient, 'long', facilityNameZh, null, realRowsHtml);
+  const pageGroups = paginateListRows(sorted, metrics);
+  const totalPages = pageGroups.length;
   const pages: string[] = [];
   for (let i = 0; i < totalPages; i++) {
-    const pagePrescriptions = prescriptions.slice(i * 24, (i + 1) * 24);
-    pages.push(renderPage(template, patient, pagePrescriptions, 'long', i + 1, totalPages, facilityNameZh, null));
+    pages.push(renderPage(template, patient, pageGroups[i].items, 'long', i + 1, totalPages, facilityNameZh, null, pageGroups[i].padRows));
   }
 
   return { css: scopeCssForAttachment(extractTemplateCss(template)), pages };
