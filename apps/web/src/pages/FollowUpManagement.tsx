@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { CalendarCheck, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Clock, MapPin, Car, UserCheck, ChevronUp, ChevronDown, Copy, MessageSquare, X, FileText, Printer } from 'lucide-react';
+import { CalendarCheck, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Clock, MapPin, Car, UserCheck, ChevronUp, ChevronDown, MessageSquare, X, FileText, Printer, FilePlus2 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type FollowUpAppointment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import FollowUpModal from '../components/FollowUpModal';
@@ -37,7 +37,7 @@ interface AdvancedFilters {
 }
 
 const FollowUpManagement: React.FC = () => {
-  const { followUpAppointments, deleteFollowUpAppointment, batchUpdateFollowUpStatus, loading, refreshData } = usePatientData();
+  const { followUpAppointments, addFollowUpAppointment, deleteFollowUpAppointment, batchUpdateFollowUpStatus, loading, refreshData } = usePatientData();
   const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<FollowUpAppointment | undefined>(undefined);
@@ -605,22 +605,14 @@ const FollowUpManagement: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const generateNotificationMessage = (appointment: FollowUpAppointment) => {
-    const patient = patients.find(p => p.院友id === appointment.院友id);
-    if (!patient || !appointment.覆診日期 || !appointment.覆診時間 || !appointment.覆診地點 || !appointment.覆診專科) {
-      return '';
-    }
-    
-    return `您好！這是善頤福群護老院C站的信息：${patient.中文姓氏}${patient.中文名字}將於${formatDisplayDate(appointment.覆診日期)}的${appointment.覆診時間.slice(0, 5)}，於${appointment.覆診地點}有${appointment.覆診專科}的醫療安排。請問需要輪椅的士代步/陪診員嗎？請盡快告知您的安排，謝謝！`;
-  };
-
-  const copyNotificationMessage = (appointment: FollowUpAppointment) => {
-    const message = generateNotificationMessage(appointment);
-    if (message) {
-      navigator.clipboard.writeText(message);
-      toast.success('通知訊息已複製到剪貼簿');
-    } else {
-      alert('覆診資訊不完整，無法生成通知訊息');
+  // 另存：將現有覆診安排複製為一筆新記錄（狀態重設為「尚未安排」）
+  const saveAsAppointment = async (appointment: FollowUpAppointment) => {
+    const { 覆診id, 創建時間, 更新時間, ...rest } = appointment;
+    try {
+      await addFollowUpAppointment({ ...rest, 狀態: '尚未安排' });
+      toast.success('已另存為新覆診安排');
+    } catch {
+      alert('另存失敗，請重試');
     }
   };
 
@@ -1020,7 +1012,6 @@ const FollowUpManagement: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedAppointments.map(appointment => {
                   const patient = patients.find(p => p.院友id === appointment.院友id);
-                  const notificationMessage = generateNotificationMessage(appointment);
                   
                   return (
                     <tr 
@@ -1125,15 +1116,13 @@ const FollowUpManagement: React.FC = () => {
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-shrink-0 gap-2">
-                          {notificationMessage && (
-                            <button
-                              onClick={() => copyNotificationMessage(appointment)}
-                              className="text-green-600 hover:text-green-900"
-                              title="複製通知訊息"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => saveAsAppointment(appointment)}
+                            className="text-green-600 hover:text-green-900"
+                            title="另存（複製為新覆診安排）"
+                          >
+                            <FilePlus2 className="h-4 w-4" />
+                          </button>
                           <button
                             onClick={() => handleEdit(appointment)}
                             className="text-blue-600 hover:text-blue-900"

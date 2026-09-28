@@ -548,12 +548,6 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
             </div>
           </div>
 
-          {/* 輪椅的士安排通知訊息 */}
-          {formData.交通安排 === '輪椅的士' && renderTemplateBlock('taxi', '輪椅的士安排通知訊息')}
-
-          {/* 陪診員安排通知訊息 */}
-          {formData.陪診人員 === '陪診員' && renderTemplateBlock('companion', '陪診員安排通知訊息')}
-
           {/* 狀態 */}
           <div>
             <label className="form-label">狀態</label>
@@ -664,6 +658,12 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
               </div>
             );
           })()}
+
+          {/* 輪椅的士安排通知訊息（喺覆診安排通知訊息之後） */}
+          {formData.交通安排 === '輪椅的士' && renderTemplateBlock('taxi', '輪椅的士安排通知訊息')}
+
+          {/* 陪診員安排通知訊息（喺覆診安排通知訊息之後） */}
+          {formData.陪診人員 === '陪診員' && renderTemplateBlock('companion', '陪診員安排通知訊息')}
 
           {/* 提交按鈕 */}
           <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-gray-200">

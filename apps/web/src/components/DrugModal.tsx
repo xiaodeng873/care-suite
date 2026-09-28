@@ -345,7 +345,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
                           setFormData(prev => {
                             const connectors = [...prev.meal_timings.connectors];
                             connectors[idx - 1] = value;
-                            return { ...prev, meal_timings: { slots: [...prev.meal_timings.slots], connectors, replacePrefix: [...(prev.meal_timings?.replacePrefix ?? [])] } };
+                            return { ...prev, meal_timings: { slots: [...prev.meal_timings.slots], connectors, replacePrefix: [...(prev.meal_timings?.replacePrefix ?? [])], hoursBefore: [...(prev.meal_timings?.hoursBefore ?? prev.meal_timings.slots.map(() => null))] } };
                           });
                         }}
                         className="form-input w-20"
@@ -363,7 +363,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
                         setFormData(prev => {
                           const slots = prev.meal_timings.slots.length ? [...prev.meal_timings.slots] : [''];
                           slots[idx] = value;
-                          return { ...prev, meal_timings: { slots, connectors: [...prev.meal_timings.connectors], replacePrefix: [...(prev.meal_timings?.replacePrefix ?? [])] } };
+                          return { ...prev, meal_timings: { slots, connectors: [...prev.meal_timings.connectors], replacePrefix: [...(prev.meal_timings?.replacePrefix ?? [])], hoursBefore: [...(prev.meal_timings?.hoursBefore ?? prev.meal_timings.slots.map(() => null))] } };
                         });
                       }}
                       className="form-input flex-1"
@@ -383,6 +383,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
                               slots: prev.meal_timings.slots.filter((_, i) => i !== idx),
                               connectors: prev.meal_timings.connectors.filter((_, i) => i !== idx - 1),
                               replacePrefix: (prev.meal_timings.replacePrefix ?? prev.meal_timings.slots.map(() => false)).filter((_, i) => i !== idx),
+                              hoursBefore: (prev.meal_timings.hoursBefore ?? prev.meal_timings.slots.map(() => null)).filter((_, i) => i !== idx),
                             },
                           }));
                         }}
@@ -398,13 +399,14 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
                   type="button"
                   onClick={() => {
                     setFormData(prev => {
-                      const mt = prev.meal_timings.slots.length ? prev.meal_timings : { slots: [''], connectors: [] as MealTimingConnector[], replacePrefix: [false] };
+                      const mt = prev.meal_timings.slots.length ? prev.meal_timings : { slots: [''], connectors: [] as MealTimingConnector[], replacePrefix: [false], hoursBefore: [null] };
                       return {
                         ...prev,
                         meal_timings: {
                           slots: [...mt.slots, ''],
                           connectors: [...mt.connectors, '或' as MealTimingConnector],
                           replacePrefix: [...(mt.replacePrefix ?? mt.slots.map(() => false)), false],
+                          hoursBefore: [...(mt.hoursBefore ?? mt.slots.map(() => null)), null],
                         },
                       };
                     });

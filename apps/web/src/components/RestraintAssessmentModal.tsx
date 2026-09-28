@@ -70,13 +70,15 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
     usage_record: initialUsageRecord
   });
 
-  // 計算下次到期日期（醫生簽署日期 + 6個月）
+  // 計算下次到期日期（醫生簽署日期 + 6個月 - 1日）
   const calculateNextDueDate = (signatureDate: string): string => {
     if (!signatureDate) return '';
 
-    const date = new Date(signatureDate);
-    date.setMonth(date.getMonth() + 6);
-    return date.toISOString().split('T')[0];
+    const [y, m, d] = signatureDate.split('-').map(Number);
+    const date = new Date(y, (m - 1) + 6, d);
+    date.setDate(date.getDate() - 1);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   };
 
   // 當醫生簽署日期改變時，自動計算下次到期日期；
@@ -482,7 +484,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                 readOnly onChange={(value) => setFormData((prev) => ({ ...prev, next_due_date: value }))} />
               
               <p className="text-xs text-gray-500 mt-1">
-                自動計算：醫生簽署日期 + 6個月
+                自動計算：醫生簽署日期 + 6個月 - 1日
               </p>
             </div>
           </div>

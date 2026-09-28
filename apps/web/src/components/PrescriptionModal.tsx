@@ -13,7 +13,7 @@ import PrescriptionLogModal from './PrescriptionLogModal';
 import DateInput from './DateInput';
 import InstitutionAutocomplete from './InstitutionAutocomplete';
 import { type MedicationInspectionRule } from '../lib/database';
-import { getMealTimings, toMealTimingPayload, formatMealTimings, type MealTimings, type MealTimingConnector } from '../utils/mealTiming';
+import { getMealTimings, toMealTimingPayload, formatMealTimings, AUTO_PREFIX_SLOTS, slotSupportsHours, type MealTimings, type MealTimingConnector } from '../utils/mealTiming';
 import { buildLabelContent, printPrescriptionLabels } from '../utils/prescriptionLabelHtmlGenerator';
 import { getDrugAdjustmentTriggersForSave, type DrugAdjustmentReminderItem } from '../utils/drugAdjustmentCheck';
 import { compressToJpegBlob, uploadImage, deleteImageByUrl, isStorageUrl } from '../utils/storageUpload';
@@ -1089,7 +1089,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
               <div>
                 <label className="form-label">服用時段</label>
                 <div className="space-y-2">
-                  {(formData.meal_timings?.slots?.length ? formData.meal_timings.slots : ['']).map((slot: string, idx: number) => (
+                  {(formData.meal_timings?.slots?.length ? formData.meal_timings.slots : ['']).map((slot: string, idx: number) => {
+                    const hoursBefore = formData.meal_timings.hoursBefore?.[idx] ?? null;
+                    const prefixOn = Boolean(formData.meal_timings.replacePrefix?.[idx]);
+                    return (
                     <div key={idx} className="flex items-center gap-2">
                       {idx > 0 && (
                         <select
@@ -1099,7 +1102,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                             setFormData(prev => {
                               const connectors = [...(prev.meal_timings?.connectors || [])];
                               connectors[idx - 1] = value;
-                              return { ...prev, meal_timings: { slots: [...prev.meal_timings.slots], connectors, replacePrefix: [...(prev.meal_timings?.replacePrefix ?? [])] } };
+                              return { ...prev, meal_timings: { slots: [...prev.meal_timings.slots], connectors, replacePrefix: [...(prev.meal_timings?.replacePrefix ?? [])], hoursBefore: [...(prev.meal_timings?.hoursBefore ?? prev.meal_timings.slots.map(() => null))] } };
                             });
                           }}
                           className="form-input w-20"
@@ -1117,7 +1120,13 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                           setFormData(prev => {
                             const slots = [...(prev.meal_timings?.slots?.length ? prev.meal_timings.slots : [''])];
                             slots[idx] = value;
-                            return { ...prev, meal_timings: { slots, connectors: [...(prev.meal_timings?.connectors || [])], replacePrefix: [...(prev.meal_timings?.replacePrefix ?? [])] } };
+                            const replacePrefix = [...(prev.meal_timings?.replacePrefix ?? prev.meal_timings.slots.map(() => false))];
+                            // 早上／上午／中午／下午／晚上／臨睡前 自動預設取代前綴；其餘時段唔勾
+                            replacePrefix[idx] = AUTO_PREFIX_SLOTS.includes(value);
+                            const hoursArr = [...(prev.meal_timings?.hoursBefore ?? prev.meal_timings.slots.map(() => null))];
+                            // 時段唔支援 N小時（冇「前」/「後」）→ 清掉舊值
+                            if (!slotSupportsHours(value)) hoursArr[idx] = null;
+                            return { ...prev, meal_timings: { slots, connectors: [...(prev.meal_timings?.connectors || [])], replacePrefix, hoursBefore: hoursArr } };
                           });
                         }}
                         className="form-input flex-1"
@@ -1125,13 +1134,39 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                         <option value="">時段{idx + 1}</option>
                         {medSettings.服用時段.map(v => <option key={v} value={v}>{v}</option>)}
                       </select>
+                      {slotSupportsHours(slot) ? (
+                        <input
+                          type="number"
+                          min={0}
+                          max={24}
+                          value={hoursBefore ?? ''}
+                          disabled={prefixOn}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setFormData(prev => {
+                              const hoursArr = [...(prev.meal_timings?.hoursBefore ?? prev.meal_timings.slots.map(() => null))];
+                              hoursArr[idx] = v === '' ? null : Math.max(0, Math.min(24, Math.floor(Number(v))));
+                              // 與取代前綴互斥：有 N小時 就取消取代前綴
+                              const replacePrefix = [...(prev.meal_timings?.replacePrefix ?? prev.meal_timings.slots.map(() => false))];
+                              if (hoursArr[idx]) replacePrefix[idx] = false;
+                              return { ...prev, meal_timings: { ...prev.meal_timings, replacePrefix, hoursBefore: hoursArr } };
+                            });
+                          }}
+                          className="form-input flex-1 text-center disabled:opacity-40"
+                          title="N小時：於時段前 N 小時服用（例：餐前 1 → 餐前一小時）。與「取代前綴」互斥"
+                          placeholder="N小時"
+                        />
+                      ) : (
+                        <div className="flex-1" />
+                      )}
                       <label
-                        className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap cursor-pointer"
+                        className="flex flex-1 items-center gap-1.5 text-sm font-medium text-gray-700 whitespace-nowrap cursor-pointer"
                         title="取代前綴：以呢個時段取代頻率類型，做當日服用次數嘅前綴（例：晚上 每日1次 → 晚上1次）"
                       >
                         <input
                           type="checkbox"
-                          checked={Boolean(formData.meal_timings.replacePrefix?.[idx])}
+                          checked={prefixOn}
+                          disabled={Boolean(hoursBefore)}
                           onChange={(e) => {
                             const checked = e.target.checked;
                             setFormData(prev => {
@@ -1140,7 +1175,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                               return { ...prev, meal_timings: { ...prev.meal_timings, replacePrefix } };
                             });
                           }}
-                          className="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-40"
                         />
                         取代前綴
                       </label>
@@ -1152,7 +1187,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                               const slots = prev.meal_timings.slots.filter((_: string, i: number) => i !== idx);
                               const connectors = prev.meal_timings.connectors.filter((_: string, i: number) => i !== idx - 1);
                               const replacePrefix = (prev.meal_timings.replacePrefix ?? prev.meal_timings.slots.map(() => false)).filter((_: boolean, i: number) => i !== idx);
-                              return { ...prev, meal_timings: { slots, connectors, replacePrefix } };
+                              const hoursBeforeArr = (prev.meal_timings.hoursBefore ?? prev.meal_timings.slots.map(() => null)).filter((_: number | null, i: number) => i !== idx);
+                              return { ...prev, meal_timings: { slots, connectors, replacePrefix, hoursBefore: hoursBeforeArr } };
                             });
                           }}
                           className="text-red-600 hover:text-red-800"
@@ -1162,18 +1198,20 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                         </button>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                   <button
                     type="button"
                     onClick={() => {
                       setFormData(prev => {
-                        const mt = prev.meal_timings?.slots?.length ? prev.meal_timings : { slots: [''], connectors: [], replacePrefix: [false] };
+                        const mt = prev.meal_timings?.slots?.length ? prev.meal_timings : { slots: [''], connectors: [], replacePrefix: [false], hoursBefore: [null] };
                         return {
                           ...prev,
                           meal_timings: {
                             slots: [...mt.slots, ''],
                             connectors: [...mt.connectors, '或' as MealTimingConnector],
                             replacePrefix: [...(mt.replacePrefix ?? mt.slots.map(() => false)), false],
+                            hoursBefore: [...(mt.hoursBefore ?? mt.slots.map(() => null)), null],
                           },
                         };
                       });
