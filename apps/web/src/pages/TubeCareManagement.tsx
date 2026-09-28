@@ -32,6 +32,7 @@ import { getTubeCareStatus } from '../utils/taskScheduler';
 import DateInput from '../components/DateInput';
 import PatientPrintModal from '../components/PatientPrintModal';
 import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
+import { toast } from '../utils/toast';
 
 type SortField = '院友姓名' | 'execution_date' | 'next_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -369,7 +370,7 @@ const TubeCareManagement: React.FC = () => {
         await deletePatientTubeCareRecord(recordId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆喉管護理記錄`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆喉管護理記錄`);
     } catch (error) {
       console.error('批量刪除喉管護理記錄失敗:', error);
       alert('批量刪除喉管護理記錄失敗，請重試');

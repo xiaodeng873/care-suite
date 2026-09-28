@@ -37,6 +37,7 @@ import ChangeOriginalBedModal from '../components/ChangeOriginalBedModal';
 import StationManagementModal from '../components/StationManagementModal';
 import { isTemporaryTransfer, getRootBedNumber } from '../utils/bedTransferUtils';
 import { printBedList } from '../utils/bedListHtmlGenerator';
+import { toast } from '../utils/toast';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from '../utils/facilitySettings';
 import { supabase } from '../lib/supabase';
 import { fuzzyMatch, matchChineseName , matchBedNumber, matchPatientBedNumber} from '../utils/searchUtils';
@@ -294,7 +295,7 @@ const StationBedManagement: React.FC = () => {
     try {
       const result = await cancelTemporaryTransfer(patient.院友id) as any;
       if (result.success) {
-        alert('已取消暫時性調動並返回原床');
+        toast.success('已取消暫時性調動並返回原床');
       } else if (result.reason === 'mutual_swap_detected' && result.partner_patient_id) {
         const partner = patients.find((p: any) => p.院友id === result.partner_patient_id);
         if (!partner) {
@@ -308,7 +309,7 @@ const StationBedManagement: React.FC = () => {
         if (window.confirm(message)) {
           const pairResult = await cancelTemporarySwapPair(patient.院友id, partner.院友id);
           if (pairResult.success) {
-            alert('已同時取消兩人的暫時性調動並返回原床');
+            toast.success('已同時取消兩人的暫時性調動並返回原床');
           } else {
             alert(`成對取消失敗：${pairResult.reason || '請重試'}`);
           }

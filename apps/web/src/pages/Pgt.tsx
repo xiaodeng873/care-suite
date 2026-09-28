@@ -24,6 +24,7 @@ import PatientTooltip from '../components/PatientTooltip';
 import { printCgatSummary } from '../utils/cgatSummaryGenerator';
 import type { PgtRecord } from '../lib/database';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import BedNumberImprint from '../components/BedNumberImprint';
 import DateInput from '../components/DateInput';
 
@@ -258,7 +259,7 @@ const Pgt: React.FC = () => {
         await deletePgtRecord(recordId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆 PGT 記錄`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆 PGT 記錄`);
     } catch (error) {
       console.error('批量刪除 PGT 記錄失敗:', error);
       alert('批量刪除 PGT 記錄失敗，請重試');

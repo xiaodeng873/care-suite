@@ -39,6 +39,7 @@ import {
   type VaccinationMessageSettings,
 } from '../utils/vaccinationMessageSettings';
 import VaccinationMessageSettingsModal from '../components/VaccinationMessageSettingsModal';
+import { toast } from '../utils/toast';
 
 
 type SortField = '院友姓名' | 'vaccination_date' | 'created_at';
@@ -391,7 +392,7 @@ const VaccinationRecords: React.FC = () => {
         await deleteVaccinationRecord(recordId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆疫苗記錄`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆疫苗記錄`);
     } catch (error) {
       console.error('批量刪除疫苗記錄失敗:', error);
       alert('批量刪除疫苗記錄失敗，請重試');

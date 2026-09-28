@@ -4,6 +4,7 @@ import BedNumberImprint from './BedNumberImprint';
 import { supabase } from '../lib/supabase';
 
 import { formatDisplayDateTime } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 interface WorkflowDuplicateGroup {
   key: string;
   prescription_id: string;
@@ -152,7 +153,7 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
 
       if (error) throw error;
 
-      alert(`成功刪除 ${idsToDelete.length} 筆重複記錄！`);
+      toast.success(`成功刪除 ${idsToDelete.length} 筆重複記錄！`);
       onSuccess();
       onClose();
     } catch (error) {

@@ -37,6 +37,7 @@ import { exportAnnualHealthCheckupsToExcel } from '../utils/annualHealthCheckupE
 import { printMedicalExaminationForm } from '../utils/annualHealthCheckupFormGenerator';
 import { getTemplatesMetadata } from '../lib/database';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import DateInput from '../components/DateInput';
 import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 import { useAssessment } from '../context/merged/RecordsContext';
@@ -310,7 +311,7 @@ const AnnualHealthCheckup: React.FC = () => {
         await deleteAnnualHealthCheckup(checkupId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆年度體檢記錄`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆年度體檢記錄`);
     } catch (error) {
       console.error('批量刪除年度體檢記錄失敗:', error);
       alert('批量刪除年度體檢記錄失敗，請重試');
@@ -403,7 +404,7 @@ const AnnualHealthCheckup: React.FC = () => {
         personalMedicationListTemplate,
         includePersonalMedicationList
       );
-      alert(`成功匯出 ${selectedCheckups.length} 筆年度體檢報告書`);
+      toast.success(`成功匯出 ${selectedCheckups.length} 筆年度體檢報告書`);
     } catch (error: any) {
       console.error('匯出年度體檢記錄失敗:', error);
       alert('匯出失敗：' + (error.message || '請重試'));

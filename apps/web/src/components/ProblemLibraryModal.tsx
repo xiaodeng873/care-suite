@@ -3,6 +3,7 @@ import { X, Plus, Search, Edit3, Trash2, Check, FileText } from 'lucide-react';
 import { usePatientData, type ProblemLibrary, type ProblemCategory } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import { fuzzyMatch } from '../utils/searchUtils';
+import { toast } from '../utils/toast';
 
 const PROBLEM_CATEGORIES: ProblemCategory[] = ['護理', '社工', '物理治療', '職業治療', '言語治療', '營養師', '醫生'];
 
@@ -135,7 +136,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
           expected_goals: formData.expected_goals.filter(g => g.trim()),
           interventions: formData.interventions.filter(i => i.trim())
         });
-        alert('已更新');
+        toast.success('已更新');
       } else {
         // 自動生成問題代碼
         const categoryPrefix = {
@@ -164,7 +165,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
           is_active: true,
           created_by: displayName || ''
         });
-        alert('已新增至問題庫');
+        toast.success('已新增至問題庫');
       }
       resetForm();
     } catch (error) {

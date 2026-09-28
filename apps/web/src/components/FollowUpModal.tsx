@@ -1,12 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, CalendarCheck, Clock, MapPin, User, Car, UserCheck, MessageSquare, Copy } from 'lucide-react';
+import { X, CalendarCheck, Clock, MapPin, User, Car, UserCheck, MessageSquare, Copy, Save, ExternalLink } from 'lucide-react';
 import { usePatientData, type FollowUpAppointment } from '../context/PatientContext';
+import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import OCRDocumentBlock from './OCRDocumentBlock';
 import InstitutionAutocomplete from './InstitutionAutocomplete';
 import { getMedicationSettings, getMedicationSettingsFromDB, type MedicationSettingsData } from '../utils/medicationSettings';
-import { formatDisplayDate } from '../utils/dateFormat';
+import { getFacilitySettings } from '../utils/facilitySettings';
+import { openWhatsApp, isWhatsAppAvailable } from '../utils/whatsapp';
+import {
+  DEFAULT_FOLLOWUP_MESSAGE_TEMPLATES,
+  buildFollowUpMessage,
+  loadFollowUpMessageTemplates,
+  saveFollowUpMessageTemplates,
+  type FollowUpMessageTemplates,
+  type FollowUpMessageVars,
+} from '../utils/followUpMessageSettings';
+import { getPatientContacts, type PatientContact } from '../lib/database';
+import { toast } from '../utils/toast';
 import DateInput from './DateInput';
+import TemplateChipEditor, { FOLLOWUP_TOKENS } from './TemplateChipEditor';
+import { useStation } from '../context/facility/StationContext';
 
 
 interface FollowUpModalProps {
@@ -44,8 +58,43 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
     狀態: getInitialStatus(appointment)
   });
 
-  const [notificationMessage, setNotificationMessage] = useState('');
   const [ocrError, setOcrError] = useState<string>('');
+
+  // 通知訊息模板（陪診員／輪椅的士／問家人）：佔位符模板，可修改儲存，做法同疫苗接種訊息
+  const { userProfile } = useAuth();
+  const userId = userProfile?.id;
+  const [templates, setTemplates] = useState<FollowUpMessageTemplates>(DEFAULT_FOLLOWUP_MESSAGE_TEMPLATES);
+  const [drafts, setDrafts] = useState<FollowUpMessageTemplates>(DEFAULT_FOLLOWUP_MESSAGE_TEMPLATES);
+  const [templateLoaded, setTemplateLoaded] = useState(false);
+  const [contacts, setContacts] = useState<PatientContact[]>([]);
+  const [familyContactId, setFamilyContactId] = useState('');
+  const [facilityName, setFacilityName] = useState('');
+  const { stations } = useStation();
+
+  useEffect(() => {
+    loadFollowUpMessageTemplates(userId)
+      .then((t) => { setTemplates(t); setDrafts(t); })
+      .catch(() => {})
+      .finally(() => setTemplateLoaded(true));
+  }, [userId]);
+
+  useEffect(() => {
+    getFacilitySettings()
+      .then((s) => setFacilityName(s.facilityNameZh || ''))
+      .catch(() => {});
+  }, []);
+
+  // 問家人訊息：電話由院友聯絡人頁資料做下拉清單
+  useEffect(() => {
+    const pid = parseInt(String(formData.院友id));
+    if (!formData.院友id || Number.isNaN(pid)) { setContacts([]); setFamilyContactId(''); return; }
+    getPatientContacts(pid)
+      .then((list) => {
+        setContacts(list);
+        setFamilyContactId((prev) => (prev && list.some((c) => c.id === prev) ? prev : (list[0]?.id ?? '')));
+      })
+      .catch(() => setContacts([]));
+  }, [formData.院友id]);
 
   const handleOCRComplete = (extractedData: any) => {
     setOcrError('');
@@ -111,18 +160,131 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
     });
   }, [formData.交通安排, formData.陪診人員]);
 
-  // 更新通知訊息
-  useEffect(() => {
-    if (formData.院友id && formData.覆診日期 && formData.覆診時間 && formData.覆診地點 && formData.覆診專科) {
-      const patient = patients.find(p => p.院友id === parseInt(String(formData.院友id)));
-      if (patient) {
-        const message = `您好！這是善頤福群護老院C站的信息：${patient.中文姓氏}${patient.中文名字}將於${formatDisplayDate(formData.覆診日期)}的${formData.覆診時間.slice(0, 5)}，於${formData.覆診地點}有${formData.覆診專科}的醫療安排。請問需要輪椅的士代步/陪診員嗎？請盡快告知您的安排，謝謝！`;
-        setNotificationMessage(message);
-      }
-    } else {
-      setNotificationMessage('');
+  // 模板佔位符變數（由表單即時取值）
+  // 覆診日期顯示「M月D日」、覆診星期顯示「星期一」等（通知訊息用中文日期格式）
+  const messageVars = useMemo<FollowUpMessageVars>(() => {
+    const patient = patients.find(p => p.院友id === parseInt(String(formData.院友id)));
+    // 居住區：station_id 直接對應；舊資料冇 station_id 時以床號首碼對應 station.code
+    let stationLabel = '';
+    if (patient) {
+      const st = stations.find(s => s.id === patient.station_id)
+        ?? stations.find(s => (s.code || '').toUpperCase() === (patient.床號 || '').trim().charAt(0).toUpperCase());
+      stationLabel = st?.name ?? '';
     }
-  }, [formData.院友id, formData.覆診日期, formData.覆診時間, formData.覆診地點, formData.覆診專科, patients]);
+    let dateLabel = '';
+    let weekdayLabel = '';
+    const dm = String(formData.覆診日期 || '').match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (dm) {
+      dateLabel = `${parseInt(dm[2], 10)}月${parseInt(dm[3], 10)}日`;
+      const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+      weekdayLabel = weekdays[new Date(parseInt(dm[1], 10), parseInt(dm[2], 10) - 1, parseInt(dm[3], 10)).getDay()];
+    }
+    return {
+      院友名稱: patient ? `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}` : '',
+      居住區: stationLabel,
+      院舍名稱: facilityName,
+      覆診日期: dateLabel,
+      覆診星期: weekdayLabel,
+      覆診時間: (formData.覆診時間 || '').slice(0, 5),
+      出發時間: (formData.出發時間 || '').slice(0, 5),
+      覆診地點: formData.覆診地點,
+      覆診專科: formData.覆診專科,
+    };
+  }, [patients, stations, facilityName, formData.院友id, formData.覆診日期, formData.覆診時間, formData.出發時間, formData.覆診地點, formData.覆診專科]);
+
+  // 基本資料齊全先顯示「問家人」訊息
+  const familyMessageReady = Boolean(
+    formData.院友id && formData.覆診日期 && formData.覆診時間 && formData.覆診地點 && formData.覆診專科
+  );
+
+  const familyContact = contacts.find((c) => c.id === familyContactId) ?? null;
+
+  const updateDraft = (key: keyof FollowUpMessageTemplates, field: 'template' | 'phone', value: string) => {
+    setDrafts(prev => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
+  };
+
+  const handleSaveTemplate = async (key: keyof FollowUpMessageTemplates) => {
+    try {
+      const next = { ...templates, [key]: drafts[key] };
+      await saveFollowUpMessageTemplates(userId, next);
+      setTemplates(next);
+      toast.success('模板已儲存，下次自動使用');
+    } catch {
+      alert('儲存模板失敗，請重試');
+    }
+  };
+
+  const copyMessage = (message: string) => {
+    if (message) {
+      navigator.clipboard.writeText(message);
+      toast.success('通知訊息已複製到剪貼簿');
+    }
+  };
+
+  // 陪診員／輪椅的士：模板 + 電話（跟模板一齊儲存）＋WhatsApp 直達
+  const renderTemplateBlock = (key: 'companion' | 'taxi', title: string) => {
+    const draft = drafts[key];
+    const message = buildFollowUpMessage(draft.template, messageVars);
+    const dirty = JSON.stringify(draft) !== JSON.stringify(templates[key]);
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-medium text-blue-900">{title}</h3>
+          <button
+            type="button"
+            onClick={() => handleSaveTemplate(key)}
+            disabled={!templateLoaded}
+            className="text-sm flex items-center gap-1 text-blue-700 hover:text-blue-900 disabled:opacity-50"
+          >
+            <Save className="h-4 w-4" />
+            <span>{dirty ? '儲存模板 *' : '儲存模板'}</span>
+          </button>
+        </div>
+        {templateLoaded ? (
+          <TemplateChipEditor
+            value={draft.template}
+            onChange={(template) => updateDraft(key, 'template', template)}
+            chipValues={{ ...messageVars }}
+            tokens={FOLLOWUP_TOKENS}
+          />
+        ) : (
+          <div className="form-input text-sm text-gray-400 min-h-[7rem]">模板載入中...</div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="text-sm text-gray-700">電話</label>
+          <input
+            value={draft.phone}
+            onChange={(e) => updateDraft(key, 'phone', e.target.value)}
+            className="form-input w-44"
+            placeholder="接收方電話號碼"
+          />
+        </div>
+        <div className="bg-white border border-blue-200 rounded p-3 text-sm text-gray-700 whitespace-pre-wrap">{message}</div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => openWhatsApp(draft.phone, message)}
+            disabled={!isWhatsAppAvailable(draft.phone)}
+            className="btn-secondary text-sm flex items-center gap-1 disabled:opacity-50"
+          >
+            <ExternalLink className="h-4 w-4" />
+            <span>WhatsApp 直達</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => copyMessage(message)}
+            className="btn-secondary text-sm flex items-center gap-1"
+          >
+            <Copy className="h-4 w-4" />
+            <span>複製</span>
+          </button>
+        </div>
+        <p className="text-xs text-blue-600">
+          接收方如為 WhatsApp 群組：群組冇電話號碼，直達連結用唔到，請用「複製」後喺 WhatsApp 群組內貼上
+        </p>
+      </div>
+    );
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -199,13 +361,6 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
     } catch (error) {
       console.error('儲存覆診安排失敗:', error);
       alert('儲存覆診安排失敗，請重試');
-    }
-  };
-
-  const copyNotificationMessage = () => {
-    if (notificationMessage) {
-      navigator.clipboard.writeText(notificationMessage);
-      alert('通知訊息已複製到剪貼簿');
     }
   };
 
@@ -355,18 +510,20 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
                 <Car className="h-4 w-4 inline mr-1" />
                 交通安排
               </label>
-              <input
-                list="transport-options"
+              <select
                 name="交通安排"
                 value={formData.交通安排}
                 onChange={handleChange}
                 className="form-input"
-              />
-              <datalist id="transport-options">
-                {transportOptions.map(option => (
-                  <option key={option} value={option} className={option === '尚未安排' ? 'text-red-600' : ''} />
+              >
+                <option value="">請選擇</option>
+                {transportOptions.filter(Boolean).map(option => (
+                  <option key={option} value={option}>{option}</option>
                 ))}
-              </datalist>
+                {formData.交通安排 && !transportOptions.includes(formData.交通安排) && (
+                  <option value={formData.交通安排}>{formData.交通安排}</option>
+                )}
+              </select>
             </div>
 
             <div>
@@ -374,20 +531,28 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
                 <UserCheck className="h-4 w-4 inline mr-1" />
                 陪診人員
               </label>
-              <input
-                list="companion-options"
+              <select
                 name="陪診人員"
                 value={formData.陪診人員}
                 onChange={handleChange}
                 className="form-input"
-              />
-              <datalist id="companion-options">
-                {companionOptions.map(option => (
-                  <option key={option} value={option} className={option === '尚未安排' ? 'text-red-600' : ''} />
+              >
+                <option value="">請選擇</option>
+                {companionOptions.filter(Boolean).map(option => (
+                  <option key={option} value={option}>{option}</option>
                 ))}
-              </datalist>
+                {formData.陪診人員 && !companionOptions.includes(formData.陪診人員) && (
+                  <option value={formData.陪診人員}>{formData.陪診人員}</option>
+                )}
+              </select>
             </div>
           </div>
+
+          {/* 輪椅的士安排通知訊息 */}
+          {formData.交通安排 === '輪椅的士' && renderTemplateBlock('taxi', '輪椅的士安排通知訊息')}
+
+          {/* 陪診員安排通知訊息 */}
+          {formData.陪診人員 === '陪診員' && renderTemplateBlock('companion', '陪診員安排通知訊息')}
 
           {/* 狀態 */}
           <div>
@@ -428,28 +593,77 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
             />
           </div>
 
-          {/* 通知訊息 */}
-          {notificationMessage && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
-                <h3 className="text-sm font-medium text-blue-900">覆診安排通知訊息</h3>
-                <button
-                  type="button"
-                  onClick={copyNotificationMessage}
-                  className="text-600 hover:text-blue-700 text-sm flex items-center space-x-1"
-                >
-                  <Copy className="h-4 w-4" />
-                  <span>複製</span>
-                </button>
+          {/* 覆診安排通知訊息（問家人）：電話由院友聯絡人資料做下拉清單 */}
+          {familyMessageReady && (() => {
+            const key = 'family' as const;
+            const draft = drafts.family;
+            const message = buildFollowUpMessage(draft.template, messageVars);
+            const dirty = JSON.stringify(draft) !== JSON.stringify(templates.family);
+            return (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-medium text-blue-900">覆診安排通知訊息</h3>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveTemplate(key)}
+                    disabled={!templateLoaded}
+                    className="text-sm flex items-center gap-1 text-blue-700 hover:text-blue-900 disabled:opacity-50"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>{dirty ? '儲存模板 *' : '儲存模板'}</span>
+                  </button>
+                </div>
+                {templateLoaded ? (
+                  <TemplateChipEditor
+                    value={draft.template}
+                    onChange={(template) => updateDraft(key, 'template', template)}
+                    chipValues={{ ...messageVars }}
+                    tokens={FOLLOWUP_TOKENS}
+                  />
+                ) : (
+                  <div className="form-input text-sm text-gray-400 min-h-[7rem]">模板載入中...</div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="text-sm text-gray-700">聯絡人</label>
+                  <select
+                    value={familyContactId}
+                    onChange={(e) => setFamilyContactId(e.target.value)}
+                    className="form-input flex-1 min-w-44"
+                  >
+                    {contacts.length === 0 && <option value="">（此院友未有聯絡人資料）</option>}
+                    {contacts.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.聯絡人姓名}{c.關係 ? `（${c.關係}）` : ''}{c.聯絡電話 ? ` — ${c.聯絡電話}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="bg-white border border-blue-200 rounded p-3 text-sm text-gray-700 whitespace-pre-wrap">{message}</div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openWhatsApp(familyContact?.聯絡電話 ?? '', message)}
+                    disabled={!isWhatsAppAvailable(familyContact?.聯絡電話)}
+                    className="btn-secondary text-sm flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    <span>WhatsApp 直達</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copyMessage(message)}
+                    className="btn-secondary text-sm flex items-center gap-1"
+                  >
+                    <Copy className="h-4 w-4" />
+                    <span>複製</span>
+                  </button>
+                </div>
+                <p className="text-xs text-blue-600">
+                  此訊息經 WhatsApp 發送給家屬確認安排
+                </p>
               </div>
-              <div className="bg-white border border-blue-200 rounded p-3 text-sm text-gray-700">
-                {notificationMessage}
-              </div>
-              <p className="text-xs text-blue-600 mt-2">
-                此訊息可複製到 WhatsApp 發送給家屬確認安排
-              </p>
-            </div>
-          )}
+            );
+          })()}
 
           {/* 提交按鈕 */}
           <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-gray-200">

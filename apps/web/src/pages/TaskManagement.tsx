@@ -32,6 +32,7 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compar
 import { formatDisplayDate } from '../utils/dateFormat';
 import BedNumberImprint from '../components/BedNumberImprint';
 import DateInput from '../components/DateInput';
+import { toast } from '../utils/toast';
 
 
 type SortField = 'patient_name' | 'health_record_type' | 'frequency' | 'next_due_at' | 'last_completed_at' | 'created_at' | 'notes';
@@ -447,7 +448,7 @@ const TaskManagement: React.FC = () => {
         await deletePatientHealthTask(taskId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 個健康任務`);
+      toast.success(`成功刪除 ${deletingArray.length} 個健康任務`);
     } catch (error) {
       console.error('批量刪除健康任務失敗:', error);
       alert('批量刪除健康任務失敗，請重試');

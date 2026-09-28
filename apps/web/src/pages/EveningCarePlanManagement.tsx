@@ -29,6 +29,7 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , compareBedNumbers, mat
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import DateInput from '../components/DateInput';
 
 
@@ -375,7 +376,7 @@ const EveningCarePlanManagement: React.FC = () => {
         await deletePatientEveningCarePlan(planId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆晚晴計劃記錄`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆晚晴計劃記錄`);
     } catch (error) {
       console.error('批量刪除晚晴計劃記錄失敗:', error);
       alert('批量刪除晚晴計劃記錄失敗，請重試');

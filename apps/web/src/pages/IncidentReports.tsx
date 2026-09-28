@@ -27,6 +27,7 @@ import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 import PatientPrintModal from '../components/PatientPrintModal';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import DateInput from '../components/DateInput';
 
 
@@ -319,7 +320,7 @@ const IncidentReports: React.FC = () => {
         await deleteIncidentReport(reportId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆意外事件報告`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆意外事件報告`);
     } catch (error) {
       console.error('批量刪除意外事件報告失敗:', error);
       alert('批量刪除意外事件報告失敗，請重試');

@@ -6,6 +6,7 @@ import PatientAutocomplete from './PatientAutocomplete';
 import * as db from '../lib/database';
 import type { DiaperUsageRecord } from '../lib/database';
 import { DIAPER_CHANGE_SLOTS } from '../utils/careRecordHelper';
+import { toast } from '../utils/toast';
 import { daysInMonth, generateMonthGrid, getSlotAbsence, diaperRecordSkipReason } from '../utils/diaperUsageGenerator';
 import type { DiaperUsageGrid } from '../utils/diaperUsageGenerator';
 
@@ -290,7 +291,7 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
           updated++;
         }
       }
-      alert(`插入完成：已更新 ${updated} 筆真實換片記錄；跳過 ${skipped} 個無記錄時段、${skippedNotApplicable} 個無大小便/事件時段。`);
+      toast.success(`插入完成：已更新 ${updated} 筆真實換片記錄；跳過 ${skipped} 個無記錄時段、${skippedNotApplicable} 個無大小便/事件時段。`);
     } catch (error) {
       console.error('插入床頭記錄失敗:', error);
       alert('插入床頭記錄失敗，請重試');

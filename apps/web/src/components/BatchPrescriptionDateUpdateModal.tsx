@@ -3,6 +3,7 @@ import { X, Calendar, AlertTriangle, CheckCircle, User, Pill, Clock } from 'luci
 import { usePatientData } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import DateInput from './DateInput';
 import InstitutionAutocomplete from './InstitutionAutocomplete';
 import { getMedicationSettings, getMedicationSettingsFromDB, type MedicationSettingsData } from '../utils/medicationSettings';
@@ -146,7 +147,7 @@ ${prescriptionsByPatient.map(group =>
       }
 
       if (errorCount === 0) {
-        alert(`成功更新 ${successCount} 個處方的${updateFields.join('和')}`);
+        toast.success(`成功更新 ${successCount} 個處方的${updateFields.join('和')}`);
       } else if (successCount > 0) {
         alert(`部分更新成功：\n• 成功：${successCount} 個處方\n• 失敗：${errorCount} 個處方\n\n失敗詳情：\n${errors.join('\n')}`);
       } else {

@@ -14,6 +14,7 @@ import { generateFollowUpRecordWorksheet, type FollowUpRecordData } from '../uti
 import { generateFollowUpBagCover, type FollowUpBagCoverData } from '../utils/followUpBagCoverGenerator';
 import { printFollowUpRecordForms } from '../utils/followUpRecordPrintGenerator';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import DateInput from '../components/DateInput';
 import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 
@@ -351,7 +352,7 @@ const FollowUpManagement: React.FC = () => {
     try {
       await batchUpdateFollowUpStatus(updatingArray, '已完成');
       setSelectedRows(new Set());
-      alert(`成功將 ${updatingArray.length} 筆覆診安排標記為已完成`);
+      toast.success(`成功將 ${updatingArray.length} 筆覆診安排標記為已完成`);
     } catch (error) {
       console.error('批量更新覆診狀態失敗:', error);
       alert('批量更新覆診狀態失敗，請重試');
@@ -381,7 +382,7 @@ const FollowUpManagement: React.FC = () => {
         await deleteFollowUpAppointment(appointmentId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆覆診安排`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆覆診安排`);
     } catch (error) {
       console.error('批量刪除覆診安排失敗:', error);
       alert('批量刪除覆診安排失敗，請重試');
@@ -617,7 +618,7 @@ const FollowUpManagement: React.FC = () => {
     const message = generateNotificationMessage(appointment);
     if (message) {
       navigator.clipboard.writeText(message);
-      alert('通知訊息已複製到剪貼簿');
+      toast.success('通知訊息已複製到剪貼簿');
     } else {
       alert('覆診資訊不完整，無法生成通知訊息');
     }

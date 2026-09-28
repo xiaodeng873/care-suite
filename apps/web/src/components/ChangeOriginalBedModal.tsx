@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { X, Home, Bed, AlertCircle, CheckCircle } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
+import { toast } from '../utils/toast';
 
 interface ChangeOriginalBedModalProps {
   patient: any; // 院友主表 record，須含 院友id, 中文姓名, bed_id, original_bed_id, 床號, bed_transfer_type
@@ -49,7 +50,7 @@ const ChangeOriginalBedModal: React.FC<ChangeOriginalBedModalProps> = ({ patient
     setSaving(true);
     try {
       await changeOriginalBed(patientId, selectedBedId);
-      alert('原床位已更新');
+      toast.success('原床位已更新');
       onClose();
     } catch (error) {
       console.error('更改原床位失敗:', error);

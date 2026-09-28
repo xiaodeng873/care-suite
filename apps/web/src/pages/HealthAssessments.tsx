@@ -33,6 +33,7 @@ import { isHealthAssessmentOverdue, isHealthAssessmentDueSoon } from '../utils/t
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import { printHealthAssessment } from '../utils/healthAssessmentPrintGenerator';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import DateInput from '../components/DateInput';
 
 
@@ -445,7 +446,7 @@ const HealthAssessments: React.FC = () => {
         await deleteHealthAssessment(assessmentId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆健康評估`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆健康評估`);
     } catch (error) {
       console.error('批量刪除健康評估失敗:', error);
       alert('批量刪除健康評估失敗，請重試');

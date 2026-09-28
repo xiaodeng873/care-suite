@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState } from 'react';
 // 訊息模板佔位符（注意：「疫苗名稱1/2」必須先於「疫苗名稱」匹配）
 export const TEMPLATE_TOKENS = ['院舍名稱', '接種日期', '疫苗名稱1', '疫苗名稱2', '疫苗名稱', '截止日期', '院友名稱'] as const;
 
-const TOKEN_REGEX = /\{(院舍名稱|接種日期|疫苗名稱1|疫苗名稱2|疫苗名稱|截止日期|院友名稱)\}/g;
+// 覆診通知訊息用佔位符
+export const FOLLOWUP_TOKENS = ['院舍名稱', '院友名稱', '居住區', '覆診日期', '覆診星期', '覆診時間', '出發時間', '覆診地點', '覆診專科'] as const;
 
 const CHIP_CLASS =
   'inline-block px-1.5 py-0.5 mx-0.5 rounded bg-green-100 text-green-700 text-xs font-medium align-middle select-none cursor-grab';
@@ -12,11 +13,13 @@ interface TemplateChipEditorProps {
   value: string;
   onChange: (template: string) => void;
   chipValues: Record<string, string>;
+  /** 佔位符清單；預設疫苗接種訊息用 */
+  tokens?: readonly string[];
 }
 
 // 將純文字模板（含 {token}）渲染為 文字節點 + chip span
-function renderNodes(template: string, chipLabel: (token: string) => string): React.ReactNode[] {
-  const parts = template.split(TOKEN_REGEX);
+function renderNodes(template: string, chipLabel: (token: string) => string, tokenRegex: RegExp): React.ReactNode[] {
+  const parts = template.split(tokenRegex);
   return parts.map((part, i) => {
     if (i % 2 === 0) {
       return part ? <React.Fragment key={i}>{part}</React.Fragment> : null;
@@ -29,12 +32,20 @@ function renderNodes(template: string, chipLabel: (token: string) => string): Re
   });
 }
 
-const TemplateChipEditor: React.FC<TemplateChipEditorProps> = ({ value, onChange, chipValues }) => {
+const TemplateChipEditor: React.FC<TemplateChipEditorProps> = ({ value, onChange, chipValues, tokens = TEMPLATE_TOKENS }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const dragSourceChipRef = useRef<HTMLElement | null>(null);
   // 只在 mount / 外部重置時渲染內容；用戶輸入期間唔 re-render（避免 cursor jump）
   const [displayTemplate] = useState(value);
   const serializedRef = useRef(value);
+  // 「疫苗名稱1」必須先於「疫苗名稱」匹配：按長度降序
+  const tokenRegex = React.useMemo(
+    () => new RegExp(`\\{(${[...tokens].sort((a, b) => b.length - a.length).join('|')})\\}`, 'g'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+  const validTokensRef = useRef<Set<string>>(new Set(tokens));
+  validTokensRef.current = new Set(tokens);
 
   const chipLabel = (token: string): string => {
     const v = (chipValues[token] || '').trim();
@@ -53,28 +64,41 @@ const TemplateChipEditor: React.FC<TemplateChipEditorProps> = ({ value, onChange
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chipValues]);
 
-  // 將 editor DOM serialize 返做純文字模板（chip → {token}）
+  // 將 editor DOM serialize 返做純文字模板（chip → {token}；BR / DIV / P → 換行）
+  // 遞歸處理：瀏覽器 contentEditable 可能產生嵌套 div，舊版只行一層會食咗內層換行
+  const serializeNode = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    const el = node as HTMLElement;
+    if (el.getAttribute('data-token')) return `{${el.getAttribute('data-token')}}`;
+    if (el.tagName === 'BR') return '\n';
+    const inner = Array.from(el.childNodes).map(serializeNode).join('');
+    return el.tagName === 'DIV' || el.tagName === 'P' ? inner + '\n' : inner;
+  };
+
   const serialize = (): string => {
     const root = editorRef.current;
     if (!root) return '';
-    let out = '';
-    root.childNodes.forEach(node => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        out += node.textContent || '';
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        const el = node as HTMLElement;
-        if (el.dataset.token) {
-          out += `{${el.dataset.token}}`;
-        } else if (el.tagName === 'BR') {
-          out += '\n';
-        } else if (el.tagName === 'DIV') {
-          out += (el.textContent || '') + '\n';
-        } else {
-          out += el.textContent || '';
-        }
-      }
-    });
-    return out;
+    return Array.from(root.childNodes).map(serializeNode).join('');
+  };
+
+  // Enter 統一插入 \n 文字節點（編輯區有 whitespace-pre-wrap，\n 即時可見）；
+  // 唔靠瀏覽器預設（會起 div 結構，serialize 先至轉換，行為唔一致）
+  const handleEditorKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const root = editorRef.current;
+    const sel = window.getSelection();
+    if (!root || !sel || sel.rangeCount === 0) return;
+    const r = sel.getRangeAt(0);
+    const node = r.commonAncestorContainer;
+    if (!root.contains(node.nodeType === Node.ELEMENT_NODE ? node : node.parentNode)) return;
+    r.deleteContents();
+    r.insertNode(document.createTextNode('\n'));
+    r.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(r);
+    syncFromDom();
   };
 
   const syncFromDom = () => {
@@ -172,7 +196,7 @@ const TemplateChipEditor: React.FC<TemplateChipEditorProps> = ({ value, onChange
   const handleEditorDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const token = e.dataTransfer.getData('text/plain');
-    if (!token || !TEMPLATE_TOKENS.includes(token as (typeof TEMPLATE_TOKENS)[number])) return;
+    if (!token || !validTokensRef.current.has(token)) return;
     const range = rangeFromPoint(e.clientX, e.clientY);
     if (!range) return;
     // 編輯區內搬位：先移除原 chip，再喺新位置插入
@@ -192,7 +216,7 @@ const TemplateChipEditor: React.FC<TemplateChipEditorProps> = ({ value, onChange
     <div className="space-y-2">
       {/* 佔位符工具列：click = 游標位置插入；drag = 拉入編輯區 */}
       <div className="flex flex-wrap gap-2">
-        {TEMPLATE_TOKENS.map(token => (
+        {tokens.map(token => (
           <button
             key={token}
             type="button"
@@ -212,13 +236,14 @@ const TemplateChipEditor: React.FC<TemplateChipEditorProps> = ({ value, onChange
         contentEditable
         suppressContentEditableWarning
         onInput={syncFromDom}
+        onKeyDown={handleEditorKeyDown}
         onDragStart={handleEditorChipDragStart}
         onDragOver={handleEditorDragOver}
         onDrop={handleEditorDrop}
         onDragEnd={handleEditorDragEnd}
         className="form-input w-full min-h-[7rem] whitespace-pre-wrap leading-relaxed"
       >
-        {renderNodes(displayTemplate, chipLabel)}
+        {renderNodes(displayTemplate, chipLabel, tokenRegex)}
       </div>
 
       <p className="text-xs text-gray-500">

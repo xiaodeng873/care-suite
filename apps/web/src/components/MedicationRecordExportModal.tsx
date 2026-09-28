@@ -9,6 +9,7 @@ import { withHdPatientPhotos } from '../lib/database';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
 import BedNumberImprint from './BedNumberImprint';
 import { formatMealTimingFrom } from '../utils/mealTiming';
+import { toast } from '../utils/toast';
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import DateInput from './DateInput';
 
@@ -356,7 +357,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         await exportBlankMedicationRecordToHtml([currentPatient.patient], selectedMonth, selectedRouteTypes, reservePunchZone);
 
         const routeNames = selectedRouteTypes.map((r) => r === 'oral' ? '口服' : r === 'injection' ? '注射' : '外用').join('、');
-        alert(`匯出成功！\n\n【空白藥紙】\n已為 ${currentPatient.patient.中文姓氏}${currentPatient.patient.中文名字} 匯出空白藥紙\n（包含 ${routeNames} 工作表）`);
+        toast.success(`匯出成功！\n\n【空白藥紙】\n已為 ${currentPatient.patient.中文姓氏}${currentPatient.patient.中文名字} 匯出空白藥紙\n（包含 ${routeNames} 工作表）`);
         onClose();
         return;
       }
@@ -378,7 +379,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         await exportBlankMedicationRecordToHtml(selectedPatientsForBlank, selectedMonth, selectedRouteTypes, reservePunchZone);
 
         const routeNames = selectedRouteTypes.map((r) => r === 'oral' ? '口服' : r === 'injection' ? '注射' : '外用').join('、');
-        alert(`匯出成功！\n\n【空白藥紙】\n已為 ${selectedPatientsForBlank.length} 位院友匯出空白藥紙\n（每位院友包含 ${routeNames} 工作表）`);
+        toast.success(`匯出成功！\n\n【空白藥紙】\n已為 ${selectedPatientsForBlank.length} 位院友匯出空白藥紙\n（每位院友包含 ${routeNames} 工作表）`);
         onClose();
         return;
       }

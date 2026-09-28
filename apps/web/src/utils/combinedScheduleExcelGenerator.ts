@@ -13,6 +13,7 @@ import {
 } from './prescriptionExcelGenerator';
 import { getFormattedEnglishName } from './nameFormatter';
 import { getPrintBedNumber } from './bedTransferUtils';
+import { toast } from './toast';
 // 定義 ScheduleWithDetails 介面
 interface Patient {
   院友id: number;
@@ -206,7 +207,7 @@ export const exportCombinedScheduleToExcel = async (
     const message = prescriptionCount > 0
       ? `匯出完成！\n✅ 候診記錄表：${totalCount} 位院友${sheetDesc}\n✅ 處方箋：${prescriptionCount} 位院友（申訴不適）\n📁 檔案：${filename}`
       : `匯出完成！\n✅ 候診記錄表：${totalCount} 位院友${sheetDesc}\n⚠️ 無院友需要處方箋（無「申訴不適」）\n📁 檔案：${filename}`;
-    alert(message);
+    toast.success(message);
   } catch (error) {
     console.error('合併匯出失敗:', error);
     throw error;

@@ -8,6 +8,7 @@ import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from './DateInput';
 import { matchChineseName, matchEnglishName, matchPatientBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { VACCINE_CATEGORIES, guessVaccineCategory } from '../utils/vaccinationRecordPrintGenerator';
+import { toast } from '../utils/toast';
 
 interface VaccinationRecordModalProps {
   patientId?: number;
@@ -227,7 +228,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
         }
       }
 
-      alert(`成功新增 ${created} 筆疫苗記錄`);
+      toast.success(`成功新增 ${created} 筆疫苗記錄`);
       onClose();
     } catch (error) {
       console.error('Error saving vaccination records:', error);

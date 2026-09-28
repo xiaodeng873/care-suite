@@ -39,6 +39,7 @@ import { fuzzyMatch } from '../utils/searchUtils';
 import { getCarePlanStatus, type CarePlanStatus as ComputedCarePlanStatus, getCarePlanStatusColor, getActiveCarePlan } from '../utils/carePlanStatus';
 import { getUserProfessionCategory, shouldDefaultToMyProfession } from '../utils/userProfession';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 
 
 interface CarePlanModalProps {
@@ -556,7 +557,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
         expected_goals: [''],
         interventions: ['']
       });
-      alert('已新增至問題庫');
+      toast.success('已新增至問題庫');
     } catch (error) {
       console.error('新增問題庫失敗:', error);
       alert('新增問題庫失敗');
@@ -574,7 +575,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
         const newPlan = await addPendingCarePlan(activePlan.id, formData.plan_type, displayName || '');
         setCreatedPlan(newPlan);
         setShowAddReplaceDialog(false);
-        alert('已建立待生效計劃');
+        toast.success('已建立待生效計劃');
       } else {
         const newPlan = await replaceActiveCarePlan(activePlan.id, formData.plan_type, displayName || '');
         setCreatedPlan(newPlan);

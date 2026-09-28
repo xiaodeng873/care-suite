@@ -26,6 +26,7 @@ import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { type InfectionControlRecord } from '../lib/database';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import PatientPrintModal from '../components/PatientPrintModal';
 import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 
@@ -278,7 +279,7 @@ const InfectionControl: React.FC = () => {
         await deleteInfectionControlRecord(recordId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆感染控制記錄`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆感染控制記錄`);
     } catch (error) {
       console.error('批量刪除感染控制記錄失敗:', error);
       alert('批量刪除失敗，請重試');

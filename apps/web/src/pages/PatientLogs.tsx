@@ -25,6 +25,7 @@ import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import { printPatientLogNursingTreatment } from '../utils/patientLogNursingTreatmentGenerator';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import DateInput from '../components/DateInput';
 
 
@@ -309,7 +310,7 @@ const PatientLogs: React.FC = () => {
         await deletePatientLog(logId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆日誌記錄`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆日誌記錄`);
     } catch (error) {
       console.error('批量刪除日誌失敗:', error);
       alert('批量刪除日誌失敗，請重試');

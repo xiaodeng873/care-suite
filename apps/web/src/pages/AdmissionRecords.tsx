@@ -13,6 +13,7 @@ import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { printERRecordForms } from '../utils/erRecordPrintGenerator';
 import { printPatientReferralForms } from '../utils/patientReferralPrintGenerator';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import DateInput from '../components/DateInput';
 
 
@@ -382,7 +383,7 @@ const AdmissionRecords: React.FC = () => {
         await deleteHospitalEpisode(episodeId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 個缺席事件`);
+      toast.success(`成功刪除 ${deletingArray.length} 個缺席事件`);
     } catch (error) {
       console.error('批量刪除缺席事件失敗:', error);
       alert('批量刪除缺席事件失敗，請重試');

@@ -133,6 +133,8 @@ export function mapOCRDataToPrescriptionForm(
         unit = doseMatch[2];
       }
     }
+    // 統一單位：ml → 毫升（ml 已唔再係可選單位）
+    if (/^ml$/i.test(String(unit).trim())) unit = '毫升';
     const dosageText = `${amount}${unit}`;
     const matchedSpecial = specialInstructions.find(instruction => dosageText.includes(instruction));
 

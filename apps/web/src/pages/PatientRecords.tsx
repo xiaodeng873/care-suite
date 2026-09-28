@@ -18,6 +18,7 @@ import type { Patient } from '../lib/database';
 import { buildEpisodeClosurePayloads, isEpisodeUnclosed } from '../utils/dischargeEpisodeClosure';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import DateInput from '../components/DateInput';
 
 type SortField = '床號' | '中文姓名' | '性別' | '年齡' | '入住日期' | '退住日期' | '在住天數' | '護理等級' | '入住類型' | '在住狀態';
@@ -423,7 +424,7 @@ const PatientRecords: React.FC = () => {
         await deletePatient(patientId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 位院友`);
+      toast.success(`成功刪除 ${deletingArray.length} 位院友`);
     } catch (error) {
       console.error('批量刪除院友失敗:', error);
       alert('批量刪除院友失敗，請重試');

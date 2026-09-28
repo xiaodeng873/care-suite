@@ -4,6 +4,7 @@ import { usePatientData, useFilteredPatients, DeletedHealthRecord, Patient } fro
 import BedNumberImprint from './BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 
 
 interface RecycleBinModalProps {
@@ -90,7 +91,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
     try {
       await restoreHealthRecord(recordId);
       setSelectedRecords(new Set());
-      alert('恢復成功！');
+      toast.success('恢復成功！');
     } catch (error) {
       console.error('Error restoring record:', error);
       alert('恢復失敗，請重試');
@@ -112,7 +113,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
         await restoreHealthRecord(recordId);
       }
       setSelectedRecords(new Set());
-      alert(`成功恢復 ${selectedRecords.size} 筆記錄！`);
+      toast.success(`成功恢復 ${selectedRecords.size} 筆記錄！`);
     } catch (error) {
       console.error('Error batch restoring records:', error);
       alert('批量恢復失敗，請重試');
@@ -130,7 +131,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
     try {
       await permanentlyDeleteHealthRecord(recordId);
       setSelectedRecords(new Set());
-      alert('永久刪除成功！');
+      toast.success('永久刪除成功！');
     } catch (error) {
       console.error('Error permanently deleting record:', error);
       alert('永久刪除失敗，請重試');
@@ -156,7 +157,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
         await permanentlyDeleteHealthRecord(recordId);
       }
       setSelectedRecords(new Set());
-      alert(`成功永久刪除 ${selectedRecords.size} 筆記錄！`);
+      toast.success(`成功永久刪除 ${selectedRecords.size} 筆記錄！`);
     } catch (error) {
       console.error('Error batch permanently deleting records:', error);
       alert('批量永久刪除失敗，請重試');

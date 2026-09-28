@@ -17,6 +17,7 @@ import { extractMedicationRecordTemplateFormat } from '../utils/medicationRecord
 import { extractPersonalMedicationListTemplateFormat } from '../utils/personalMedicationListExcelGenerator';
 import { extractAnnualHealthCheckupTemplateFormat } from '../utils/annualHealthCheckupExcelGenerator';
 import { formatDisplayDateTime } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 type TemplateType = 'waiting-list' | 'prescription' | 'medication-record' | 'personal-medication-list' | 'consent-form' | 'vital-signs' | 'blood-sugar' | 'weight-control' | 'follow-up-list' | 'restraint-observation' | 'diaper-change-record' | 'personal-hygiene-record' | 'admission-layout' | 'annual-health-checkup' | 'incident-report' | 'bed-layout';
 interface TemplateMetadata {
   id: number;
@@ -253,7 +254,7 @@ const TemplateManagement: React.FC = () => {
       setUploadProgress({ [uploadId]: 100 });
       // Refresh templates list
       await loadTemplates();
-      alert(`範本「${templateName}」上傳成功！`);
+      toast.success(`範本「${templateName}」上傳成功！`);
     } catch (error) {
       console.error('上傳範本失敗:', error);
       let errorMessage = '上傳範本失敗：';
@@ -304,7 +305,7 @@ const TemplateManagement: React.FC = () => {
         await deleteTemplateMetadata(template.id);
         // Refresh templates list
         await loadTemplates();
-        alert(`範本「${template.name}」刪除成功`);
+        toast.success(`範本「${template.name}」刪除成功`);
       } catch (error) {
         console.error('刪除範本失敗:', error);
         alert('刪除範本失敗，請重試');

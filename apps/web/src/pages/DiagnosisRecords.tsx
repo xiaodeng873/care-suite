@@ -21,6 +21,7 @@ import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import DateInput from '../components/DateInput';
 
 
@@ -292,7 +293,7 @@ const DiagnosisRecords: React.FC = () => {
         await deleteDiagnosisRecord(recordId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆診斷記錄`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆診斷記錄`);
     } catch (error) {
       console.error('批量刪除診斷記錄失敗:', error);
       alert('批量刪除診斷記錄失敗，請重試');

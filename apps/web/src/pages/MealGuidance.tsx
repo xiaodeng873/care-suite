@@ -27,6 +27,7 @@ import BedNumberImprint from '../components/BedNumberImprint';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import DateInput from '../components/DateInput';
 import PatientPrintModal from '../components/PatientPrintModal';
 import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
@@ -339,7 +340,7 @@ const MealGuidance: React.FC = () => {
         await deleteMealGuidance(guidanceId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆餐膳指引`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆餐膳指引`);
     } catch (error) {
       console.error('批量刪除餐膳指引失敗:', error);
       alert('批量刪除餐膳指引失敗，請重試');

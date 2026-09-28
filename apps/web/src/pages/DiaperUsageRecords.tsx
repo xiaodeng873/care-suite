@@ -28,6 +28,7 @@ import * as db from '../lib/database';
 import type { DiaperUsageRecord } from '../lib/database';
 import { daysInMonth, generateMonthGrid, getSlotAbsence, diaperRecordSkipReason } from '../utils/diaperUsageGenerator';
 import { parseDiaperSlotStartTime, getActualSlotDate } from '../utils/careRecordHelper';
+import { toast } from '../utils/toast';
 
 const DiaperUsageRecords: React.FC = () => {
   const { loading, admissionRecords, hospitalEpisodes } = usePatientData();
@@ -220,7 +221,7 @@ const DiaperUsageRecords: React.FC = () => {
     setIsClearing(true);
     try {
       const count = await db.clearInvalidDiaperUsageCounts();
-      alert(`清除完成：已清空 ${count} 筆記錄的尿片/片芯數據。`);
+      toast.success(`清除完成：已清空 ${count} 筆記錄的尿片/片芯數據。`);
     } catch (error) {
       console.error('清除無效數據失敗:', error);
       alert('清除失敗，請重試');

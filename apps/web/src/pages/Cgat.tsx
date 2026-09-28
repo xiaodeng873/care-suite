@@ -28,6 +28,7 @@ import { getFeeExemptEligibility } from '../utils/cgatFeeHelper';
 import { printCgatWorksheet } from '../utils/cgatWorksheetGenerator';
 import { printCgatMedicationProxy } from '../utils/cgatMedicationProxyGenerator';
 import { printCgatSummary } from '../utils/cgatSummaryGenerator';
+import { toast } from '../utils/toast';
 import type { CgatRecord, Patient } from '../lib/database';
 import { formatDisplayDate } from '../utils/dateFormat';
 import BedNumberImprint from '../components/BedNumberImprint';
@@ -270,7 +271,7 @@ const Cgat: React.FC = () => {
         await deleteCgatRecord(recordId);
       }
       setSelectedRows(new Set());
-      alert(`成功刪除 ${deletingArray.length} 筆 CGAT 記錄`);
+      toast.success(`成功刪除 ${deletingArray.length} 筆 CGAT 記錄`);
     } catch (error) {
       console.error('批量刪除 CGAT 記錄失敗:', error);
       alert('批量刪除 CGAT 記錄失敗，請重試');

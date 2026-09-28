@@ -45,6 +45,7 @@ import { syncTaskStatus } from '../lib/database';
 import type { HealthRecord } from '../lib/database';
 import { isVirtualDataEnabled } from '../utils/toolsSettings';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import DateInput from '../components/DateInput';
 import BatchWeightEntryModal from '../components/BatchWeightEntryModal';
 import BatchHealthRecordOCRModal from '../components/BatchHealthRecordOCRModal';
@@ -405,7 +406,7 @@ const HealthAssessment: React.FC = () => {
       failedIds.forEach(id => newSelectedRows.add(id));
       setSelectedRows(newSelectedRows);
       if (failCount === 0) {
-        alert(`成功刪除 ${successCount} 筆監測記錄`);
+        toast.success(`成功刪除 ${successCount} 筆監測記錄`);
       } else {
         alert(`刪除完成：\n成功 ${successCount} 筆\n失敗 ${failCount} 筆\n\n失敗的記錄已保持選中狀態，您可以稍後重試。`);
       }
@@ -591,7 +592,7 @@ const HealthAssessment: React.FC = () => {
   const handleConfirmDeduplicate = async (recordIds: number[]) => {
     try {
       await batchDeleteDuplicateRecords(recordIds);
-      alert(`成功刪除 ${recordIds.length} 筆重複記錄！`);
+      toast.success(`成功刪除 ${recordIds.length} 筆重複記錄！`);
       if (refreshData) await refreshData();
     } catch (error) {
       console.error('Error deleting duplicates:', error);

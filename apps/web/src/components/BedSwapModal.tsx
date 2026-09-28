@@ -5,6 +5,7 @@ import PatientTooltip from './PatientTooltip';
 import BedNumberImprint from './BedNumberImprint';
 import DateInput from './DateInput';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
+import { toast } from '../utils/toast';
 import type { BedTransferType } from '../lib/database';
 
 interface BedSwapModalProps {
@@ -89,7 +90,7 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
 
     try {
       await swapPatientBeds(selectedPatient1.院友id, selectedPatient2.院友id, transferType, transferDate);
-      alert('床位互換成功！');
+      toast.success('床位互換成功！');
       onClose();
     } catch (error) {
       console.error('床位互換失敗:', error);

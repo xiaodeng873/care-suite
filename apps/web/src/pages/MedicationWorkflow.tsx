@@ -59,6 +59,7 @@ import {
 } from '../utils/workflowStatusHelper';
 import { isQuickSignEnabled } from '../utils/toolsSettings';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { toast } from '../utils/toast';
 import { formatSlotShortLabel } from '../utils/medicationRecordHtmlExporter';
 import DateInput from '../components/DateInput';
 
@@ -2501,7 +2502,7 @@ const MedicationWorkflow: React.FC = () => {
             if (data && data.length > 0) {
               setAllWorkflowRecords(data);
               loadedSuccessfully = true;
-              alert(`✅ 成功生成並載入 ${data.length} 筆工作流程記錄！`);
+              toast.success(`✅ 成功生成並載入 ${data.length} 筆工作流程記錄！`);
             } else if (result.totalRecords > 0) {
               // 生成了記錄但查詢不到，需要重試
               console.warn('⚠️ 生成了記錄但查詢不到，等待後重試...');
