@@ -30,7 +30,10 @@ const CARDS_PER_PAGE = 16; // 4 columns × 4 rows (portrait A4)
 const PAGE_CSS = `
 *,*::before,*::after { box-sizing: border-box; }
 
-@page { size: A4; margin: 4mm 0.2in; }
+/* 上邊界唔好用 @page margin：injectPageLogo 會將佢歸零再搬去 body padding-top，
+   而 body padding 喺 CSS 分頁時只有第 1 頁生效。頂距放喺每頁容器 .page 嘅
+   padding-top（每頁都生效），@page 上 margin 由一開始就係 0 */
+@page { size: A4; margin: 0 0.2in 4mm 0.2in; }
 
 html, body {
   font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
@@ -45,6 +48,7 @@ html, body {
   display: flex;
   flex-direction: column;
   page-break-after: always;
+  padding-top: 4mm;
 }
 .page:last-child { page-break-after: avoid; }
 

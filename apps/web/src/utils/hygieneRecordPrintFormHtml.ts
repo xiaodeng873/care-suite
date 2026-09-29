@@ -204,12 +204,15 @@ export const generateHygieneRecordPrintFormHtml = (
 <meta charset="UTF-8">
 <title>個人衛生、清潔及大便記錄</title>
 <style>
-  @page { size: A4; margin: 5mm 0.2in; }
+  /* 上邊界唔好用 @page margin：injectPageLogo 會將佢歸零再搬去 body padding-top，
+     而 body padding 喺 CSS 分頁時只有第 1 頁生效。頂距放喺每頁容器 .container 嘅
+     padding-top（zoom 0.9 下 5.56mm ≈ 實際 5mm），@page 上 margin 由一開始就係 0 */
+  @page { size: A4; margin: 0 0.2in 5mm 0.2in; }
   * { box-sizing: border-box; }
   body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; background-color: #fff; color: #000; line-height: 1.1; } /* 唔好寫 padding:0——bundle 路徑打孔指引（padding-left:20mm）同 logo 補償靠 body padding 生效 */
   .no-print { text-align: center; margin: 10px; }
   .no-print button { padding: 8px 20px; font-size: 12px; background: #2563eb; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
-  .container { width: 100%; box-sizing: border-box; page-break-after: always; zoom: 0.9; display: flex; flex-direction: column; min-height: 287mm; }
+  .container { width: 100%; box-sizing: border-box; page-break-after: always; zoom: 0.9; display: flex; flex-direction: column; min-height: 287mm; padding-top: 5.56mm; }
   .container:last-of-type { page-break-after: auto; }
   .title-section { text-align: center; margin-bottom: 12px; }
   .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
@@ -246,22 +249,11 @@ export const printHygieneRecordForm = async (patients: Patient[], monthsData: Hy
     generateHygieneRecordPrintFormHtml(patients, monthsData, settings.facilityNameZh),
     await getFacilityLogoSrc()
   );
-  const old = document.getElementById('hygiene-printform-iframe');
-  if (old) old.remove();
-  const iframe = document.createElement('iframe');
-  iframe.id = 'hygiene-printform-iframe';
-  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';
-  document.body.appendChild(iframe);
-  const doc = iframe.contentWindow?.document;
-  if (doc) {
-    doc.open();
-    doc.write(html);
-    doc.close();
-    iframe.onload = () => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    };
-  }
+  // 雙面文件（每月正面＋背面各一頁）：必須行 printCombinedHtml，由 padOddPageDocuments
+  // 將 fixed 打孔圈換成逐頁 absolute 並喺背面鏡像去右邊；直寫 iframe 會令背面孔位都留喺左邊
+  import('./printUtils').then(({ printCombinedHtml }) => {
+    printCombinedHtml([html], 'hygiene-printform-iframe');
+  });
 };
 
 /**
@@ -315,20 +307,8 @@ export const printHygieneRecordFormForDateRange = async (
     generateHygieneRecordFormForDateRange(patient, records, startDate, endDate, settings.facilityNameZh),
     await getFacilityLogoSrc()
   );
-  const old = document.getElementById('hygiene-printform-iframe');
-  if (old) old.remove();
-  const iframe = document.createElement('iframe');
-  iframe.id = 'hygiene-printform-iframe';
-  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';
-  document.body.appendChild(iframe);
-  const doc = iframe.contentWindow?.document;
-  if (doc) {
-    doc.open();
-    doc.write(html);
-    doc.close();
-    iframe.onload = () => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    };
-  }
+  // 見 printHygieneRecordForm：雙面打孔圈鏡像要靠 printCombinedHtml
+  import('./printUtils').then(({ printCombinedHtml }) => {
+    printCombinedHtml([html], 'hygiene-printform-iframe');
+  });
 };

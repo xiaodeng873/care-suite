@@ -355,37 +355,12 @@ export const printWoundAssessment = async (
   stationCode = '',
 ): Promise<void> => {
   const html = await generateWoundAssessmentHtml(wound, assessments, patient, stationCode);
-  const old = document.getElementById(IFRAME_ID);
-  if (old) old.remove();
-  const iframe = document.createElement('iframe');
-  iframe.id = IFRAME_ID;
-  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';
-  document.body.appendChild(iframe);
-  const doc = iframe.contentWindow?.document;
-  if (!doc) return;
-  doc.open(); doc.write(html); doc.close();
-
-  // 等待 iframe 內所有圖片載入完成才列印（防人體圖/相片未渲染就列印）
-  const win = iframe.contentWindow;
-  if (!win) return;
-  const doPrint = () => { win.focus(); win.print(); };
-  const imgs = Array.from(doc.images);
-  if (imgs.length === 0) {
-    setTimeout(doPrint, 200);
-    return;
-  }
-  let loaded = 0;
-  let done = false;
-  const check = () => {
-    loaded++;
-    if (!done && loaded >= imgs.length) { done = true; setTimeout(doPrint, 100); }
-  };
-  imgs.forEach(img => {
-    if (img.complete) { check(); }
-    else { img.addEventListener('load', check); img.addEventListener('error', check); }
+  // 有打孔圈嘅文件必須行 printCombinedHtml：padOddPageDocuments 先會將 fixed
+  // 打孔圈換成逐頁 absolute 並喺雙面背面鏡像轉邊；直寫 iframe 會令背面孔位留喺左邊。
+  // printCombinedHtml 內部會等 iframe 圖片載入（waitForLayoutReady）先列印
+  import('./printUtils').then(({ printCombinedHtml }) => {
+    printCombinedHtml([html], IFRAME_ID);
   });
-  // 保底：最多等 3 秒
-  setTimeout(() => { if (!done) { done = true; doPrint(); } }, 3000);
 };
 
 /** 另存新檔：下載傷口評估記錄表 HTML */

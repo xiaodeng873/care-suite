@@ -67,7 +67,6 @@ const pageBlock = (name: string, bed: string, yearMonth: string, facilityName: s
     <table class="rt"><tbody>${days}</tbody></table>
     <div class="footer">
       <div class="page-num"></div>
-      <div class="doc-code">B83 FK (06.2026)</div>
     </div>
   </div></div>`;
 };
@@ -82,12 +81,15 @@ export const generateDiaperRecordPrintFormHtml = (patients: Patient[], yearMonth
   return `<!DOCTYPE html>
 <html lang="zh-TW"><head><meta charset="utf-8"/><title>換片及大便記錄</title>
 <style>
-@page { size: A4 landscape; margin: 6mm; }
+/* 上邊界唔好用 @page margin：injectPageLogo 會將佢歸零再搬去 body padding-top，
+   而 body padding 喺 CSS 分頁時只有第 1 頁生效。頂距要放喺每頁容器 .page 嘅
+   padding-top（每頁都生效），@page 上 margin 由一開始就係 0 */
+@page { size: A4 landscape; margin: 0 6mm 6mm 6mm; }
 * { box-sizing: border-box; }
 body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-serif; margin:0; padding:0; background:#f4f4f4; font-size:10px; color:#000; }
 .no-print { text-align:center; margin:10px; }
 .no-print button { padding:8px 20px; font-size:12px; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer; }
-.page { width:100%; height:198mm; overflow:hidden; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; }
+.page { width:100%; height:198mm; overflow:hidden; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; padding-top:6mm; }
 .inner { width:100%; flex:1; display:flex; flex-direction:column; min-height:0; }
 .inst { text-align:center; font-size:16px; font-weight:bold; }
 .title { text-align:center; font-size:14px; font-weight:bold; margin:2px 0 4px; }
@@ -103,7 +105,6 @@ body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-ser
 .sep td { border:none; height:1.5mm; background:#d9d9d9; }
 .footer { margin-top:auto; display:flex; justify-content:flex-end; position:relative; height:30px; }
 .page-num { position:absolute; left:50%; transform:translateX(-50%); font-size:24px; font-weight:bold; bottom:0; }
-.doc-code { font-size:11px; font-weight:bold; align-self:flex-end; }
 @media print { body{background:#fff;} .no-print{display:none!important;} .page{box-shadow:none;margin:0;} }
 </style></head>
 <body>
@@ -243,7 +244,6 @@ const buildDiaperRangePage = (
     <table class="rt"><tbody>${days}</tbody></table>
     <div class="footer">
       <div class="page-num"></div>
-      <div class="doc-code">B83 FK (06.2026)</div>
     </div>
   </div></div>`;
 };
@@ -272,12 +272,15 @@ export const generateDiaperRecordFormForDateRange = (
   return `<!DOCTYPE html>
 <html lang="zh-TW"><head><meta charset="utf-8"/><title>換片及大便記錄</title>
 <style>
-@page { size: A4 landscape; margin: 6mm; }
+/* 上邊界唔好用 @page margin：injectPageLogo 會將佢歸零再搬去 body padding-top，
+   而 body padding 喺 CSS 分頁時只有第 1 頁生效。頂距要放喺每頁容器 .page 嘅
+   padding-top（每頁都生效），@page 上 margin 由一開始就係 0 */
+@page { size: A4 landscape; margin: 0 6mm 6mm 6mm; }
 * { box-sizing: border-box; }
 body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-serif; margin:0; padding:0; background:#f4f4f4; font-size:10px; color:#000; }
 .no-print { text-align:center; margin:10px; }
 .no-print button { padding:8px 20px; font-size:12px; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer; }
-.page { width:100%; height:198mm; overflow:hidden; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; }
+.page { width:100%; height:198mm; overflow:hidden; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; padding-top:6mm; }
 .page:last-child { page-break-after: avoid; }
 .inner { width:100%; flex:1; display:flex; flex-direction:column; min-height:0; }
 .inst { text-align:center; font-size:16px; font-weight:bold; }
@@ -294,7 +297,6 @@ body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-ser
 .sep td { border:none; height:1.5mm; background:#d9d9d9; }
 .footer { margin-top:auto; display:flex; justify-content:flex-end; position:relative; height:30px; }
 .page-num { position:absolute; left:50%; transform:translateX(-50%); font-size:24px; font-weight:bold; bottom:0; }
-.doc-code { font-size:11px; font-weight:bold; align-self:flex-end; }
 @media print { body{background:#fff;} .no-print{display:none!important;} .page{box-shadow:none;margin:0;} }
 </style></head>
 <body>

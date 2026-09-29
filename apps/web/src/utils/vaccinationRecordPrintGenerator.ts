@@ -184,39 +184,9 @@ export const printVaccinationRecord = async (
   const settings = await getFacilitySettings();
   const html = generateVaccinationRecordHtml(patient, records, settings.facilityNameZh);
 
-  const existingIframe = document.getElementById('vaccination-record-print-iframe');
-  if (existingIframe) {
-    document.body.removeChild(existingIframe);
-  }
-
-  const iframe = document.createElement('iframe');
-  iframe.id = 'vaccination-record-print-iframe';
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = 'none';
-  document.body.appendChild(iframe);
-
-  const iframeDoc = iframe.contentWindow?.document;
-  if (!iframeDoc) {
-    alert('無法建立列印預覽，請重試');
-    document.body.removeChild(iframe);
-    return;
-  }
-
-  iframeDoc.open();
-  iframeDoc.write(html);
-  iframeDoc.close();
-
-  iframe.onload = () => {
-    setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 1000);
-    }, 250);
-  };
+  // 有打孔圈嘅文件必須行 printCombinedHtml：padOddPageDocuments 先會將 fixed
+  // 打孔圈換成逐頁 absolute 並喺雙面背面鏡像轉邊；直寫 iframe 會令背面孔位留喺左邊
+  import('./printUtils').then(({ printCombinedHtml }) => {
+    printCombinedHtml([html], 'vaccination-record-print-iframe');
+  });
 };

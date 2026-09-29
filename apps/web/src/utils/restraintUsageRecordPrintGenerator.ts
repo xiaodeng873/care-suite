@@ -260,19 +260,9 @@ export const printRestraintUsageRecords = async (
     }
   }
 
-  const old = document.getElementById(IFRAME_ID);
-  if (old) old.remove();
-
-  const iframe = document.createElement('iframe');
-  iframe.id = IFRAME_ID;
-  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow?.document;
-  if (!doc) return;
-  doc.open();
-  doc.write(combined);
-  doc.close();
-  iframe.contentWindow?.focus();
-  setTimeout(() => { iframe.contentWindow?.print(); }, 400);
+  // 有打孔圈嘅文件必須行 printCombinedHtml：padOddPageDocuments 先會將 fixed
+  // 打孔圈換成逐頁 absolute 並喺雙面背面鏡像轉邊；直寫 iframe 會令背面孔位留喺左邊
+  import('./printUtils').then(({ printCombinedHtml }) => {
+    printCombinedHtml([combined], IFRAME_ID);
+  });
 };

@@ -298,29 +298,11 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
 </html>`;
 
 const openPrintWindow = (html: string) => {
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = 'none';
-  document.body.appendChild(iframe);
-  const iframeDoc = iframe.contentWindow?.document;
-  if (iframeDoc) {
-    iframeDoc.open();
-    iframeDoc.write(html);
-    iframeDoc.close();
-    iframe.contentWindow?.addEventListener('load', () => {
-      setTimeout(() => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-        }, 1000);
-      }, 500);
-    });
-  }
+  // 有打孔圈嘅文件必須行 printCombinedHtml：padOddPageDocuments 先會將 fixed
+  // 打孔圈換成逐頁 absolute 並喺雙面背面鏡像轉邊；直寫 iframe 會令背面孔位留喺左邊
+  import('./printUtils').then(({ printCombinedHtml }) => {
+    printCombinedHtml([html], 'bw-record-print-iframe');
+  });
 };
 
 export const generateBodyweightRecordHtml = async (
