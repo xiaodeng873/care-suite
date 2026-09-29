@@ -151,18 +151,18 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
       await addHealthRecordsForSession(records);
 
       // 與其他監測任務一致：同步各受影響任務的下次到期狀態
+      // 並行處理（原本逐個 await，N 個任務 = 2N 次串行 DB 來回，係生成慢嘅主因）
       const affectedTaskIds = new Set<string>();
       records.forEach((r) => {if (r.任務id) affectedTaskIds.add(r.任務id);});
-      for (const taskId of affectedTaskIds) {
+      await Promise.all(Array.from(affectedTaskIds).map(async (taskId) => {
         try {
           await syncTaskStatus(taskId);
         } catch (e) {
           console.error('[GenerateTemperatureModal] syncTaskStatus 失敗:', taskId, e);
         }
-      }
+      }));
 
-      if (refreshHealthTaskData) await refreshHealthTaskData();
-      if (refreshData) await refreshData();
+      await Promise.all([refreshHealthTaskData?.(), refreshData?.()]);
 
       const absentCount = records.filter((r) => r.備註?.includes('無法量度')).length;
       const measuredCount = ids.length - absentCount;

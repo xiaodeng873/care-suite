@@ -23,6 +23,10 @@ export interface LowStockGroup {
   estimatedEndDate: string;
   remainingDays: number;
   count: number;
+  /** 組內藥物名稱（見底嘅藥） */
+  drugNames: string[];
+  /** 組內處方 id（撳入去開第一個 modal） */
+  prescriptionIds: string[];
 }
 
 interface MedicationRemindersCardProps {
@@ -216,7 +220,7 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
               <div
                 key={`${g.patient.院友id}-${g.prescriptionDate}-${g.source}-${g.specialty}-${g.estimatedEndDate}-${idx}`}
                 className="p-3 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100 cursor-pointer"
-                onClick={() => navigate(`/prescriptions?patient=${g.patient.院友id}`)}
+                onClick={() => navigate(`/prescriptions?patient=${g.patient.院友id}&rx=${g.prescriptionIds[0] ?? ''}`)}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 flex-1">
@@ -227,17 +231,22 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
                         <User className="h-5 w-5 text-rose-600" />
                       )}
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="font-medium text-rose-900">
                         {(g.patient.中文姓氏 || g.patient.中文名字) ? `${g.patient.中文姓氏 ?? ''}${g.patient.中文名字 ?? ''}` : (g.patient.中文姓名 ?? '')} <span className="text-xs text-rose-600">(<BedNumberImprint patient={g.patient} size="sm" className="text-xs text-rose-600" />)</span>
                       </div>
+                      {g.drugNames.length > 0 && (
+                        <div className="text-sm font-medium text-rose-800 truncate" title={g.drugNames.join('、')}>
+                          {g.drugNames.slice(0, 2).join('、')}{g.drugNames.length > 2 ? ` 等 ${g.drugNames.length} 種` : ''}
+                        </div>
+                      )}
                       <div className="text-sm text-rose-700">
                         {g.source}{g.specialty ? `${g.specialty}` : ''}的藥物尚餘 {g.remainingDays} 天服完
                       </div>
                       <div className="text-xs text-rose-500 mt-0.5">預計結束：{g.estimatedEndDate}</div>
                     </div>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-rose-600" />
+                  <ArrowRight className="h-4 w-4 text-rose-600 flex-shrink-0" />
                 </div>
               </div>
             ))}

@@ -352,10 +352,11 @@ const PrescriptionManagement: React.FC = () => {
     };
   }, [currentPatient, activeTab, selectedRoute]);
 
-  // 處理 URL 參數，自動選中院友和小分頁
+  // 處理 URL 參數，自動選中院友和小分頁；rx= 時直接開該處方 modal（庫存見底提示導向用）
   React.useEffect(() => {
     const patientIdFromUrl = searchParams.get('patient');
     const tabFromUrl = searchParams.get('tab');
+    const rxFromUrl = searchParams.get('rx');
 
     if (patientIdFromUrl && patientPrescriptionSummaries.length > 0) {
       const patientIndex = patientPrescriptionSummaries.findIndex(
@@ -372,13 +373,22 @@ const PrescriptionManagement: React.FC = () => {
           setActiveTab(tabFromUrl as 'active' | 'pending_change' | 'inactive');
         }
 
+        // rx 參數：開指定處方嘅編輯 modal
+        if (rxFromUrl && prescriptions) {
+          const rx = prescriptions.find((p: any) => p.id === rxFromUrl);
+          if (rx) {
+            setSelectedPrescription(rx);
+            setShowModal(true);
+          }
+        }
+
         // 延遲清除 URL 參數，確保狀態已更新
         setTimeout(() => {
           setSearchParams({});
         }, 100);
       }
     }
-  }, [searchParams, patientPrescriptionSummaries, setSearchParams]);
+  }, [searchParams, patientPrescriptionSummaries, prescriptions, setSearchParams]);
 
   // 切換院友時清空選擇
   React.useEffect(() => {

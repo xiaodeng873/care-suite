@@ -145,6 +145,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
   // OCR 區塊揀咗嘅處方圖片（儲存時先上傳 Storage）
   const [prescriptionImageFile, setPrescriptionImageFile] = useState<File | null>(null);
   const [validationError, setValidationError] = useState<string>('');
+  // 用戶明確揀咗「作為新藥物來源」：放行唔喺清單嘅來源（唔寫入藥物設定）
+  const [customSourcePicked, setCustomSourcePicked] = useState(false);
   const [showContradictionModal, setShowContradictionModal] = useState(false);
   const [contradictionDetails, setContradictionDetails] = useState<string>('');
 
@@ -422,7 +424,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       return;
     }
 
-    // 藥物來源機構必填且必須在清單內（不設即時新增；既有舊值除外）
+    // 藥物來源機構必填；清單內、既有舊值、或用戶明確揀咗「作為新藥物來源」都可以（後者唔會加入藥物設定）
     const sourceTrimmed = formData.medication_source.trim();
     if (!sourceTrimmed) {
       setValidationError('請選擇藥物來源機構');
@@ -431,8 +433,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     const isKnownSource = INSTITUTION_GROUPS.some(
       (g) => ((medSettings[g.key] as string[]) || []).includes(sourceTrimmed)
     );
-    if (!isKnownSource && sourceTrimmed !== (prescription?.medication_source || '')) {
-      setValidationError('藥物來源機構必須從清單中選擇；如需新增機構，請前往「藥物設定」');
+    if (!isKnownSource && !customSourcePicked && sourceTrimmed !== (prescription?.medication_source || '')) {
+      setValidationError('藥物來源機構必須從清單中選擇，或揀「作為新藥物來源」');
       return;
     }
 
@@ -812,7 +814,14 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 </label>
                 <InstitutionAutocomplete
                   value={formData.medication_source}
-                  onChange={(v) => setFormData(prev => ({ ...prev, medication_source: v }))}
+                  onChange={(v) => {
+                    // 任何輸入/揀選都重設「作為新藥物來源」標記（onPickNew 會喺揀新來源後再設返）
+                    setCustomSourcePicked(false);
+                    setFormData(prev => ({ ...prev, medication_source: v }));
+                  }}
+                  onPickNew={() => setCustomSourcePicked(true)}
+                  allowNew
+                  newLabel="作為新藥物來源"
                   medSettings={medSettings}
                   className={getFieldClassName('medication_source', '')}
                   required

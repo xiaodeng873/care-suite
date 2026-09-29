@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { ChevronDown, Search, Building2 } from 'lucide-react';
+import { ChevronDown, Search, Building2, Plus } from 'lucide-react';
 import { INSTITUTION_GROUPS } from '../utils/medicationSettings';
 import type { MedicationSettingsData } from '../utils/medicationSettings';
 
@@ -20,11 +20,18 @@ interface InstitutionAutocompleteProps {
   options?: InstitutionOption[];
   /** 找不到結果時的提示（預設為機構提示） */
   emptyHint?: string;
+  /** 容許「作為新…」即時用搜尋字做新值（唔會加入藥物設定）；提供時 empty 狀態會多一個選項 */
+  allowNew?: boolean;
+  /** 「作為新…」選項被揀中時回呼（先於 onChange 觸發之後呼叫） */
+  onPickNew?: (name: string) => void;
+  /** 「作為新…」選項顯示文字（預設「作為新藥物來源」） */
+  newLabel?: string;
 }
 
 /**
  * 藥物來源機構 autocomplete：可輸入中文或英文簡稱搜索，選定後一律存中文名。
- * 不設即時新增；新機構須到「藥物設定」加進清單。
+ * 預設唔設即時新增（新機構去「藥物設定」加）；allowNew 時可以「作為新…」即時用搜尋字，
+ * 但唔會寫入藥物設定清單。
  */
 const InstitutionAutocomplete: React.FC<InstitutionAutocompleteProps> = ({
   value,
@@ -35,6 +42,9 @@ const InstitutionAutocomplete: React.FC<InstitutionAutocompleteProps> = ({
   required = false,
   options,
   emptyHint = '如需新增機構，請前往「藥物設定」加進清單',
+  allowNew = false,
+  onPickNew,
+  newLabel = '作為新藥物來源',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value);
@@ -212,7 +222,25 @@ const InstitutionAutocomplete: React.FC<InstitutionAutocompleteProps> = ({
               <div className="p-4 text-center text-gray-500">
                 <Search className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                 <p className="text-sm">清單中找不到「{searchTerm.trim()}」</p>
-                <p className="text-xs text-gray-400 mt-1">{emptyHint}</p>
+                {allowNew && searchTerm.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const name = searchTerm.trim();
+                      onChange(name);
+                      onPickNew?.(name);
+                      setIsOpen(false);
+                      setHighlightedIndex(-1);
+                      inputRef.current?.blur();
+                    }}
+                    className="mt-3 inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>使用 "{searchTerm.trim()}" {newLabel}</span>
+                  </button>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-1">{emptyHint}</p>
+                )}
               </div>
             )}
           </div>

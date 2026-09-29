@@ -560,6 +560,8 @@ const Dashboard: React.FC = () => {
       estimatedEndDate: string;
       remainingDays: number;
       count: number;
+      drugNames: string[];
+      prescriptionIds: string[];
     }>();
     (prescriptions || []).forEach((pr: any) => {
       if (pr.status !== 'active') return;
@@ -575,6 +577,8 @@ const Dashboard: React.FC = () => {
       const existing = groupsMap.get(key);
       if (existing) {
         existing.count += 1;
+        if (pr.medication_name && !existing.drugNames.includes(pr.medication_name)) existing.drugNames.push(pr.medication_name);
+        if (pr.id) existing.prescriptionIds.push(pr.id);
       } else {
         const patient = patientsMap.get(pr.patient_id);
         if (!patient) return;
@@ -586,6 +590,8 @@ const Dashboard: React.FC = () => {
           estimatedEndDate: estEnd,
           remainingDays: remaining,
           count: 1,
+          drugNames: pr.medication_name ? [pr.medication_name] : [],
+          prescriptionIds: pr.id ? [pr.id] : [],
         });
       }
     });
