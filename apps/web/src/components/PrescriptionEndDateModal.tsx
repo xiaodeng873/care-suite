@@ -39,10 +39,35 @@ const PrescriptionEndDateModal: React.FC<PrescriptionEndDateModalProps> = ({
     setError('');
 
     if (targetStatus === 'inactive') {
-      // 停用處方：預設為現在（香港時區）
+      // 停用處方：智能預填最後一次服用日期時間；推算不到或未來無效時預設為現在（香港時區）
       const now = getHongKongNow();
-      setEndDate(formatHongKongDate(now));
-      setEndTime(formatHongKongTime(now));
+      let cancelled = false;
+      (async () => {
+        let prefillDate: string | null = null;
+        let prefillTime: string | null = null;
+        try {
+          const { lastDoseDateTime } = await import('../utils/prescriptionTimePrefill');
+          const last = lastDoseDateTime({
+            startDate: prescription?.start_date,
+            startTime: prescription?.start_time,
+            slots: prescription?.medication_time_slots,
+            dailyFrequency: prescription?.daily_frequency,
+            durationDays: prescription?.duration_days,
+            endDate: prescription?.end_date,
+          });
+          if (last) {
+            const lastDt = new Date(`${last.date}T${last.time}:00`);
+            if (lastDt >= now) {
+              prefillDate = last.date;
+              prefillTime = last.time;
+            }
+          }
+        } catch { /* 推算失敗沿用現在時間 */ }
+        if (cancelled) return;
+        setEndDate(prefillDate ?? formatHongKongDate(now));
+        setEndTime(prefillTime ?? formatHongKongTime(now));
+      })();
+      return () => { cancelled = true; };
     } else {
       // 在服/待變更：保留原有結束日期與時間
       setEndDate(prescription?.end_date || '');

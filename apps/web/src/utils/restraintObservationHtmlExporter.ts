@@ -4,7 +4,6 @@
  */
 
 import type { RestraintObservationRecord, PatientRestraintAssessment, Patient } from '../lib/database';
-import { DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 import { getPrintBedNumber } from './bedTransferUtils';
 
 
@@ -644,14 +643,17 @@ ${observationTables}
 };
 
 // 使用 iframe 列印（單一院友、單一 4 天區塊）
-export const exportRestraintObservationHtml = (
+// facilityName 未提供時自動從院舍設定讀取，避免誤用品牌後備名 eHMS
+export const exportRestraintObservationHtml = async (
   patient: Patient,
   records: RestraintObservationRecord[],
   assessment: PatientRestraintAssessment | null,
   startDate: string,
   includeDayNumber: boolean = true,
-  facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
-): void => {
+  facilityName?: string
+): Promise<void> => {
+  const resolvedFacilityName =
+    facilityName ?? (await (await import('./facilitySettings')).getFacilitySettings()).facilityNameZh;
   // 計算結束日期 (4天)
   const start = new Date(startDate);
   const end = new Date(start);
@@ -663,7 +665,7 @@ export const exportRestraintObservationHtml = (
     records,
     assessment,
     dateRange: { start: startDate, end: endDate },
-    facilityName,
+    facilityName: resolvedFacilityName,
     includeDayNumber,
   });
 
@@ -710,7 +712,7 @@ export const generateRestraintObservationRangeHtml = (
   startDate: string,
   endDate: string,
   includeDayNumber: boolean = true,
-  facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
+  facilityName: string
 ): string[] => {
   const chunks: string[] = [];
   let cur = new Date(startDate);
@@ -735,23 +737,26 @@ export const generateRestraintObservationRangeHtml = (
 };
 
 // ── 日期範圍版匯出（每4天一頁，單一院友）──────────────────────────────────
-export const exportRestraintObservationRangeHtml = (
+// facilityName 未提供時自動從院舍設定讀取，避免誤用品牌後備名 eHMS
+export const exportRestraintObservationRangeHtml = async (
   patient: Patient,
   records: RestraintObservationRecord[],
   assessment: PatientRestraintAssessment | null,
   startDate: string,
   endDate: string,
   includeDayNumber: boolean = true,
-  facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
-): void => {
+  facilityName?: string
+): Promise<void> => {
+  const resolvedFacilityName =
+    facilityName ?? (await (await import('./facilitySettings')).getFacilitySettings()).facilityNameZh;
   import('./printUtils').then(({ printCombinedHtml }) => {
-    const pages = generateRestraintObservationRangeHtml(patient, records, assessment, startDate, endDate, includeDayNumber, facilityName);
+    const pages = generateRestraintObservationRangeHtml(patient, records, assessment, startDate, endDate, includeDayNumber, resolvedFacilityName);
     printCombinedHtml(pages, 'restraint-print-iframe');
   });
 };
 
 // ── 日期範圍版匯出（每4天一頁，多院友）──────────────────────────────────
-export const exportRestraintObservationsRangeHtml = (
+export const exportRestraintObservationsRangeHtml = async (
   items: {
     patient: Patient;
     records: RestraintObservationRecord[];
@@ -760,12 +765,14 @@ export const exportRestraintObservationsRangeHtml = (
   startDate: string,
   endDate: string,
   includeDayNumber: boolean = true,
-  facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
-): void => {
+  facilityName?: string
+): Promise<void> => {
+  const resolvedFacilityName =
+    facilityName ?? (await (await import('./facilitySettings')).getFacilitySettings()).facilityNameZh;
   import('./printUtils').then(({ printCombinedHtml }) => {
     const pages: string[] = [];
     items.forEach(({ patient, records, assessment }) => {
-      pages.push(...generateRestraintObservationRangeHtml(patient, records, assessment, startDate, endDate, includeDayNumber, facilityName));
+      pages.push(...generateRestraintObservationRangeHtml(patient, records, assessment, startDate, endDate, includeDayNumber, resolvedFacilityName));
     });
     printCombinedHtml(pages, 'restraint-print-iframe');
   });

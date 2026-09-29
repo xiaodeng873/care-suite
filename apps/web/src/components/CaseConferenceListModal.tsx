@@ -178,14 +178,16 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (selectedPlanIds.size === 0) {
       alert('請先選擇至少一份 ICP');
       return;
     }
     const selectedPlans = carePlans.filter((p) => selectedPlanIds.has(p.id));
     const groups = buildPrintGroups(selectedPlans, patients);
-    const html = generateCaseConferenceListHtml({ meetingDate, groups });
+    const { getFacilitySettings } = await import('../utils/facilitySettings');
+    const settings = await getFacilitySettings();
+    const html = generateCaseConferenceListHtml({ meetingDate, groups, facilityName: settings.facilityNameZh });
     const win = window.open('', '_blank');
     if (!win) {
       alert('無法開啟列印視窗，請檢查瀏覽器彈出視窗設定');

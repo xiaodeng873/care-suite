@@ -7,6 +7,7 @@ import OCRPrescriptionBlock from './OCRPrescriptionBlock';
 import { mapOCRDataToPrescriptionForm, getConfidenceColor, getConfidenceIcon } from '../utils/ocrFieldMapper';
 import { getMedicationSettings, getMedicationSettingsFromDB, INSTITUTION_GROUPS, type MedicationSettingsData } from '../utils/medicationSettings';
 import { computeEstimatedEndDate } from '../utils/estimatedEndDate';
+import { nextDoseTime, lastDoseDateTime } from '../utils/prescriptionTimePrefill';
 import { computeNextDoseFromLastTaken } from '../utils/prescriptionSchedule';
 import { supabase } from '../lib/supabase';
 import PrescriptionLogModal from './PrescriptionLogModal';
@@ -289,7 +290,36 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         medication_time_slots: autoTimes
       }));
     }
-  }, [formData.daily_frequency, formData.meal_timings]);
+  }, [formData.daily_frequency, formData.medication_time_slots.length, formData.meal_timings]);
+
+  // 智能預填開始時間：新增時取最接近而家的下次服用時間點（用戶改過後不再覆蓋）
+  const startTimeTouchedRef = React.useRef(false);
+  const endTimeTouchedRef = React.useRef(false);
+  const isNewPrescription = !prescription?.id;
+
+  useEffect(() => {
+    if (!isNewPrescription || startTimeTouchedRef.current) return;
+    const next = nextDoseTime(getHongKongTime(), formData.medication_time_slots);
+    if (next && next !== formData.start_time) {
+      setFormData(prev => ({ ...prev, start_time: next }));
+    }
+  }, [formData.medication_time_slots, isNewPrescription]);
+
+  // 智能預填結束時間：新增時取最後一次服用的時間點（用戶改過後不再覆蓋）
+  useEffect(() => {
+    if (!isNewPrescription || endTimeTouchedRef.current) return;
+    const last = lastDoseDateTime({
+      startDate: formData.start_date,
+      startTime: formData.start_time,
+      slots: formData.medication_time_slots,
+      dailyFrequency: formData.daily_frequency,
+      durationDays: formData.duration_days,
+      endDate: formData.end_date,
+    });
+    if (last && last.time !== formData.end_time) {
+      setFormData(prev => ({ ...prev, end_time: last.time }));
+    }
+  }, [formData.start_date, formData.start_time, formData.medication_time_slots, formData.daily_frequency, formData.duration_days, formData.end_date, isNewPrescription]);
 
   useEffect(() => {
     if (startDateMode !== 'admission') return;
@@ -949,7 +979,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   type="time"
                   name="start_time"
                   value={formData.start_time}
-                  onChange={handleChange}
+                  onChange={(e) => {
+                    startTimeTouchedRef.current = true;
+                    handleChange(e);
+                  }}
                   className="form-input"
                 />
               </div>
@@ -1003,7 +1036,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   type="time"
                   name="end_time"
                   value={formData.end_time}
-                  onChange={handleChange}
+                  onChange={(e) => {
+                    endTimeTouchedRef.current = true;
+                    handleChange(e);
+                  }}
                   className="form-input"
                 />
               </div>
