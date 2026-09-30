@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { loadDeveloperSetting, saveDeveloperSetting } from './developerSettings';
 
 export interface VaccinationMessageSettings {
   message_template: string;
@@ -16,8 +17,9 @@ export const DEFAULT_VACCINATION_MESSAGE_SETTINGS: VaccinationMessageSettings = 
   deadline: '',
 };
 
-// 無 userProfile（如 developer 登入）時改讀寫本機，設定跟瀏覽器
+// 開發者（無 userProfile）設定由 developer_settings 表統一管理（DB），首次讀取由舊 localStorage 遷移
 const LOCAL_STORAGE_KEY = 'vaccination_message_settings_local';
+const DEVELOPER_SETTINGS_KEY = 'vaccination_message_settings';
 
 function normalizeSettings(raw: Partial<VaccinationMessageSettings> | null | undefined): VaccinationMessageSettings {
   return {
@@ -42,12 +44,20 @@ function saveLocalSettings(settings: VaccinationMessageSettings): void {
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(settings));
 }
 
-// userId 為 undefined 時讀 localStorage；有 userId 時由 user_profiles 讀取（DB 為 null 時回預設值，唔寫 DB）
+// userId 為 undefined（開發者）時讀 developer_settings（DB）；有 userId 時由 user_profiles 讀取（DB 為 null 時回預設值，唔寫 DB）
 export async function loadVaccinationMessageSettings(
   userId: string | undefined
 ): Promise<VaccinationMessageSettings> {
   if (!userId) {
-    return loadLocalSettings();
+    const db = await loadDeveloperSetting<Partial<VaccinationMessageSettings>>(DEVELOPER_SETTINGS_KEY);
+    if (db) return normalizeSettings(db);
+    // 遷移：DB 未有記錄時讀舊 localStorage，並順手寫入 DB
+    const local = loadLocalSettings();
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (raw) saveDeveloperSetting(DEVELOPER_SETTINGS_KEY, JSON.parse(raw)).catch(() => {});
+    } catch { /* 本機不可用就略過 */ }
+    return local;
   }
   try {
     const { data } = await supabase
@@ -73,7 +83,8 @@ export async function saveVaccinationMessageSettings(
   settings: VaccinationMessageSettings
 ): Promise<void> {
   if (!userId) {
-    saveLocalSettings(settings);
+    await saveDeveloperSetting(DEVELOPER_SETTINGS_KEY, settings);
+    saveLocalSettings(settings); // 同步本機快取（舊版兼容）
     return;
   }
   const { error } = await supabase

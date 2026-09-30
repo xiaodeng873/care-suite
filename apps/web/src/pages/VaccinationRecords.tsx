@@ -96,7 +96,7 @@ const VaccinationRecords: React.FC = () => {
   const [messageSettings, setMessageSettings] = useState<VaccinationMessageSettings>(DEFAULT_VACCINATION_MESSAGE_SETTINGS);
   const [facilityNameZh, setFacilityNameZh] = useState('');
 
-  // 意向查詢對話設定：由 user_profiles 讀取（DB null 時用預設值）；無 userId（developer）時讀 localStorage
+  // 意向查詢對話設定：由 user_profiles 讀取（DB null 時用預設值）；無 userId（developer）時讀 developer_settings 表
   React.useEffect(() => {
     let cancelled = false;
     loadVaccinationMessageSettings(userId)

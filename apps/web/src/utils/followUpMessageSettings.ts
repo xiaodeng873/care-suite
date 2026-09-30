@@ -1,8 +1,10 @@
 // 覆診安排通知訊息模板（陪診員／輪椅的士／問家人）
 // 做法跟疫苗接種訊息一致（utils/vaccinationMessageSettings.ts）：
 // 佔位符 {…} 模板，per-user 存 user_profiles.followup_message_templates jsonb；
-// 無 userProfile（developer 登入）時讀寫本機 localStorage
+// 開發者（無 userProfile）存 developer_settings 表（同用戶一樣由 DB 管理，
+// 首次讀取會將舊 localStorage 設定遷移入 DB）
 import { supabase } from '../lib/supabase';
+import { loadDeveloperSetting, saveDeveloperSetting } from './developerSettings';
 
 export interface FollowUpMessageTemplate {
   /** 訊息模板，可用佔位符：{院友名稱} {居住區} {院舍名稱} {覆診日期} {覆診星期} {覆診時間} {出發時間} {覆診地點} {覆診專科} */
@@ -59,6 +61,7 @@ export function buildFollowUpMessage(template: string, vars: FollowUpMessageVars
 }
 
 const LOCAL_STORAGE_KEY = 'followup_message_templates_local';
+const DEVELOPER_SETTINGS_KEY = 'followup_message_templates';
 
 function normalizeTemplates(raw: Partial<FollowUpMessageTemplates> | null | undefined): FollowUpMessageTemplates {
   const d = DEFAULT_FOLLOWUP_MESSAGE_TEMPLATES;
@@ -86,12 +89,20 @@ function saveLocalTemplates(templates: FollowUpMessageTemplates): void {
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(templates));
 }
 
-// userId 為 undefined 時讀 localStorage；有 userId 時由 user_profiles 讀取（DB 為 null 時回預設值，唔寫 DB）
+// userId 為 undefined（開發者）時讀 developer_settings（DB）；有 userId 時由 user_profiles 讀取（DB 為 null 時回預設值，唔寫 DB）
 export async function loadFollowUpMessageTemplates(
   userId: string | undefined
 ): Promise<FollowUpMessageTemplates> {
   if (!userId) {
-    return loadLocalTemplates();
+    const db = await loadDeveloperSetting<Partial<FollowUpMessageTemplates>>(DEVELOPER_SETTINGS_KEY);
+    if (db) return normalizeTemplates(db);
+    // 遷移：DB 未有記錄時讀舊 localStorage，並順手寫入 DB（之後同用戶一樣由 DB 管理）
+    const local = loadLocalTemplates();
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (raw) saveDeveloperSetting(DEVELOPER_SETTINGS_KEY, JSON.parse(raw)).catch(() => {});
+    } catch { /* 本機不可用就略過 */ }
+    return local;
   }
   try {
     const { data } = await supabase
@@ -111,7 +122,8 @@ export async function saveFollowUpMessageTemplates(
   templates: FollowUpMessageTemplates
 ): Promise<void> {
   if (!userId) {
-    saveLocalTemplates(templates);
+    await saveDeveloperSetting(DEVELOPER_SETTINGS_KEY, templates);
+    saveLocalTemplates(templates); // 同步本機快取（舊版兼容）
     return;
   }
   const { error } = await supabase
