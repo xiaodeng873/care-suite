@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>身體約束物品觀察記錄表</title>
+<style>
+/* 基礎（螢幕）樣式在前；@media print 放最後，確保列印規則永遠贏
+   （printCombinedHtml 會拆殼 @media print，靠次序保證層疊正確） */
+@page {
+  size: A4;
+  margin: 5mm;
+}
+* {
+  box-sizing: border-box;
+}
+.print-doc-0 {
+  font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang TC", "Heiti TC", sans-serif;
+  margin: 0;
+  padding: 8px;
+  background-color: #f4f4f4;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #222;
+}
+.page {
+  width: 200mm;
+  margin: 0 auto;
+  background-color: #fff;
+}
+.header {
+  text-align: center;
+  border-bottom: 1.5px solid #000;
+  padding-bottom: 1.5mm;
+  margin-bottom: 2mm;
+}
+.header h1 {
+  font-size: 15px;
+  font-weight: bold;
+  margin: 0 0 1mm 0;
+}
+.header .sub {
+  font-size: 9px;
+  color: #444;
+  margin: 0;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  margin-bottom: 2mm;
+}
+.info-row .v {
+  border-bottom: 1px solid #000;
+  padding: 0 2mm;
+  min-width: 30mm;
+  display: inline-block;
+  font-weight: bold;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th, td {
+  border: 1px solid #000;
+  padding: 0.8mm 1.2mm;
+  vertical-align: middle;
+  font-size: 9px;
+  text-align: left;
+}
+th {
+  background-color: #e9ecef;
+  font-weight: bold;
+  text-align: center;
+}
+.cb {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1px solid #333;
+  background: #fff;
+  margin-right: 1mm;
+  vertical-align: -1px;
+  position: relative;
+}
+.cb.on {
+  background: #333;
+}
+.cb.on::after {
+  content: '✓';
+  color: #fff;
+  font-size: 8px;
+  position: absolute;
+  top: -1px;
+  left: 1px;
+}
+.opt {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 2mm;
+  white-space: nowrap;
+}
+.constraint-table {
+  margin-bottom: 2mm;
+}
+.constraint-table td.item-no {
+  font-weight: bold;
+}
+.notes {
+  display: flex;
+  gap: 4mm;
+  border: 1px solid #999;
+  padding: 1.5mm 2mm;
+  margin-bottom: 2mm;
+  font-size: 8px;
+}
+.notes .col {
+  flex: 1;
+}
+.notes h4 {
+  font-size: 9px;
+  margin: 0 0 1mm 0;
+  border-bottom: 1px solid #999;
+  padding-bottom: 0.5mm;
+}
+.notes ol, .notes ul {
+  margin: 0;
+  padding-left: 4mm;
+}
+.day-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2mm;
+}
+.day-table {
+  page-break-inside: avoid;
+}
+.day-table .day-date {
+  font-size: 10px;
+  background-color: #d9d9d9;
+}
+.day-table th, .day-table td {
+  text-align: center;
+  font-size: 8.5px;
+  padding: 0.5mm 1mm;
+  height: 4.8mm;
+}
+.day-table thead tr:nth-child(2) th {
+  font-size: 8px;
+}
+.blank-day {
+  display: inline-block;
+  width: 40px;
+  min-height: 1em;
+  border-bottom: 1px solid #000;
+  margin: 0 4px;
+  vertical-align: bottom;
+}
+.footer {
+  margin-top: 2mm;
+  border-top: 1px solid #000;
+  padding-top: 1mm;
+  font-size: 8px;
+}
+.footer p {
+  margin: 0;
+}
+.print-btn-container {
+  text-align: center;
+  margin: 14px 0;
+}
+.print-btn {
+  padding: 9px 24px;
+  font-size: 13px;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    padding: 0;
+    margin: 0;
+    background-color: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .page {
+    width: 100%;
+    margin: 0;
+    /* 內容唔夠一頁時，footer 釘喺頁底，唔留大段空白；內容超頁時自然流向第二頁（唔會被裁） */
+    min-height: 286mm;
+    display: flex;
+    flex-direction: column;
+  }
+  .footer {
+    margin-top: auto;
+  }
+</style>
+</head>
+<body style="margin:0;padding:0"><div class="print-doc-0" style="box-sizing:border-box;width:756px;">
+<div class="print-btn-container no-print">
+  <button class="print-btn" onclick="window.print()">列印此頁</button>
+</div>
+<div class="page">
+<header class="header">
+<h1>身體約束物品觀察記錄表 (2026年09月30日 至 2026年10月03日)</h1>
+<p class="sub">(須最少每2小時檢查一次住客使用約束的情況)</p>
+</header>
+<div class="info-row">
+<span>院舍名稱：<span class="v">善頤(福群)護老院</span></span>
+<span>住客姓名：<span class="v">胡甜妹</span></span>
+<span>房及/或床號：<span class="v">C219-4</span></span>
+</div>
+
+    <table class="constraint-table">
+      <thead>
+        <tr>
+          <th style="width:25%;">約束物品<br/>編號及類別</th>
+          <th style="width:35%;">約束情況</th>
+          <th style="width:40%;">約束時段</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+      <tr>
+        <td class="item-no">1<br/><span class="cb on"></span>約束衣</td>
+        <td>
+        <span class="opt"><span class="cb"></span>坐在椅上</span>
+        <span class="opt"><span class="cb"></span>躺在床上</span>
+        <span class="opt"><span class="cb on"></span>坐在椅上及躺在床上</span>
+      </td>
+        <td>
+      <span class="opt"><span class="cb"></span>日間</span>
+      <span class="opt"><span class="cb"></span>晚上</span>
+      <span class="opt"><span class="cb on"></span>全日</span>
+      <span class="opt"><span class="cb"></span>其他：</span>
+    </td>
+      </tr>
+    
+      <tr>
+        <td class="item-no">2<br/><span class="cb"></span>約束腰帶</td>
+        <td>
+        <span class="opt"><span class="cb"></span>坐在椅上</span>
+        <span class="opt"><span class="cb"></span>躺在床上</span>
+        <span class="opt"><span class="cb"></span>坐在椅上及躺在床上</span>
+      </td>
+        <td>
+      <span class="opt"><span class="cb"></span>日間</span>
+      <span class="opt"><span class="cb"></span>晚上</span>
+      <span class="opt"><span class="cb"></span>全日</span>
+      <span class="opt"><span class="cb"></span>其他：</span>
+    </td>
+      </tr>
+    
+      <tr>
+        <td class="item-no">3<br/><span class="cb"></span>手腕帶</td>
+        <td>
+        <span class="opt"><span class="cb"></span>坐在椅上</span>
+        <span class="opt"><span class="cb"></span>躺在床上</span>
+        <span class="opt"><span class="cb"></span>坐在椅上及躺在床上</span>
+      </td>
+        <td>
+      <span class="opt"><span class="cb"></span>日間</span>
+      <span class="opt"><span class="cb"></span>晚上</span>
+      <span class="opt"><span class="cb"></span>全日</span>
+      <span class="opt"><span class="cb"></span>其他：</span>
+    </td>
+      </tr>
+    
+      <tr>
+        <td class="item-no">4<br/><span class="cb on"></span>約束手套/<s>連指手套</s></td>
+        <td>
+        <span class="opt"><span class="cb"></span>坐在椅上</span>
+        <span class="opt"><span class="cb"></span>躺在床上</span>
+        <span class="opt"><span class="cb on"></span>坐在椅上及躺在床上</span>
+      </td>
+        <td>
+      <span class="opt"><span class="cb"></span>日間</span>
+      <span class="opt"><span class="cb"></span>晚上</span>
+      <span class="opt"><span class="cb on"></span>全日</span>
+      <span class="opt"><span class="cb"></span>其他：</span>
+    </td>
+      </tr>
+    
+      <tr>
+        <td class="item-no">5<br/><span class="cb"></span><s>防滑褲</s>/防滑褲帶</td>
+        <td>
+        <span class="opt"><span class="cb"></span>坐在椅上</span>
+        <span class="opt"><span class="cb"></span>躺在床上</span>
+        <span class="opt"><span class="cb"></span>坐在椅上及躺在床上</span>
+      </td>
+        <td>
+      <span class="opt"><span class="cb"></span>日間</span>
+      <span class="opt"><span class="cb"></span>晚上</span>
+      <span class="opt"><span class="cb"></span>全日</span>
+      <span class="opt"><span class="cb"></span>其他：</span>
+    </td>
+      </tr>
+    
+      <tr>
+        <td class="item-no">6<br/><span class="cb"></span>枱板</td>
+        <td><span class="opt"><span class="cb"></span>坐在椅上/輪椅上</span></td>
+        <td>
+      <span class="opt"><span class="cb"></span>日間</span>
+      <span class="opt"><span class="cb"></span>晚上</span>
+      <span class="opt"><span class="cb"></span>全日</span>
+      <span class="opt"><span class="cb"></span>其他：</span>
+    </td>
+      </tr>
+    
+      <tr>
+        <td class="item-no">7<br/><span class="cb"></span>其他</td>
+        <td>
+        <span class="opt"><span class="cb"></span>坐在椅上</span>
+        <span class="opt"><span class="cb"></span>躺在床上</span>
+        <span class="opt"><span class="cb"></span>坐在椅上及躺在床上</span>
+      </td>
+        <td>
+      <span class="opt"><span class="cb"></span>日間</span>
+      <span class="opt"><span class="cb"></span>晚上</span>
+      <span class="opt"><span class="cb"></span>全日</span>
+      <span class="opt"><span class="cb"></span>其他：</span>
+    </td>
+      </tr>
+    
+      </tbody>
+    </table>
+  
+<div class="notes">
+<div class="col">
+<h4>觀察及留意事項</h4>
+<ol>
+<li>必須最少每2小時放鬆受約束的部位，讓住客舒展和活動身體。</li>
+<li>放鬆受約束的部位後觀察和檢查受約束住客的情況，包括：住客的血液循環、皮膚狀況、呼吸狀況、約束程度、清醒程度，情緒反應、約束的位置有否移位或鬆脫，住客的飲食及如厠需要。</li>
+</ol>
+</div>
+<div class="col">
+<h4>備註代號</h4>
+<ul>
+<li><strong>N</strong> – 所有觀察項目正常</li>
+<li><strong>P</strong> – 有不正常跡象 (應立即向主管、護士或保健員報告，加以了解及作出評估，並作適當記錄)</li>
+<li><strong>S</strong> – 暫停使用約束物品</li>
+</ul>
+</div>
+</div>
+<div class="day-grid">
+
+    <table class="day-table">
+      <thead>
+        <tr><th colspan="6" class="day-date">日期：2026年09月30日</th></tr>
+        <tr>
+          <th style="width:17%;">觀察時段</th>
+          <th style="width:18%;">實際觀察時間</th>
+          <th style="width:17%;">約束物品編號</th>
+          <th style="width:14%;">備註<br/>N/P/S</th>
+          <th style="width:17%;">簽署/姓名</th>
+          <th style="width:17%;">加簽*/姓名</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+      <tr>
+        <td>0700-0900</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0900-1100</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1100-1300</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1300-1500</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1500-1700</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1700-1900</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1900-2100</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>2100-2300</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>2300-0100</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0100-0300</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0300-0500</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0500-0700</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      </tbody>
+    </table>
+  
+    <table class="day-table">
+      <thead>
+        <tr><th colspan="6" class="day-date">日期：2026年10月01日</th></tr>
+        <tr>
+          <th style="width:17%;">觀察時段</th>
+          <th style="width:18%;">實際觀察時間</th>
+          <th style="width:17%;">約束物品編號</th>
+          <th style="width:14%;">備註<br/>N/P/S</th>
+          <th style="width:17%;">簽署/姓名</th>
+          <th style="width:17%;">加簽*/姓名</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+      <tr>
+        <td>0700-0900</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0900-1100</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1100-1300</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1300-1500</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1500-1700</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1700-1900</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1900-2100</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>2100-2300</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>2300-0100</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0100-0300</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0300-0500</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0500-0700</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      </tbody>
+    </table>
+  
+    <table class="day-table">
+      <thead>
+        <tr><th colspan="6" class="day-date">日期：2026年10月02日</th></tr>
+        <tr>
+          <th style="width:17%;">觀察時段</th>
+          <th style="width:18%;">實際觀察時間</th>
+          <th style="width:17%;">約束物品編號</th>
+          <th style="width:14%;">備註<br/>N/P/S</th>
+          <th style="width:17%;">簽署/姓名</th>
+          <th style="width:17%;">加簽*/姓名</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+      <tr>
+        <td>0700-0900</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0900-1100</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1100-1300</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1300-1500</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1500-1700</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1700-1900</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1900-2100</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>2100-2300</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>2300-0100</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0100-0300</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0300-0500</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0500-0700</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      </tbody>
+    </table>
+  
+    <table class="day-table">
+      <thead>
+        <tr><th colspan="6" class="day-date">日期：2026年10月03日</th></tr>
+        <tr>
+          <th style="width:17%;">觀察時段</th>
+          <th style="width:18%;">實際觀察時間</th>
+          <th style="width:17%;">約束物品編號</th>
+          <th style="width:14%;">備註<br/>N/P/S</th>
+          <th style="width:17%;">簽署/姓名</th>
+          <th style="width:17%;">加簽*/姓名</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+      <tr>
+        <td>0700-0900</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0900-1100</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1100-1300</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1300-1500</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1500-1700</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1700-1900</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>1900-2100</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>2100-2300</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>2300-0100</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0100-0300</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0300-0500</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      <tr>
+        <td>0500-0700</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+    
+      </tbody>
+    </table>
+  
+</div>
+<footer class="footer">
+<p><strong>*加簽：</strong>主管/護士/保健員須每日最少一次抽查每位受約束住客的情況，以持續監察員工是否按照正確程序使用約束，並於抽查後在加簽格內簽署作實。</p>
+</footer>
+</div>
+</div><script>window.addEventListener("load",function(){setTimeout(function(){var d=document.querySelector(".print-doc-0");var p=document.querySelector(".page");var f=document.querySelector(".footer");var pre=document.createElement("pre");pre.id="measure";pre.textContent=JSON.stringify({docH:d.offsetHeight,pageH:p.offsetHeight,footerBottom:Math.round(f.getBoundingClientRect().bottom),bodyScroll:document.body.scrollHeight,htmlScroll:document.documentElement.scrollHeight});document.body.appendChild(pre);},500);});</script></body>
+</html>

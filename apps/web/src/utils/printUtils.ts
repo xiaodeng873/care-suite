@@ -761,7 +761,7 @@ export const stripPageBlocks = (css: string): string => {
  * - 無名 @page 改寫為具名 @page（讓每份文件保留自己的紙張大小/方向/margin）
  * - body 內容包進 `<div class="scopeClass">`
  */
-const scopeDocumentHtml = (
+export const scopeDocumentHtml = (
   page: string,
   scopeClass: string,
   pageStrategy: 'scope' | 'strip' = 'scope',
@@ -810,7 +810,7 @@ const scopeDocumentHtml = (
  * 非 sequential 模式會量度每份文件嘅印刷頁數，奇數頁文件後補一頁空白
  * （padOddPageDocuments），令雙面列印時每份文件都由新一張紙嘅正面開始。
  */
-export const printCombinedHtml = (pages: string[], iframeId: string, sequential = false): void => {
+export const printCombinedHtml = (pages: string[], iframeId: string, sequential = false, duplexPadding = true): void => {
   if (pages.length === 0) return;
 
   if (sequential) {
@@ -920,7 +920,8 @@ ${parts.map((p) => p.body).join('\n')}
       padOddPageDocuments(
         doc,
         parts.map((p, i) => ({ selector: `.print-doc-${i}`, config: p.config })),
-        `${baseCss}\n${parts.map((p) => p.styles).join('\n')}`
+        `${baseCss}\n${parts.map((p) => p.styles).join('\n')}`,
+        duplexPadding
       );
     } catch {
       // 量度失敗就照印（行為同未補頁一樣）

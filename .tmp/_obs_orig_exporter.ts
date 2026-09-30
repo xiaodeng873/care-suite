@@ -3,8 +3,8 @@
  * 將約束觀察記錄匯出為可列印的 HTML 格式 (A4 紙張，4天/頁)
  */
 
-import type { RestraintObservationRecord, PatientRestraintAssessment, Patient } from '../lib/database';
-import { getPrintBedNumber } from './bedTransferUtils';
+import type { RestraintObservationRecord, PatientRestraintAssessment, Patient } from '../apps/web/src/lib/database';
+import { getPrintBedNumber } from '../apps/web/src/utils/bedTransferUtils';
 
 
 
@@ -92,7 +92,7 @@ const formatCardDate = (dateStr: string, includeDayNumber: boolean = true): stri
 const getUsedRestraintNumbers = (usedRestraints: any): string => {
   if (!usedRestraints) return '';
   const numbers = new Set<string>();
-
+  
   Object.keys(usedRestraints).forEach(key => {
     if (usedRestraints[key]) {
       // 直接查找映射
@@ -110,7 +110,7 @@ const getUsedRestraintNumbers = (usedRestraints: any): string => {
       }
     }
   });
-
+  
   return Array.from(numbers).sort().join(',');
 };
 
@@ -190,9 +190,6 @@ const extractRestraintConfig = (assessment: PatientRestraintAssessment | null): 
   return { items };
 };
 
-// checkbox 顯示（checked 狀態以黑底白勾表示）
-const cb = (on: boolean): string => `<span class="cb${on ? ' on' : ''}"></span>`;
-
 // 生成觀察表格 HTML (單日)
 const generateDayObservationTable = (
   date: string,
@@ -201,16 +198,16 @@ const generateDayObservationTable = (
 ): string => {
   // 過濾當日的記錄
   const dayRecords = records.filter(r => r.observation_date === date);
-
+  
   const rows = OBSERVATION_TIME_SLOTS_DISPLAY.map(displaySlot => {
     // 根據顯示時段找到對應的 scheduled_time
     // 例如 "0700-0900" 對應 "07:00"
     const scheduledTime = Object.entries(SCHEDULED_TIME_TO_DISPLAY)
       .find(([_, display]) => display === displaySlot)?.[0];
-
+    
     // 找到匹配的記錄
     const record = dayRecords.find(r => r.scheduled_time === scheduledTime);
-
+    
     // 格式化實際觀察時間為 HH:MM
     const formatObservationTime = (time: string | null | undefined): string => {
       if (!time) return '';
@@ -223,12 +220,12 @@ const generateDayObservationTable = (
       }
       return time;
     };
-
+    
     // 備註欄：顯示觀察狀態，如有 notes 則一起顯示（如 "N (外出)"）
-    const remarksDisplay = record?.observation_status
+    const remarksDisplay = record?.observation_status 
       ? (record.notes ? `${record.observation_status} (${record.notes})` : record.observation_status)
       : (record?.notes || '');
-
+    
     return `
       <tr>
         <td>${displaySlot}</td>
@@ -242,22 +239,24 @@ const generateDayObservationTable = (
   }).join('');
 
   return `
-    <table class="day-table">
-      <thead>
-        <tr><th colspan="6" class="day-date">日期：${formatCardDate(date, includeDayNumber)}</th></tr>
-        <tr>
-          <th style="width:17%;">觀察時段</th>
-          <th style="width:18%;">實際觀察時間</th>
-          <th style="width:17%;">約束物品編號</th>
-          <th style="width:14%;">備註<br/>N/P/S</th>
-          <th style="width:17%;">簽署/姓名</th>
-          <th style="width:17%;">加簽*/姓名</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows}
-      </tbody>
-    </table>
+    <div class="observation-table-container">
+      <table class="data-table observation-table">
+        <thead>
+          <tr><th colspan="6">日期：${formatCardDate(date, includeDayNumber)}</th></tr>
+          <tr>
+            <th class="time-slot">觀察時段</th>
+            <th class="actual-time">實際觀察時間</th>
+            <th class="item-id">約束物品編號</th>
+            <th class="remarks">備註<br/>N/P/S</th>
+            <th class="signature">簽署/姓名</th>
+            <th class="countersign">加簽*/姓名</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>
   `;
 };
 
@@ -267,38 +266,38 @@ const generateConstraintTable = (config: {
 }): string => {
   const rows = config.items.map(item => {
     // 約束情況選項 - 始終顯示，根據選取狀態決定是否打勾
-    const conditionOptions = item.category === '6'
-      ? `<span class="opt">${cb(item.checked && item.usageConditions === '坐在椅上/輪椅上')}坐在椅上/輪椅上</span>`
+    const conditionOptions = item.category === '6' 
+      ? `<label class="checkbox-label"><span class="checkbox${item.checked && item.usageConditions === '坐在椅上/輪椅上' ? ' checked' : ''}"></span>坐在椅上/輪椅上</label>`
       : `
-        <span class="opt">${cb(item.checked && item.usageConditions === '坐在椅上')}坐在椅上</span>
-        <span class="opt">${cb(item.checked && item.usageConditions === '躺在床上')}躺在床上</span>
-        <span class="opt">${cb(item.checked && item.usageConditions === '坐在椅上及躺在床上')}坐在椅上及躺在床上</span>
+        <label class="checkbox-label"><span class="checkbox${item.checked && item.usageConditions === '坐在椅上' ? ' checked' : ''}"></span>坐在椅上</label>
+        <label class="checkbox-label"><span class="checkbox${item.checked && item.usageConditions === '躺在床上' ? ' checked' : ''}"></span>躺在床上</label>
+        <label class="checkbox-label"><span class="checkbox${item.checked && item.usageConditions === '坐在椅上及躺在床上' ? ' checked' : ''}"></span>坐在椅上及躺在床上</label>
       `;
 
     // 時段選項 - 顯示具體時間（僅當該項目被選中且有設定時間時才顯示）
-    const dayTimeText = item.checked && item.dayTime && item.dayStartTime && item.dayEndTime
-      ? ` (由${item.dayStartTime}時至${item.dayEndTime}時)`
+    const dayTimeText = item.checked && item.dayTime && item.dayStartTime && item.dayEndTime 
+      ? ` (由${item.dayStartTime}時至${item.dayEndTime}時)` 
       : '';
-    const nightTimeText = item.checked && item.nightTime && item.nightStartTime && item.nightEndTime
-      ? ` (由${item.nightStartTime}時至${item.nightEndTime}時)`
+    const nightTimeText = item.checked && item.nightTime && item.nightStartTime && item.nightEndTime 
+      ? ` (由${item.nightStartTime}時至${item.nightEndTime}時)` 
       : '';
 
     // 標籤顯示（其他類型顯示具體名稱）
-    const labelText = item.category === '7' && item.checked && item.otherRestraintType
-      ? `其他：${item.otherRestraintType}`
+    const labelText = item.category === '7' && item.checked && item.otherRestraintType 
+      ? `其他：${item.otherRestraintType}` 
       : item.label;
 
     // 時段選項 - 始終顯示，根據選取狀態決定是否打勾
     const timeOptions = `
-      <span class="opt">${cb(item.checked && item.dayTime)}日間${dayTimeText}</span>
-      <span class="opt">${cb(item.checked && item.nightTime)}晚上${nightTimeText}</span>
-      <span class="opt">${cb(item.checked && item.allDay)}全日</span>
-      <span class="opt">${cb(item.checked && !!item.otherTime)}其他：${item.checked && item.otherTime ? item.otherTime : ''}</span>
+      <label class="checkbox-label"><span class="checkbox${item.checked && item.dayTime ? ' checked' : ''}"></span>日間${dayTimeText}</label>
+      <label class="checkbox-label"><span class="checkbox${item.checked && item.nightTime ? ' checked' : ''}"></span>晚上${nightTimeText}</label>
+      <label class="checkbox-label"><span class="checkbox${item.checked && item.allDay ? ' checked' : ''}"></span>全日</label>
+      <label class="checkbox-label"><span class="checkbox${item.checked && item.otherTime ? ' checked' : ''}"></span>其他：${item.checked && item.otherTime ? item.otherTime : ''}</label>
     `;
 
     return `
       <tr>
-        <td class="item-no">${item.category}<br/>${cb(item.checked)}${labelText}</td>
+        <td class="item-no">${item.category}<br/><label class="checkbox-label"><span class="checkbox${item.checked ? ' checked' : ''}"></span>${labelText}</label></td>
         <td>${conditionOptions}</td>
         <td>${timeOptions}</td>
       </tr>
@@ -306,12 +305,12 @@ const generateConstraintTable = (config: {
   }).join('');
 
   return `
-    <table class="constraint-table">
+    <table class="data-table constraint-table">
       <thead>
         <tr>
-          <th style="width:25%;">約束物品種類<br/>編號及類別</th>
-          <th style="width:35%;">使用約束物品情況</th>
-          <th style="width:40%;">使用約束物品的時段</th>
+          <th style="width: 25%;">約束物品<br/>編號及類別</th>
+          <th style="width: 35%;">約束情況</th>
+          <th style="width: 40%;">約束時段</th>
         </tr>
       </thead>
       <tbody>
@@ -350,202 +349,244 @@ export const generateRestraintObservationHtml = (data: ExportData): string => {
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>身體約束物品觀察記錄表</title>
 <style>
-/* 基礎（螢幕）樣式在前；@media print 放最後，確保列印規則永遠贏
-   （printCombinedHtml 會拆殼 @media print，靠次序保證層疊正確） */
 @page {
   size: A4;
-  margin: 5mm;
-}
-* {
-  box-sizing: border-box;
-}
-body {
-  font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang TC", "Heiti TC", sans-serif;
-  margin: 0;
-  padding: 8px;
-  background-color: #f4f4f4;
-  font-size: 11px;
-  line-height: 1.3;
-  color: #222;
-}
-.page {
-  width: 200mm;
-  margin: 0 auto;
-  background-color: #fff;
-}
-.header {
-  text-align: center;
-  border-bottom: 1.5px solid #000;
-  padding-bottom: 1mm;
-  margin-bottom: 1.5mm;
-}
-.header h1 {
-  font-size: 16.5px;
-  font-weight: bold;
-  margin: 0 0 1mm 0;
-}
-.header .sub {
-  font-size: 10px;
-  color: #444;
-  margin: 0;
-}
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  margin-bottom: 1.5mm;
-}
-.info-row .v {
-  border-bottom: 1px solid #000;
-  padding: 0 2mm;
-  min-width: 30mm;
-  display: inline-block;
-  font-weight: bold;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-th, td {
-  border: 1px solid #000;
-  padding: 0.6mm 1.2mm;
-  vertical-align: middle;
-  font-size: 10px;
-  text-align: left;
-}
-th {
-  background-color: #e9ecef;
-  font-weight: bold;
-  text-align: center;
-}
-.cb {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border: 1px solid #333;
-  background: #fff;
-  margin-right: 1mm;
-  vertical-align: -1px;
-  position: relative;
-}
-.cb.on {
-  background: #333;
-}
-.cb.on::after {
-  content: '✓';
-  color: #fff;
-  font-size: 9px;
-  position: absolute;
-  top: -1px;
-  left: 1px;
-}
-.opt {
-  display: inline-flex;
-  align-items: center;
-  margin-right: 2mm;
-  white-space: nowrap;
-}
-.constraint-table {
-  margin-bottom: 1.5mm;
-}
-.constraint-table td.item-no {
-  font-weight: bold;
-}
-.notes {
-  display: flex;
-  gap: 4mm;
-  border: 1px solid #999;
-  padding: 1mm 2mm;
-  margin-bottom: 1.5mm;
-  font-size: 9px;
-}
-.notes .col {
-  flex: 1;
-}
-.notes h4 {
-  font-size: 10px;
-  margin: 0 0 1mm 0;
-  border-bottom: 1px solid #999;
-  padding-bottom: 0.5mm;
-}
-.notes ol, .notes ul {
-  margin: 0;
-  padding-left: 4mm;
-}
-.day-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5mm;
-}
-.day-table {
-  page-break-inside: avoid;
-}
-.day-table .day-date {
-  font-size: 11px;
-  background-color: #d9d9d9;
-}
-.day-table th, .day-table td {
-  text-align: center;
-  font-size: 9.5px;
-  padding: 0.5mm 1mm;
-  height: 6mm;
-}
-.day-table thead tr:nth-child(2) th {
-  font-size: 9px;
-}
-.blank-day {
-  display: inline-block;
-  width: 40px;
-  min-height: 1em;
-  border-bottom: 1px solid #000;
-  margin: 0 4px;
-  vertical-align: bottom;
-}
-.footer {
-  margin-top: 2mm;
-  border-top: 1px solid #000;
-  padding-top: 1mm;
-  font-size: 9px;
-}
-.footer p {
-  margin: 0;
-}
-.print-btn-container {
-  text-align: center;
-  margin: 14px 0;
-}
-.print-btn {
-  padding: 9px 24px;
-  font-size: 14px;
-  background-color: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+  margin: 4.75mm;
 }
 @media print {
+  html, body {
+    width: 210mm;
+    height: 297mm;
+  }
   body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     padding: 0;
     margin: 0;
-    background-color: #fff;
   }
   .no-print {
     display: none !important;
   }
-  .page {
-    width: 100%;
+  .form-container {
+    box-shadow: none;
+    border: none;
+    max-width: 100%;
+    padding: 2.85mm;
     margin: 0;
-    /* 內容唔夠一頁時，footer 釘喺頁底，唔留大段空白；內容超頁時自然流向第二頁（唔會被裁） */
-    min-height: 286mm;
+    height: 287mm;
     display: flex;
     flex-direction: column;
   }
-  .footer {
-    margin-top: auto;
-  }
+}
+body {
+  font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang TC", "Heiti TC", sans-serif;
+  margin: 0;
+  padding: 2px;
+  background-color: #f4f4f4;
+  font-size: 9.5px;
+  line-height: 1.24;
+  color: #333;
+}
+.form-container {
+  max-width: 210mm;
+  margin: 0 auto;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 9.5px rgba(0, 0, 0, 0.1);
+  padding: 3.8mm;
+}
+.header-section {
+  text-align: center;
+  margin-bottom: 2.85px;
+  border-bottom: 1.4px solid #000;
+  padding-bottom: 2px;
+}
+.main-title {
+  font-size: 13.3px;
+  font-weight: bold;
+  margin: 0 0 1px 0;
+}
+.sub-title {
+  font-size: 8.55px;
+  color: #555;
+  margin: 0;
+}
+.info-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3.8px;
+  font-size: 10.45px;
+}
+.info-item {
+  display: flex;
+  align-items: center;
+}
+.info-item span {
+  margin-right: 2.85px;
+}
+.underline-input {
+  border-bottom: 1px solid #000;
+  padding: 0 3.8px;
+  min-width: 85.5px;
+  height: 15.2px;
+  display: inline-block;
+}
+.prefilled {
+  font-weight: bold;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 3.8px;
+}
+.data-table th,
+.data-table td {
+  border: 1px solid #000;
+  padding: 2px 2.85px;
+  vertical-align: middle;
+  text-align: left;
+  font-size: 8.55px;
+}
+.data-table th {
+  background-color: #e9ecef;
+  font-weight: bold;
+  text-align: center;
+}
+.constraint-table {
+  margin-bottom: 2.85px;
+}
+.constraint-table .item-no {
+  width: 22%;
+  text-align: left;
+  font-weight: bold;
+  font-size: 9.5px;
+  padding: 2.85px 2px;
+}
+.constraint-table td {
+  font-size: 9.5px;
+  padding: 2.85px 3.8px;
+  line-height: 1.33;
+}
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 7.6px;
+  margin-bottom: 1px;
+  font-size: 9.5px;
+}
+.checkbox {
+  width: 10.45px;
+  height: 10.45px;
+  border: 1px solid #333;
+  display: inline-block;
+  margin-right: 2px;
+  background-color: #fff;
+  flex-shrink: 0;
+}
+.checkbox.checked {
+  background-color: #333;
+  position: relative;
+}
+.checkbox.checked::after {
+  content: '✓';
+  color: #fff;
+  font-size: 8.55px;
+  position: absolute;
+  top: -1px;
+  left: 1px;
+}
+.notes-section {
+  display: flex;
+  gap: 7.6px;
+  margin-bottom: 3.8px;
+  padding: 2.85px 4.75px;
+  border: 1px solid #ccc;
+  background-color: #fafafa;
+  font-size: 7.6px;
+}
+.notes-column {
+  flex: 1;
+}
+.notes-column h4 {
+  font-size: 8.55px;
+  margin-top: 0;
+  margin-bottom: 2.85px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 2px;
+  font-weight: bold;
+}
+.notes-column p, .notes-column div {
+  margin: 0 0 2px 0;
+}
+.notes-column ul, .notes-column ol {
+  padding-left: 13.3px;
+  margin: 0;
+}
+.notes-column li {
+  margin-bottom: 1px;
+}
+.observation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4.75px;
+  flex: 1;
+}
+.observation-table-container {
+  page-break-inside: avoid;
+}
+.observation-table th[colspan="6"] {
+  font-size: 9.5px;
+  padding: 2.85px;
+  background-color: #d9d9d9;
+}
+.observation-table th,
+.observation-table td {
+  padding: 2.85px 2px;
+  text-align: center;
+  height: 17.1px;
+  font-size: 8.55px;
+}
+.observation-table thead tr:nth-child(2) th {
+  font-size: 7.6px;
+  padding: 2px;
+}
+.observation-table .time-slot { width: 17%; }
+.observation-table .actual-time { width: 18%; }
+.observation-table .item-id { width: 17%; }
+.observation-table .remarks { width: 14%; }
+.observation-table .signature { width: 17%; }
+.observation-table .countersign { width: 17%; }
+.blank-day {
+  display: inline-block;
+  width: 60px;
+  min-height: 1em;
+  border-bottom: 1px solid #000;
+  margin: 0 6px;
+  vertical-align: bottom;
+}
+.footer-note {
+  margin-top: 2.85px;
+  padding-top: 2.85px;
+  border-top: 1px solid #000;
+  font-size: 7.6px;
+  color: #333;
+}
+.print-btn-container {
+  text-align: center;
+  margin: 14.25px 0;
+}
+.print-btn {
+  padding: 9.5px 23.75px;
+  font-size: 13.3px;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 5.7px;
+  cursor: pointer;
+}
+.print-btn:hover {
+  background-color: #1d4ed8;
 }
 </style>
 </head>
@@ -553,26 +594,35 @@ th {
 <div class="print-btn-container no-print">
   <button class="print-btn" onclick="window.print()">列印此頁</button>
 </div>
-<div class="page">
-<header class="header">
-<h1>身體約束物品觀察記錄表 (${startDateLabel} 至 ${endDateLabel})</h1>
-<p class="sub">(須最少每2小時檢查一次住客使用約束的情況)</p>
+<div class="form-container">
+<header class="header-section">
+<h1 class="main-title">身體約束物品觀察記錄表 (${startDateLabel} 至 ${endDateLabel})</h1>
+<p class="sub-title">(須最少每2小時檢查一次住客使用約束的情況)</p>
 </header>
-<div class="info-row">
-<span>院舍名稱：<span class="v">${facilityName}</span></span>
-<span>住客姓名：<span class="v">${patient.中文姓氏}${patient.中文名字}</span></span>
-<span>房及/或床號：<span class="v">${getPrintBedNumber(patient)}</span></span>
+<section class="info-section">
+<div class="info-item">
+<span>院舍名稱：</span>
+<span class="underline-input prefilled">${facilityName}</span>
 </div>
+<div class="info-item">
+<span>住客姓名：</span>
+<span class="underline-input prefilled">${patient.中文姓氏}${patient.中文名字}</span>
+</div>
+<div class="info-item">
+<span>房及/或床號：</span>
+<span class="underline-input prefilled">${getPrintBedNumber(patient)}</span>
+</div>
+</section>
 ${generateConstraintTable(config)}
-<div class="notes">
-<div class="col">
+<section class="notes-section">
+<div class="notes-column">
 <h4>觀察及留意事項</h4>
 <ol>
 <li>必須最少每2小時放鬆受約束的部位，讓住客舒展和活動身體。</li>
 <li>放鬆受約束的部位後觀察和檢查受約束住客的情況，包括：住客的血液循環、皮膚狀況、呼吸狀況、約束程度、清醒程度，情緒反應、約束的位置有否移位或鬆脫，住客的飲食及如厠需要。</li>
 </ol>
 </div>
-<div class="col">
+<div class="notes-column">
 <h4>備註代號</h4>
 <ul>
 <li><strong>N</strong> – 所有觀察項目正常</li>
@@ -580,11 +630,11 @@ ${generateConstraintTable(config)}
 <li><strong>S</strong> – 暫停使用約束物品</li>
 </ul>
 </div>
-</div>
-<div class="day-grid">
+</section>
+<div class="observation-grid">
 ${observationTables}
 </div>
-<footer class="footer">
+<footer class="footer-note">
 <p><strong>*加簽：</strong>主管/護士/保健員須每日最少一次抽查每位受約束住客的情況，以持續監察員工是否按照正確程序使用約束，並於抽查後在加簽格內簽署作實。</p>
 </footer>
 </div>
@@ -701,8 +751,7 @@ export const exportRestraintObservationRangeHtml = async (
     facilityName ?? (await (await import('./facilitySettings')).getFacilitySettings()).facilityNameZh;
   import('./printUtils').then(({ printCombinedHtml }) => {
     const pages = generateRestraintObservationRangeHtml(patient, records, assessment, startDate, endDate, includeDayNumber, resolvedFacilityName);
-    // 單面列印：多頁文件之間唔補空白頁
-    printCombinedHtml(pages, 'restraint-print-iframe', false, false);
+    printCombinedHtml(pages, 'restraint-print-iframe');
   });
 };
 
@@ -725,7 +774,6 @@ export const exportRestraintObservationsRangeHtml = async (
     items.forEach(({ patient, records, assessment }) => {
       pages.push(...generateRestraintObservationRangeHtml(patient, records, assessment, startDate, endDate, includeDayNumber, resolvedFacilityName));
     });
-    // 單面列印：多頁文件之間唔補空白頁
-    printCombinedHtml(pages, 'restraint-print-iframe', false, false);
+    printCombinedHtml(pages, 'restraint-print-iframe');
   });
 };
