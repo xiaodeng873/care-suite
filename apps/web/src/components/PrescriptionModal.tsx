@@ -1654,8 +1654,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
             />
           </div>
 
-          {/* 處方標籤預覽（熱感紙 40mm × 30mm 橫向比例） */}
-          {(() => {
+          {/* 處方標籤預覽（熱感紙 40mm × 30mm 橫向比例）；PRN、冇服用時間點、單位並非「粒」嘅處方唔生成標籤 */}
+          {formData.dosage_unit === '粒' && !formData.is_prn && (formData.medication_time_slots?.length ?? 0) > 0 && (() => {
             const label = buildLabelContent(
               {
                 中文姓名: selectedPatient?.中文姓名,

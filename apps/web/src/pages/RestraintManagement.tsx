@@ -56,6 +56,14 @@ interface AdvancedFilters {
   在住狀態: string;
 }
 
+// 觀察期間半個月預填：開始日 1–15 號 → 結束當月 15 日；16 號起 → 結束該月最後一日
+const calcHalfMonthEnd = (startIso: string): string => {
+  if (!startIso) return '';
+  const [y, m, d] = startIso.split('-').map(Number);
+  const endDay = d <= 15 ? 15 : new Date(y, m, 0).getDate();
+  return `${startIso.slice(0, 7)}-${String(endDay).padStart(2, '0')}`;
+};
+
 const RestraintManagement: React.FC = () => {
   const { patientRestraintAssessments, deletePatientRestraintAssessment, updatePatientRestraintAssessment, loading } = usePatientData();
   const { refreshAssessmentData } = useAssessment();
@@ -85,9 +93,9 @@ const RestraintManagement: React.FC = () => {
   const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
   const [showObservationDateRangeModal, setShowObservationDateRangeModal] = useState(false);
   const [showObservationDayMappingModal, setShowObservationDayMappingModal] = useState(false);
-  const [observationDateRange, setObservationDateRange] = useState({
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 預設一週後
+  const [observationDateRange, setObservationDateRange] = useState(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return { startDate: today, endDate: calcHalfMonthEnd(today) }; // 預設半個月範圍
   });
   const [observationIncludeDayNumber, setObservationIncludeDayNumber] = useState(true);
   const [showRecycleBin, setShowRecycleBin] = useState(false);
@@ -1231,7 +1239,7 @@ const RestraintManagement: React.FC = () => {
                   開始日期 *
                 </label>
                 <DateInput value={observationDateRange.startDate}
-                  onChange={(value) => setObservationDateRange(prev => ({ ...prev, startDate: value }))}
+                  onChange={(value) => setObservationDateRange(prev => ({ ...prev, startDate: value, endDate: value ? calcHalfMonthEnd(value) : prev.endDate }))}
                   className="form-input"
                   required
                 />

@@ -420,10 +420,12 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           }
         }
 
-        if (includePrescriptionLabels && currentPatientPrescriptionsToExport.length > 0) {
-          printPrescriptionLabels(
-            currentPatientPrescriptionsToExport.map((p) => buildLabelContent(currentPatient.patient, p))
-          );
+        if (includePrescriptionLabels) {
+          // PRN、冇服用時間點、單位並非「粒」嘅處方唔生成標籤
+          const labelContents = currentPatientPrescriptionsToExport
+            .filter((p) => p.dosage_unit === '粒' && !p.is_prn && (p.medication_time_slots?.length ?? 0) > 0)
+            .map((p) => buildLabelContent(currentPatient.patient, p));
+          if (labelContents.length > 0) printPrescriptionLabels(labelContents);
         }
       } else {
         const selectedPatients = activePatients.
@@ -522,7 +524,9 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
         if (includePrescriptionLabels) {
           const labelContents = selectedPatients.flatMap((patient) =>
-            patient.prescriptions.map((p) => buildLabelContent(patient, p)));
+            patient.prescriptions
+              .filter((p) => p.dosage_unit === '粒' && !p.is_prn && (p.medication_time_slots?.length ?? 0) > 0)
+              .map((p) => buildLabelContent(patient, p)));
           if (labelContents.length > 0) {
             printPrescriptionLabels(labelContents);
           } else {

@@ -1245,15 +1245,21 @@ const renderBodyTable = (
         + `<td class="c-route" rowspan="${MIN_SLOT_ROWS + 1}">&nbsp;</td>`
         + `<td class="c-time">&nbsp;</td>${dayNumberCells(dayCount)}</tr>`
       : '';
-    const fillerRow1 = `<tr class="mr-sign-row mr-filler-row">`
+    // 本頁冇真實處方區塊（空白藥紙）時，表頭已有 1–31 日期列，第一個 filler 唔再重複日期列，
+    // 改回無日期列嘅合併形式（name/route rowspan 少一行）
+    const suppressFirstDayhead = withDayhead && page.blocks.length === 0;
+    const fillerRows = `<tr class="mr-sign-row mr-filler-row">`
       + `<td class="c-date mr-filler-date">開始日期</td>`
       + nameRouteCells
-      + `<td class="c-time">&nbsp;</td>${dayCells}</tr>`;
-    const fillerRow2 = `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">&nbsp;</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
-    const fillerRow3 = `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">處方日期</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
-    const fillerRow4 = `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">&nbsp;</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
-    const fillerBlock = fillerDayhead + fillerRow1 + fillerRow2 + fillerRow3 + fillerRow4;
-    fillerBodies = Array(missingSlots).fill(`<tbody class="mr-filler-block">${fillerBlock}</tbody>`).join('');
+      + `<td class="c-time">&nbsp;</td>${dayCells}</tr>`
+      + `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">&nbsp;</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`
+      + `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">處方日期</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`
+      + `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">&nbsp;</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
+    const fillerBlockNoDayhead = `<tbody class="mr-filler-block">${fillerRows}</tbody>`;
+    const fillerBlockWithDayhead = `<tbody class="mr-filler-block">${fillerDayhead}${fillerRows}</tbody>`;
+    fillerBodies = Array(missingSlots).fill(null).map((_, i) =>
+      (suppressFirstDayhead && i === 0) ? fillerBlockNoDayhead : fillerBlockWithDayhead
+    ).join('');
   }
 
   // 每個處方區塊各自包裹在 <tbody> 中，以便 CSS 選取相鄰 tbody 加深分隔線

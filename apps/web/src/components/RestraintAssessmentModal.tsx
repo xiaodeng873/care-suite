@@ -264,13 +264,17 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
   };
 
   const handleAlternativeOptionChange = (option: string, checked: boolean) => {
-    setFormData((prev) => ({
-      ...prev,
-      alternatives: {
+    setFormData((prev) => {
+      const alternatives = {
         ...prev.alternatives,
         [option]: checked
+      };
+      // 勾選時如未填評估日期，預填今日
+      if (checked && !alternatives[`${option}_評估日期`]) {
+        alternatives[`${option}_評估日期`] = getHongKongDate();
       }
-    }));
+      return { ...prev, alternatives };
+    });
   };
 
   const handleRestraintChange = (restraint: string, field: string, value: any) => {
@@ -664,17 +668,44 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                 <p className="text-sm text-gray-600">（請在合適的方格內加上「✓」號，可作多項選擇）</p>
                 
                 <div className="space-y-2">
-                  {alternativeOptions.map((option) =>
-                  <label key={option} className="flex items-start gap-2">
-                      <input
-                      type="checkbox"
-                      checked={formData.alternatives[option] || false}
-                      onChange={(e) => handleAlternativeOptionChange(option, e.target.checked)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5" />
-                    
-                      <span className="text-sm text-gray-700">{option}</span>
-                    </label>
-                  )}
+                  {alternativeOptions.map((option) => {
+                    const checked = formData.alternatives[option] || false;
+                    return (
+                      <div key={option} className="flex items-start gap-2">
+                        <label className="flex items-start gap-2 flex-1 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => handleAlternativeOptionChange(option, e.target.checked)}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5" />
+                          <span className="text-sm text-gray-700">{option}</span>
+                        </label>
+                        {/* 勾選後右方出現評估日期（預填今日）同備註輸入項 */}
+                        {checked &&
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <DateInput
+                              value={formData.alternatives[`${option}_評估日期`] || ''}
+                              onChange={(iso) => setFormData((prev) => ({
+                                ...prev,
+                                alternatives: { ...prev.alternatives, [`${option}_評估日期`]: iso }
+                              }))}
+                              className="!w-32 !px-2 !py-1 text-sm"
+                            />
+                            <input
+                              type="text"
+                              value={formData.alternatives[`${option}_備註`] || ''}
+                              onChange={(e) => setFormData((prev) => ({
+                                ...prev,
+                                alternatives: { ...prev.alternatives, [`${option}_備註`]: e.target.value }
+                              }))}
+                              placeholder="備註"
+                              className="form-input text-sm !w-40 !py-1"
+                            />
+                          </div>
+                        }
+                      </div>
+                    );
+                  })}
                 </div>
                 
                 {/* 其他說明文字區域 */}

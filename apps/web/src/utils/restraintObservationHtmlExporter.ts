@@ -292,7 +292,7 @@ const generateConstraintTable = (config: {
       <label class="checkbox-label"><span class="checkbox${item.checked && item.dayTime ? ' checked' : ''}"></span>日間${dayTimeText}</label>
       <label class="checkbox-label"><span class="checkbox${item.checked && item.nightTime ? ' checked' : ''}"></span>晚上${nightTimeText}</label>
       <label class="checkbox-label"><span class="checkbox${item.checked && item.allDay ? ' checked' : ''}"></span>全日</label>
-      ${item.checked && item.otherTime ? `<label class="checkbox-label"><span class="checkbox checked"></span>其他：${item.otherTime}</label>` : ''}
+      <label class="checkbox-label"><span class="checkbox${item.checked && item.otherTime ? ' checked' : ''}"></span>其他：${item.checked && item.otherTime ? item.otherTime : ''}</label>
     `;
 
     return `

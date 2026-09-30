@@ -1062,7 +1062,7 @@ const MedicationWorkflow: React.FC = () => {
   const dateOverdueStatus = useMemo(() => {
     return calculateOverdueCountByDate(recordsWithOptimisticUpdates, weekDates, prescriptions);
   }, [recordsWithOptimisticUpdates, weekDates, prescriptions]);
-  // 計算藥物數量統計
+  // 計算藥物數量參考
   const medicationStats = useMemo(() => {
     const timeSlotStats: { [timeSlot: string]: { [dosageForm: string]: { count: number; totalAmount: number; unit: string } } } = {};
     activePrescriptions.forEach(prescription => {
