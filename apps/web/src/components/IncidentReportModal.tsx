@@ -5,6 +5,8 @@ import PatientAutocomplete from './PatientAutocomplete';
 import { getIncidentPresetOptions, createIncidentPresetOption, deleteIncidentPresetOption, type IncidentPresetOption } from '../lib/database';
 import React, { useState, useEffect } from 'react';
 import DateInput from './DateInput';
+import { generateIncidentDetailsByAi } from '../utils/aiIncidentSummary';
+import { toast } from '../utils/toast';
 
 interface IncidentReportModalProps {
   report?: IncidentReport;
@@ -175,6 +177,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
   };
 
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [isGeneratingAiSummary, setIsGeneratingAiSummary] = useState(false);
   const [showPatrolTimePopover, setShowPatrolTimePopover] = useState(false);
   const [recentPatrolTimes, setRecentPatrolTimes] = useState<Array<{time: string;date: string;}>>([]);
 
@@ -246,8 +249,8 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
     }
   }, [showPatrolTimePopover, formData.patient_id, formData.incident_date, patrolRounds]);
 
-  // 生成意外經過摘要
-  const generateIncidentSummary = () => {
+  // 生成意外經過摘要（公式版，做 AI 失敗時嘅後備）
+  const generateIncidentSummaryFormula = () => {
     const patient = patients.find((p) => p.院友id === parseInt(formData.patient_id));
     if (!patient) {
       alert('請先選擇院友');
@@ -410,6 +413,25 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
     }));
 
 
+  };
+
+  // 生成意外經過摘要（AI 版：根據 modal 欄位內容由 AI 撰寫詳情；失敗時 toast 提示並退回公式版）
+  const generateIncidentSummary = async () => {
+    const patient = patients.find((p) => p.院友id === parseInt(formData.patient_id));
+    if (!patient) {
+      alert('請先選擇院友');
+      return;
+    }
+    setIsGeneratingAiSummary(true);
+    try {
+      const details = await generateIncidentDetailsByAi(patient.中文姓名, formData);
+      setFormData((prev) => ({ ...prev, incident_details: details }));
+    } catch (err: any) {
+      toast.info(`AI 生成失敗（${err?.message || '未知錯誤'}），已改用公式版摘要`);
+      generateIncidentSummaryFormula();
+    } finally {
+      setIsGeneratingAiSummary(false);
+    }
   };
 
   // 插入選中的即時改善行動選項到 textarea
@@ -947,9 +969,10 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
               <button
                 type="button"
                 onClick={generateIncidentSummary}
-                className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
-                
-                生成意外經過摘要
+                disabled={isGeneratingAiSummary}
+                className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+
+                {isGeneratingAiSummary ? 'AI 生成中…' : 'AI 生成意外經過摘要'}
               </button>
             </div>
             <textarea
