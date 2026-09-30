@@ -364,7 +364,7 @@ body {
   margin: 0;
   padding: 8px;
   background-color: #f4f4f4;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.3;
   color: #222;
 }
@@ -376,16 +376,16 @@ body {
 .header {
   text-align: center;
   border-bottom: 1.5px solid #000;
-  padding-bottom: 1mm;
-  margin-bottom: 1.5mm;
+  padding-bottom: 0.5mm;
+  margin-bottom: 1mm;
 }
 .header h1 {
-  font-size: 16.5px;
+  font-size: 18px;
   font-weight: bold;
-  margin: 0 0 1mm 0;
+  margin: 0 0 0.5mm 0;
 }
 .header .sub {
-  font-size: 10px;
+  font-size: 11px;
   color: #444;
   margin: 0;
 }
@@ -393,8 +393,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
-  margin-bottom: 1.5mm;
+  font-size: 13px;
+  margin-bottom: 1mm;
 }
 .info-row .v {
   border-bottom: 1px solid #000;
@@ -409,10 +409,11 @@ table {
 }
 th, td {
   border: 1px solid #000;
-  padding: 0.6mm 1.2mm;
+  padding: 0.4mm 1.2mm;
   vertical-align: middle;
-  font-size: 10px;
+  font-size: 11px;
   text-align: left;
+  line-height: 1.2;
 }
 th {
   background-color: #e9ecef;
@@ -421,8 +422,8 @@ th {
 }
 .cb {
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   border: 1px solid #333;
   background: #fff;
   margin-right: 1mm;
@@ -435,7 +436,7 @@ th {
 .cb.on::after {
   content: '✓';
   color: #fff;
-  font-size: 9px;
+  font-size: 10px;
   position: absolute;
   top: -1px;
   left: 1px;
@@ -443,11 +444,11 @@ th {
 .opt {
   display: inline-flex;
   align-items: center;
-  margin-right: 2mm;
+  margin-right: 1mm;
   white-space: nowrap;
 }
 .constraint-table {
-  margin-bottom: 1.5mm;
+  margin-bottom: 1mm;
 }
 .constraint-table td.item-no {
   font-weight: bold;
@@ -456,16 +457,17 @@ th {
   display: flex;
   gap: 4mm;
   border: 1px solid #999;
-  padding: 1mm 2mm;
-  margin-bottom: 1.5mm;
-  font-size: 9px;
+  padding: 0.5mm 2mm;
+  margin-bottom: 1mm;
+  font-size: 10px;
+  line-height: 1.2;
 }
 .notes .col {
   flex: 1;
 }
 .notes h4 {
-  font-size: 10px;
-  margin: 0 0 1mm 0;
+  font-size: 11px;
+  margin: 0 0 0.5mm 0;
   border-bottom: 1px solid #999;
   padding-bottom: 0.5mm;
 }
@@ -476,7 +478,7 @@ th {
 .day-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5mm;
+  gap: 1mm;
 }
 .day-table {
   page-break-inside: avoid;
@@ -503,10 +505,10 @@ th {
   vertical-align: bottom;
 }
 .footer {
-  margin-top: 2mm;
+  margin-top: 1.5mm;
   border-top: 1px solid #000;
-  padding-top: 1mm;
-  font-size: 9px;
+  padding-top: 0.5mm;
+  font-size: 10px;
 }
 .footer p {
   margin: 0;

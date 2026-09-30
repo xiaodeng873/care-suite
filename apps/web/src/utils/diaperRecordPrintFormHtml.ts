@@ -65,9 +65,6 @@ const pageBlock = (name: string, bed: string, yearMonth: string, facilityName: s
       <div><span>月份/年份：</span><span class="ul">${yearMonth}</span></div>
     </div>
     <table class="rt"><tbody>${days}</tbody></table>
-    <div class="footer">
-      <div class="page-num"></div>
-    </div>
   </div></div>`;
 };
 
@@ -86,24 +83,24 @@ export const generateDiaperRecordPrintFormHtml = (patients: Patient[], yearMonth
    padding-top（每頁都生效），@page 上 margin 由一開始就係 0 */
 @page { size: A4 landscape; margin: 0 6mm 6mm 6mm; }
 * { box-sizing: border-box; }
-body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-serif; margin:0; padding:0; background:#f4f4f4; font-size:10px; color:#000; }
+body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-serif; margin:0; padding:0; background:#f4f4f4; font-size:11px; color:#000; }
 .no-print { text-align:center; margin:10px; }
-.no-print button { padding:8px 20px; font-size:12px; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer; }
-.page { width:100%; height:198mm; overflow:hidden; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; padding-top:6mm; }
+.no-print button { padding:8px 20px; font-size:13px; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer; }
+.page { width:100%; height:204mm; overflow:hidden; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; padding-top:6mm; }
 .inner { width:100%; flex:1; display:flex; flex-direction:column; min-height:0; }
-.inst { text-align:center; font-size:16px; font-weight:bold; }
-.title { text-align:center; font-size:14px; font-weight:bold; margin:2px 0 4px; }
-.info { display:flex; justify-content:center; gap:40px; margin-bottom:3px; font-size:12px; }
+.inst { text-align:center; font-size:18px; font-weight:bold; }
+.title { text-align:center; font-size:16px; font-weight:bold; margin:2px 0 4px; }
+.info { display:flex; justify-content:center; gap:40px; margin-bottom:4px; font-size:13px; }
 .ul { border-bottom:1px solid #000; padding:0 30px; font-weight:bold; }
-.rt { width:100%; border-collapse:collapse; table-layout:fixed; }
-.rt th,.rt td { border:1px solid #000; text-align:center; vertical-align:middle; padding:2px; overflow:hidden; }
-.hc { background:#e9ecef; font-weight:bold; height:5mm; }
-.sm { font-size:8px; height:3.5mm; }
-.cb { height:5.5mm; white-space:nowrap; font-size:9px; }
-.dc { width:34px; font-weight:bold; }
-.sig { width:40px; }
+.rt { width:100%; height:100%; border-collapse:collapse; table-layout:fixed; flex:1; min-height:0; }
+.rt th,.rt td { border:1px solid #000; text-align:center; vertical-align:middle; padding:1px; overflow:hidden; }
+.hc { background:#e9ecef; font-weight:bold; height:4.5mm; font-size:11.5px; }
+.sm { font-size:9.5px; height:3mm; }
+.cb { height:5.4mm; white-space:nowrap; font-size:10.5px; }
+.dc { width:28px; font-weight:bold; }
+.sig { width:32px; }
 .sep td { border:none; height:1.5mm; background:#d9d9d9; }
-.footer { margin-top:auto; display:flex; justify-content:flex-end; position:relative; height:30px; }
+.footer { margin-top:auto; display:flex; justify-content:flex-end; position:relative; height:20px; }
 .page-num { position:absolute; left:50%; transform:translateX(-50%); font-size:24px; font-weight:bold; bottom:0; }
 @media print { body{background:#fff;} .no-print{display:none!important;} .page{box-shadow:none;margin:0;} }
 </style></head>
@@ -242,9 +239,6 @@ const buildDiaperRangePage = (
       <div><span>日期範圍：</span><span class="ul">${dateRangeLabel}</span></div>
     </div>
     <table class="rt"><tbody>${days}</tbody></table>
-    <div class="footer">
-      <div class="page-num"></div>
-    </div>
   </div></div>`;
 };
 
@@ -277,25 +271,25 @@ export const generateDiaperRecordFormForDateRange = (
    padding-top（每頁都生效），@page 上 margin 由一開始就係 0 */
 @page { size: A4 landscape; margin: 0 6mm 6mm 6mm; }
 * { box-sizing: border-box; }
-body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-serif; margin:0; padding:0; background:#f4f4f4; font-size:10px; color:#000; }
+body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-serif; margin:0; padding:0; background:#f4f4f4; font-size:11px; color:#000; }
 .no-print { text-align:center; margin:10px; }
-.no-print button { padding:8px 20px; font-size:12px; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer; }
-.page { width:100%; height:198mm; overflow:hidden; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; padding-top:6mm; }
+.no-print button { padding:8px 20px; font-size:13px; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer; }
+.page { width:100%; height:204mm; overflow:hidden; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; padding-top:6mm; }
 .page:last-child { page-break-after: avoid; }
 .inner { width:100%; flex:1; display:flex; flex-direction:column; min-height:0; }
-.inst { text-align:center; font-size:16px; font-weight:bold; }
-.title { text-align:center; font-size:14px; font-weight:bold; margin:2px 0 4px; }
-.info { display:flex; justify-content:center; gap:40px; margin-bottom:3px; font-size:12px; }
+.inst { text-align:center; font-size:18px; font-weight:bold; }
+.title { text-align:center; font-size:16px; font-weight:bold; margin:2px 0 4px; }
+.info { display:flex; justify-content:center; gap:40px; margin-bottom:4px; font-size:13px; }
 .ul { border-bottom:1px solid #000; padding:0 30px; font-weight:bold; }
-.rt { width:100%; border-collapse:collapse; table-layout:fixed; }
-.rt th,.rt td { border:1px solid #000; text-align:center; vertical-align:middle; padding:2px; overflow:hidden; }
-.hc { background:#e9ecef; font-weight:bold; height:5mm; }
-.sm { font-size:8px; height:3.5mm; }
-.cb { height:5.5mm; white-space:nowrap; font-size:9px; }
-.dc { width:34px; font-weight:bold; }
-.sig { width:40px; }
+.rt { width:100%; height:100%; border-collapse:collapse; table-layout:fixed; flex:1; min-height:0; }
+.rt th,.rt td { border:1px solid #000; text-align:center; vertical-align:middle; padding:1px; overflow:hidden; }
+.hc { background:#e9ecef; font-weight:bold; height:4.5mm; font-size:11.5px; }
+.sm { font-size:9.5px; height:3mm; }
+.cb { height:5.4mm; white-space:nowrap; font-size:10.5px; }
+.dc { width:28px; font-weight:bold; }
+.sig { width:32px; }
 .sep td { border:none; height:1.5mm; background:#d9d9d9; }
-.footer { margin-top:auto; display:flex; justify-content:flex-end; position:relative; height:30px; }
+.footer { margin-top:auto; display:flex; justify-content:flex-end; position:relative; height:20px; }
 .page-num { position:absolute; left:50%; transform:translateX(-50%); font-size:24px; font-weight:bold; bottom:0; }
 @media print { body{background:#fff;} .no-print{display:none!important;} .page{box-shadow:none;margin:0;} }
 </style></head>
