@@ -1227,3 +1227,225 @@ ul, ol {
     scroll-behavior: auto;
   }
 }
+
+/* ============ 2026-09 設計豐富化 ============ */
+
+/* Browser frame 截圖展示元件 */
+.browser-frame {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  background-color: var(--color-bg-elevated);
+}
+
+.browser-frame-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background-color: var(--color-bg-soft);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.browser-frame-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.browser-frame-dots span {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.browser-frame-dots span:nth-child(1) { background-color: #F87171; }
+.browser-frame-dots span:nth-child(2) { background-color: #FBBF24; }
+.browser-frame-dots span:nth-child(3) { background-color: #34D399; }
+
+.browser-frame-url {
+  flex: 1;
+  max-width: 320px;
+  margin: 0 auto;
+  padding: 3px 14px;
+  border-radius: 9999px;
+  background-color: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-subtle);
+  font-size: 0.75rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.browser-frame img {
+  width: 100%;
+  display: block;
+}
+
+/* Hero 雙欄：左文案右產品截圖 */
+.hero-visual {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .hero-layout {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: var(--space-7);
+  }
+  .hero-visual {
+    display: block;
+    position: relative;
+  }
+  .hero-visual .browser-frame {
+    transform: rotate(1deg);
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+  }
+  .hero-visual .browser-frame:hover {
+    transform: rotate(0deg) translateY(-4px);
+    box-shadow: 0 24px 48px -12px rgba(37, 99, 235, 0.25), var(--shadow-lg);
+  }
+}
+
+/* Hero 背景點陣層 */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(color-mix(in srgb, var(--color-primary) 14%, transparent) 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 75%);
+  pointer-events: none;
+}
+
+.hero .container {
+  position: relative;
+  z-index: 1;
+}
+
+/* 數字帶 */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-5);
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .stats-strip {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-primary);
+  letter-spacing: -0.02em;
+}
+
+.stat-number small {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.stat-label {
+  margin-top: var(--space-2);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+/* 「新功能」徽章 */
+.card-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  background-color: #FEF3C7;
+  color: #B45309;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: var(--space-2);
+  vertical-align: middle;
+  letter-spacing: 0.02em;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .card-badge {
+    background-color: rgba(245, 158, 11, 0.18);
+    color: #FBBF24;
+  }
+}
+
+:root.dark .card-badge {
+  background-color: rgba(245, 158, 11, 0.18);
+  color: #FBBF24;
+}
+
+/* 卡片 icon 漸層 + hover 微互動 */
+.card-icon {
+  background-image: linear-gradient(135deg, var(--color-primary-light) 0%, color-mix(in srgb, var(--color-primary-light) 35%, transparent) 100%);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card:hover .card-icon {
+  transform: scale(1.08) rotate(-3deg);
+  box-shadow: var(--shadow-md);
+}
+
+/* 按鈕微光 */
+.btn-primary {
+  box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -4px color-mix(in srgb, var(--color-primary) 60%, transparent);
+}
+
+.btn-secondary {
+  box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+
+/* CTA 區塊斜切層次 */
+.cta-section::after {
+  content: '';
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: -60px;
+  height: 160px;
+  background: color-mix(in srgb, var(--color-primary-dark) 55%, transparent);
+  transform: rotate(-2.5deg);
+  pointer-events: none;
+}
+
+/* Footer 頂部品牌細線 */
+.footer {
+  border-top: 3px solid var(--color-primary);
+}
+
+/* 滾動淡入（JS IntersectionObserver 驅動） */
+html.js .reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+html.js .reveal-visible, html:not(.js) .reveal {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-delay-1 { transition-delay: 0.08s; }
+.reveal-delay-2 { transition-delay: 0.16s; }
+.reveal-delay-3 { transition-delay: 0.24s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

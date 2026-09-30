@@ -9,6 +9,8 @@
 <script>
   // Apply saved theme or system preference before render to avoid flash
   (function() {
+    // 有 JS 先至隱藏 .reveal 元素（無 JS 時內容保持可見）
+    document.documentElement.classList.add('js');
     const saved = localStorage.getItem('cs-theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     if (saved === 'dark' || (!saved && prefersDark)) {

@@ -15,7 +15,7 @@ import DateInput from './DateInput';
 import InstitutionAutocomplete from './InstitutionAutocomplete';
 import { type MedicationInspectionRule } from '../lib/database';
 import { getMealTimings, toMealTimingPayload, formatMealTimings, AUTO_PREFIX_SLOTS, slotSupportsHours, type MealTimings, type MealTimingConnector } from '../utils/mealTiming';
-import { buildLabelContent, printPrescriptionLabels } from '../utils/prescriptionLabelHtmlGenerator';
+import { buildLabelContent, printPrescriptionLabels, slotFontSizePt } from '../utils/prescriptionLabelHtmlGenerator';
 import { getDrugAdjustmentTriggersForSave, type DrugAdjustmentReminderItem } from '../utils/drugAdjustmentCheck';
 import { compressToJpegBlob, uploadImage, deleteImageByUrl, isStorageUrl } from '../utils/storageUpload';
 import { PRESCRIPTION_IMAGES_BUCKET } from '../utils/patientPhotoUpload';
@@ -1668,9 +1668,17 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 dosage_amount: formData.dosage_amount,
                 dosage_unit: formData.dosage_unit,
                 is_prn: formData.is_prn,
-                end_date: formData.end_date || estimatedEndDate || undefined,
+                // 推算嘅預計結束日期經 estimated_end_date 分開傳（PRN 唔會印推算日期）
+                end_date: formData.end_date || undefined,
+                estimated_end_date: estimatedEndDate || undefined,
                 medication_quantity: formData.medication_quantity,
                 duration_days: formData.duration_days,
+                frequency_type: formData.frequency_type,
+                is_odd_even_day: formData.is_odd_even_day,
+                frequency_value: formData.frequency_value,
+                start_date: formData.start_date,
+                last_taken_date: formData.last_taken_date,
+                prescription_date: formData.prescription_date,
               }
             );
             return (
@@ -1681,19 +1689,34 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                     className="border border-gray-300 bg-white"
                     style={{ width: '240px', height: '180px', padding: '9px 12px 6px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
                   >
-                    <div style={{ fontSize: '13px', fontWeight: 700, lineHeight: 1.15 }}>{label.patientName || '（院友姓名）'}</div>
-                    <div style={{ fontSize: '11px', fontWeight: 700, lineHeight: 1.15, marginTop: '2px', wordBreak: 'break-all' }}>{label.drugName || '（藥物名稱）'}</div>
-                    <div style={{ minHeight: '3px' }} />
-                    {label.dosageLines.length > 0 ? (
-                      label.dosageLines.map((l, i) => (
-                        <div key={i} style={{ fontSize: '19px', fontWeight: 900, lineHeight: 1.25 }}>{l}</div>
-                      ))
-                    ) : (
-                      <div style={{ fontSize: '12px', color: '#9ca3af' }}>（未設服用時間點）</div>
-                    )}
-                    {label.endDateLine && (
-                      <div style={{ marginTop: 'auto', fontSize: '13px', fontWeight: 700, lineHeight: 1.2 }}>{label.endDateLine}</div>
-                    )}
+                    <div style={{ flex: '0 0 auto' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 700, lineHeight: 1.15 }}>{label.patientName || '（院友姓名）'}</div>
+                      <div style={{ fontSize: '11px', fontWeight: 700, lineHeight: 1.15, marginTop: '2px', wordBreak: 'break-all' }}>{label.drugName || '（藥物名稱）'}</div>
+                    </div>
+                    <div style={{ flex: '0 0 auto', borderTop: '1.5px solid #000', margin: '5px 0' }} />
+                    <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'row', minHeight: 0, minWidth: 0 }}>
+                      <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
+                        <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 0 }}>
+                          {label.dosageLines.length > 0 ? (
+                            label.dosageLines.map((l, i) => (
+                              <div key={i} style={{ fontSize: `${Math.round(slotFontSizePt(label.dosageLines.length, Boolean(label.endDateLine)) * 19 / 13)}px`, fontWeight: 900, lineHeight: 1.25 }}>{l}</div>
+                            ))
+                          ) : (
+                            <div style={{ fontSize: '12px', color: '#9ca3af' }}>（未設服用時間點）</div>
+                          )}
+                        </div>
+                        {label.endDateLine && (
+                          <div style={{ flex: '0 0 auto', fontSize: '13px', fontWeight: 700, lineHeight: 1.2 }}>{label.endDateLine}</div>
+                        )}
+                      </div>
+                      {label.oddEvenMonths && (
+                        <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', justifyContent: 'center', borderLeft: '1px solid #000', paddingLeft: '7px', marginLeft: '9px', fontSize: '9px', fontWeight: 700, lineHeight: 1.25, whiteSpace: 'nowrap' }}>
+                          {label.oddEvenMonths.map((mo, i) => (
+                            <div key={i}>{mo}；</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-2 pt-1">
                     <button

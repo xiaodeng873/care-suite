@@ -30,8 +30,20 @@
         <article class="card">
           <h3 class="card-title">處方管理三態流轉（處方標籤 AI 錄入）</h3>
           <p class="pain-point"><strong>痛點：</strong>處方如有改變須即日更新藥物紀錄，新舊處方交接期最易派錯藥。</p>
-          <p class="solution"><strong>解決：</strong>處方分在服/待變更/停用三態，到期待停處方自動轉停用；上傳處方標籤圖片 AI 識別，核對後填入處方資料。</p>
+          <p class="solution"><strong>解決：</strong>處方分在服/待變更/停用三態，到期待停處方自動轉停用；上傳處方標籤圖片 AI 識別，核對後填入處方資料。支援「另存」快速開新處方（沿用舊資料，日期自動用今日）；開始/結束時間按下次服用時間智能預填；支援餐前 N 小時時間點；糖尿、血壓藥物可設調節監測提醒。</p>
           <div class="fd-frame mt-4" id="x-rx-ocr"></div>
+        </article>
+        <article class="card">
+          <h3 class="card-title">處方標籤熱感紙列印<span class="card-badge">新功能</span></h3>
+          <p class="pain-point"><strong>痛點：</strong>藥袋標籤手寫字跡潦草，院友同家屬睇唔清楚幾點食幾多粒，食錯藥風險高。</p>
+          <p class="solution"><strong>解決：</strong>40×30mm 熱感標籤一鍵列印：院友姓名、藥名、服用時間點×劑量特大粗體直排；多過 3 個時間點自動縮字；PRN 處方唔會印推算完結日期，避免誤導。</p>
+          <div class="browser-frame" style="margin-top: var(--space-4); max-width: 720px;">
+            <div class="browser-frame-bar">
+              <div class="browser-frame-dots"><span></span><span></span><span></span></div>
+              <div class="browser-frame-url">處方標籤 40mm × 30mm 實物輸出</div>
+            </div>
+            <img src="/images/screenshots/prescription-label.png" alt="處方標籤實物：院友姓名、藥名、服用時間點×劑量特大直排，PRN 標籤只顯示需要時" loading="lazy" />
+          </div>
         </article>
         <article class="card">
           <h3 class="card-title">eMAR 藥物工作流程（三簽制度）</h3>

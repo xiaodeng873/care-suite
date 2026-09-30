@@ -1,0 +1,100 @@
+<!doctype html><html class="light"><head><meta charset="utf-8"><style>
+  @page { size: 40mm 30mm; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body { font-family: "Microsoft JhengHei", "PingFang HK", "Noto Sans HK", sans-serif; color: #000; }
+  .label {
+    width: 40mm; height: 30mm; overflow: hidden;
+    padding: 1.5mm 2mm 1mm;
+    display: flex; flex-direction: column;
+  }
+  .top { flex: 0 0 auto; }
+  .name { font-size: 9pt; font-weight: 700; line-height: 1.15; }
+  .drug { font-size: 7.5pt; font-weight: 700; line-height: 1.15; margin-top: 0.5mm;
+          word-break: break-all; }
+  /* 兩區分隔線：上區姓名+藥名，下區其餘 */
+  .divider { flex: 0 0 auto; border-top: 0.35mm solid #000; margin: 0.8mm 0; }
+  .bottom { flex: 1 1 auto; display: flex; flex-direction: row; min-height: 0; min-width: 0; }
+  /* 左區：時間點+劑量為主角，垂直置中；結束日期置底 */
+  .main { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .slots { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+  .slot { font-weight: 900; line-height: 1.25; letter-spacing: 0.2mm; }
+  .enddate { flex: 0 0 auto; font-size: 8.5pt; font-weight: 700; line-height: 1.2; }
+  /* 右欄月份指引：唔佔垂直高度，每月一行分號分隔，左邊分界線 */
+  .months { flex: 0 0 auto; display: flex; flex-direction: column; justify-content: center;
+            border-left: 0.25mm solid #000; padding-left: 1.2mm; margin-left: 1.5mm;
+            font-size: 6.5pt; font-weight: 700; line-height: 1.25; white-space: nowrap; }
+
+.label-page { width: 40mm; height: 30mm; overflow: hidden; }
+</style>
+<style>
+  html { color-scheme: light; }
+  body { margin: 0; }
+  #shot { padding: 28px; background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%); display: inline-flex; gap: 22px; align-items: flex-start; }
+  .label-wrap { width: 120mm; height: 90mm; overflow: hidden; flex: 0 0 auto; }
+  .label { zoom: 3; background: #fff; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18); border-radius: 0.8mm; }
+</style></head><body><div id="shot"><div class="label-wrap"><div class="label">
+  <div class="top">
+    <div class="name">陳樂怡</div>
+    <div class="drug">MADOPAR TABLET 250MG</div>
+  </div>
+  <div class="divider"></div>
+  <div class="bottom">
+    <div class="main">
+      <div class="slots"><div class="slot" style="font-size:10.5pt">7A × 1粒</div><div class="slot" style="font-size:10.5pt">11A × 1粒</div><div class="slot" style="font-size:10.5pt">3P × 1粒</div><div class="slot" style="font-size:10.5pt">7P × 1粒</div></div>
+      
+    </div>
+    
+  </div>
+</div></div>
+<div class="label-wrap"><div class="label">
+  <div class="top">
+    <div class="name">黃志強</div>
+    <div class="drug">PARACETAMOL TAB 500MG</div>
+  </div>
+  <div class="divider"></div>
+  <div class="bottom">
+    <div class="main">
+      <div class="slots"><div class="slot" style="font-size:11.5pt">8A × 1粒</div><div class="slot" style="font-size:11.5pt">2P × 1粒</div><div class="slot" style="font-size:11.5pt">8P × 1粒</div></div>
+      <div class="enddate">#15/11/2026</div>
+    </div>
+    
+  </div>
+</div></div>
+<div class="label-wrap"><div class="label">
+  <div class="top">
+    <div class="name">周淑賢</div>
+    <div class="drug">LORAZEPAM TAB 0.5MG</div>
+  </div>
+  <div class="divider"></div>
+  <div class="bottom">
+    <div class="main">
+      <div class="slots"><div class="slot" style="font-size:13pt">需要時 × 0.5粒</div></div>
+      
+    </div>
+    
+  </div>
+</div></div>
+<div class="label-wrap"><div class="label">
+  <div class="top">
+    <div class="name">盧葉慧卿</div>
+    <div class="drug">THYROXINE SODIUM TAB 100MCG</div>
+  </div>
+  <div class="divider"></div>
+  <div class="bottom">
+    <div class="main">
+      <div class="slots"><div class="slot" style="font-size:13pt">8A × 1粒</div></div>
+      <div class="enddate">#31/01/2027</div>
+    </div>
+    <div class="months"><div class="month">9月單日；</div><div class="month">10月單日；</div><div class="month">11月雙日；</div><div class="month">12月雙日；</div><div class="month">1月單日；</div></div>
+  </div>
+</div></div></div>
+<pre id="measure" style="display:none"></pre>
+<script>
+window.addEventListener('load', function () {
+  setTimeout(function () {
+    var r = document.getElementById('shot').getBoundingClientRect();
+    document.getElementById('measure').textContent = JSON.stringify({ w: Math.ceil(r.width), h: Math.ceil(r.height) });
+  }, 800);
+});
+</script></body></html>
