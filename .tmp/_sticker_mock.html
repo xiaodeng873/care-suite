@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<title>藥條標簽貼紙 v3 - A4 布局預覽</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#e5e7eb; font-family:'Microsoft JhengHei','PingFang HK',sans-serif; padding:16px; }
+  .sheet { width:210mm; height:297mm; background:#fff; margin:0 auto 16px; padding:10mm; box-shadow:0 2px 12px rgba(0,0,0,.25); overflow:hidden; }
+  .sheet h1 { font-size:13pt; text-align:center; margin-bottom:1mm; }
+  .sheet .sub { font-size:8pt; text-align:center; color:#555; margin-bottom:6mm; }
+  .block-label { font-size:9pt; font-weight:700; margin-bottom:2mm; border-bottom:1px solid #999; padding-bottom:1mm; }
+  .srow { display:flex; gap:5mm; margin-bottom:5mm; }
+  .sticker { width:20mm; height:20mm; border:0.25mm dashed #94a3b8; display:flex; flex-direction:column; background:#fff; flex-shrink:0; }
+  .band { height:1.2mm; flex-shrink:0; }
+  .b-red { background:#ef4444; } .b-yel { background:#facc15; } .b-grn { background:#22c55e; }
+  .b-wht { background:#fff; border-bottom:0.2mm solid #cbd5e1; } .b-blu { background:#3b82f6; }
+  .who { font-size:5.2pt; font-weight:700; text-align:center; padding:0.3mm 0.5mm; white-space:nowrap; overflow:hidden; flex-shrink:0; }
+  .t-red { color:#b91c1c; } .t-yel { color:#a16207; } .t-grn { color:#15803d; } .t-wht { color:#334155; } .t-blu { color:#1d4ed8; }
+  .zone { flex:1; margin:0.6mm; border:0.2mm dashed #cbd5e1; }
+</style>
+</head>
+<body>
+<div id="pages"></div>
+<script>
+const COLORS = [
+  { n:10, band:'b-red', txt:'t-red' },
+  { n:10, band:'b-yel', txt:'t-yel' },
+  { n:10, band:'b-grn', txt:'t-grn' },
+  { n:10, band:'b-wht', txt:'t-wht' },
+  { n:5,  band:'b-blu', txt:'t-blu' },
+];
+const residents = [
+  { bed:'A101-1', name:'關賽杏' },
+  { bed:'C219-4', name:'胡甜妹' },
+];
+const pages = document.getElementById('pages');
+for (const r of residents) {
+  const sheet = document.createElement('div');
+  sheet.className = 'sheet';
+  let html = `<h1>藥條標簽貼紙</h1>
+  <div class="sub">每張 20×20mm ・ 沿虛線剪出 ・ 貼於藥條格面 ・ 每院友 45 張（紅 10・黃 10・綠 10・白 10・藍 5）・ 一頁一位院友</div>
+  <div class="block-label">${r.bed}　${r.name}（紅×10・黃×10・綠×10・白×10・藍×5，共 45 張）</div>`;
+  for (const c of COLORS) {
+    for (let i = 0; i < c.n; i += 6) {
+      html += '<div class="srow">';
+      for (let j = i; j < Math.min(i + 6, c.n); j++) {
+        html += `<div class="sticker"><div class="band ${c.band}"></div><div class="who ${c.txt}">${r.bed} ${r.name}</div><div class="zone"></div></div>`;
+      }
+      html += '</div>';
+    }
+  }
+  sheet.innerHTML = html;
+  pages.appendChild(sheet);
+}
+</script>
+</body>
+</html>

@@ -403,6 +403,13 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
           return mod.generateMealGuidanceCardHtml({ patients, mealGuidances, stations });
         };
       }
+      case 'med_strip_sticker': {
+        const mod = await import('./medStripStickerPrintGenerator');
+        return async (ctx) => {
+          const patients = ctx.allPatients || [ctx.patient];
+          return mod.generateMedStripStickerHtml(patients);
+        };
+      }
       case 'temperature_record': {
         const mod = await import('./temperatureRecordWorksheetGenerator');
         return async (ctx) => {
@@ -715,9 +722,10 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
   const hasVaccineConsent = sortedDocumentIds.includes('vaccine_consent');
   const hasFeeStatisticsReport = sortedDocumentIds.includes('fee_statistics_report');
   const hasMealGuidanceCard = sortedDocumentIds.includes('meal_guidance_card');
+  const hasMedStripSticker = sortedDocumentIds.includes('med_strip_sticker');
   const hasHomeActivitiesReport = sortedDocumentIds.includes('home_activities_report');
   const statisticsDocumentIds = sortedDocumentIds.filter(id => STATISTICS_REPORT_IDS.has(id)) as StatisticsReportDocumentId[];
-  const htmlDocumentIds = sortedDocumentIds.filter(id => id !== 'vaccine_consent' && id !== 'fee_statistics_report' && id !== 'home_activities_report' && !STATISTICS_REPORT_IDS.has(id) && id !== 'meal_guidance_card');
+  const htmlDocumentIds = sortedDocumentIds.filter(id => id !== 'vaccine_consent' && id !== 'fee_statistics_report' && id !== 'home_activities_report' && !STATISTICS_REPORT_IDS.has(id) && id !== 'meal_guidance_card' && id !== 'med_strip_sticker');
 
   const pages: string[] = [];
   const skipped: string[] = [];
@@ -863,6 +871,32 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     } catch (error: any) {
       console.error('產生餐膳指引卡片失敗:', error);
       failed.push('餐膳指引卡片');
+    }
+  }
+
+  if (hasMedStripSticker) {
+    try {
+      const generator = await getGenerator('med_strip_sticker');
+      if (generator) {
+        const firstPatient = patients[0];
+        const html = await generator({
+          patient: firstPatient,
+          startDate: startDate || firstPatient?.入住日期 || '',
+          endDate,
+          facilityName,
+          contentMode,
+          printOptions,
+          allPatients: patients,
+        });
+        if (Array.isArray(html)) {
+          pages.push(...html.filter(Boolean));
+        } else if (html) {
+          pages.push(html);
+        }
+      }
+    } catch (error: any) {
+      console.error('產生藥條標簽貼紙失敗:', error);
+      failed.push('藥條標簽貼紙');
     }
   }
 

@@ -1606,6 +1606,9 @@ const signatureDayCells = (
 ): string => {
   const isImmediate = prescription.preparation_method === 'immediate';
   const diagClass = isImmediate ? 'mr-diag-prn' : 'mr-diag';
+  // 口服藥水類：有時間點且喺處方有效期內嘅執核格填淡黃色，提示要量度份量
+  const isLiquidOral = String(prescription.administration_route ?? '').trim() === '口服'
+    && String(prescription.dosage_form ?? '').includes('藥水');
   let cells = '';
   for (let day = 1; day <= dayCount; day += 1) {
     const dateStr = toDateString(selectedMonth, day);
@@ -1632,8 +1635,9 @@ const signatureDayCells = (
     }
     const inactiveClass = !inRange ? (isImmediate ? ' mr-inactive-prn' : ' mr-inactive') : '';
     const boundaryClass = isBoundary ? ' mr-boundary' : '';
+    const liquidClass = inRange && isLiquidOral ? ' mr-liquid' : '';
     const diagColor = '#9aa7b4';
-    cells += `<td class="c-day ${diagClass}${inactiveClass}${boundaryClass}">${renderDiagonalSvg(diagColor)}${cellInner || '&nbsp;'}</td>`;
+    cells += `<td class="c-day ${diagClass}${inactiveClass}${boundaryClass}${liquidClass}">${renderDiagonalSvg(diagColor)}${cellInner || '&nbsp;'}</td>`;
   }
   return cells;
 };
@@ -2022,6 +2026,8 @@ td.mr-diag, td.mr-diag-prn { position: relative; overflow: hidden; }
 .mr-diag-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 /* 不在處方有效期內的日格：灰底、隱藏斜線 */
 td.mr-inactive { background: #e2e8f0 !important; }
+/* 口服藥水類：有效期內嘅執核格填淡黃色（提示要量度份量） */
+td.mr-liquid { background: #fef9c3 !important; }
 td.mr-inactive .mr-diag-svg, td.mr-inactive-prn .mr-diag-svg { display: none; }
 /* 即時備藥（preparation_method=immediate）簽署格：深色細斜線提示（由 inline SVG 實現） */
 /* 即時備藥非有效期日格：灰底 */
