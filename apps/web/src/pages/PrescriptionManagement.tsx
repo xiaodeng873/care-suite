@@ -1388,7 +1388,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
               )}
             </div>
           </div>
-          <div className="flex flex-shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <div className="flex flex-col flex-shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={onTransfer}
               className="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50"

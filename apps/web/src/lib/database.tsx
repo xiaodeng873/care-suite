@@ -2470,6 +2470,18 @@ export const getHealthRecords = async (options?: { limit?: number; daysBack?: nu
 
   return (await fetchAllPagesParallel(fetchAllPagesQuery)) as HealthRecord[];
 };
+
+// 單一院友單日記錄：Dashboard 開監測卡片前即場拉最新數據用
+// （其他裝置/入口寫入後，頁面嘅 healthRecords state 可能未刷新）
+export const getHealthRecordsForPatientDate = async (patientId: number | string, date: string): Promise<HealthRecord[]> => {
+  const { data, error } = await supabase
+    .from('健康監測記錄')
+    .select('*')
+    .eq('院友id', patientId)
+    .eq('記錄日期', date);
+  if (error) throw error;
+  return (data || []) as HealthRecord[];
+};
 export const createHealthRecord = async (record: Omit<HealthRecord, '記錄id' | '建立時間'>): Promise<HealthRecord> => {
   const { data, error } = await supabase.from('健康監測記錄').insert([record]).select('記錄id').single();
   if (error) { console.error('Error creating health record:', error); throw error; }

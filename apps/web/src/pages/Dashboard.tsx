@@ -30,7 +30,7 @@ import MonitoringTaskWorksheetModal from '../components/MonitoringTaskWorksheetM
 import BatchHealthRecordOCRModal from '../components/BatchHealthRecordOCRModal';
 import SingleWoundAssessmentModal from '../components/SingleWoundAssessmentModal';
 import BedNumberImprint from '../components/BedNumberImprint';
-import { syncTaskStatus, SYNC_CUTOFF_DATE_STR } from '../lib/database';
+import { syncTaskStatus, SYNC_CUTOFF_DATE_STR, getHealthRecordsForPatientDate } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { getMissingMonitoringVitals, getExemptedMonitoringTaskIds } from '../utils/monitoringCoverage';
 import { hasInProgressCarePlan } from '../utils/carePlanStatus';
@@ -165,7 +165,7 @@ const Dashboard: React.FC = () => {
     });
     return uniqueTasks;
   }, [patientHealthTasks]);
-  const handleTaskClick = (task: HealthTask, date?: string, groupTasks?: HealthTask[]) => {
+  const handleTaskClick = async (task: HealthTask, date?: string, groupTasks?: HealthTask[]) => {
     // [防穿透] modal 關閉後 300ms 內忽略開啟請求
     if (Date.now() - lastHealthModalCloseAtRef.current < 300) {
       return;
@@ -237,20 +237,54 @@ const Dashboard: React.FC = () => {
     // [修正] 只彈出目標日期未完成嘅任務類型：已完成嘅類型唔再顯示，
     // 避免逾期補錄後再點卡片重複彈出已輸入嘅項目（例如補完生命表徵後應該只彈血糖）
     const effectiveDate = targetDate;
+    // [修正] 開卡前即場向 DB 拉呢位院友目標日期嘅最新記錄，并入本地查找表。
+    // 院舍多裝置共用數據：其他裝置/入口寫入後，Dashboard 嘅 healthRecords state
+    // 可能未刷新，令已完成項目（如血壓/脈搏）喺卡片重複彈出輸入框
+    const freshLookup = new Set(recordLookup);
+    const freshTimes = new Map<string, number[]>();
+    recordTimes.forEach((v, k) => freshTimes.set(k, v));
+    let freshDateRecords: Awaited<ReturnType<typeof getHealthRecordsForPatientDate>> = [];
+    try {
+      freshDateRecords = await getHealthRecordsForPatientDate(task.patient_id, effectiveDate);
+      freshDateRecords.forEach(r => {
+        const normalizedTime = normalizeTime(r.記錄時間);
+        const pidStr = r.院友id?.toString() || '';
+        freshLookup.add(`${pidStr}_${r.監測類型}_${r.記錄日期}`);
+        freshLookup.add(`${pidStr}_${r.監測類型}_${r.記錄日期}_${normalizedTime}`);
+        if (r.任務id) {
+          freshLookup.add(`${r.任務id}_${r.記錄日期}`);
+          freshLookup.add(`${r.任務id}_${r.記錄日期}_${normalizedTime}`);
+        }
+        const [h, m] = normalizedTime.split(':').map(Number);
+        const minutes = (h || 0) * 60 + (m || 0);
+        const timeKey = `${pidStr}_${r.監測類型}_${r.記錄日期}`;
+        freshTimes.set(timeKey, [...(freshTimes.get(timeKey) || []), minutes]);
+        if (r.任務id) {
+          const taskTimeKey = `${r.任務id}_${r.記錄日期}`;
+          freshTimes.set(taskTimeKey, [...(freshTimes.get(taskTimeKey) || []), minutes]);
+        }
+      });
+    } catch { /* 拉取失敗沿用現有查找表，行為同未修正前一樣 */ }
+    const hasFreshRecordWithinTolerance = (dateKeys: string[], time: string): boolean => {
+      const [h, m] = normalizeTime(time).split(':').map(Number);
+      const target = (h || 0) * 60 + (m || 0);
+      return dateKeys.some(k => (freshTimes.get(k) || []).some(min => Math.abs(min - target) <= TIME_TOLERANCE_MIN));
+    };
     const candidateTasks = groupTasks && groupTasks.length > 0 ? groupTasks : [task];
-    const remainingTasks = candidateTasks.filter(t => !isTaskCompletedForDate(t, effectiveDate, recordLookup, recordTimes));
+    const remainingTasks = candidateTasks.filter(t => !isTaskCompletedForDate(t, effectiveDate, freshLookup, freshTimes));
     const tasksForModal = remainingTasks.length > 0 ? remainingTasks : candidateTasks;
     const primaryTask = tasksForModal[0];
     let selectedTime: string | undefined;
     if (primaryTask.specific_times && primaryTask.specific_times.length > 0) {
-      const dateRecords = healthRecords.filter(r => {
+      const recordPredicate = (r: { 任務id?: string | null; 院友id: number | string; 監測類型: string; 記錄日期: string }) => {
         if (r.任務id && r.任務id === primaryTask.id) {
           return r.記錄日期 === effectiveDate;
         }
         return r.院友id.toString() === primaryTask.patient_id.toString() &&
                taskRecordVitalTypes(primaryTask.health_record_type).includes(r.監測類型) &&
                r.記錄日期 === effectiveDate;
-      });
+      };
+      const dateRecords = [...healthRecords.filter(recordPredicate), ...freshDateRecords.filter(recordPredicate)];
       const completedTimes = new Set(dateRecords.map(r => normalizeTime(r.記錄時間)));
       selectedTime = primaryTask.specific_times.find(time => !completedTimes.has(normalizeTime(time)));
     }
@@ -260,8 +294,8 @@ const Dashboard: React.FC = () => {
     const primaryPidStr = primaryTask.patient_id?.toString() || '';
     const missingTypes = taskRecordVitalTypes(primaryTask.health_record_type).filter(tp => {
       const dateKey = `${primaryPidStr}_${tp}_${effectiveDate}`;
-      if (selectedTime) return !hasRecordWithinTolerance([dateKey], selectedTime);
-      return !recordLookup.has(dateKey);
+      if (selectedTime) return !hasFreshRecordWithinTolerance([dateKey], selectedTime);
+      return !freshLookup.has(dateKey);
     });
     const initialDataForModal = {
       patient: patient ? {
@@ -973,6 +1007,10 @@ const Dashboard: React.FC = () => {
       try {
         await syncTaskStatus(taskId);
         await refreshHealthTaskData();
+        // 必須同步刷新健康記錄：recordLookup/recordTimes 靠 healthRecords 建立，
+        // 唔刷新嘅話，啱啱輸入嘅血壓/脈搏會唔存在於查找表，
+        // 再開同一張卡時 missingTypes 會將已完成項目重複彈出
+        await refreshHealthData();
       } catch (error) {
         console.error('同步失敗:', error);
       }
