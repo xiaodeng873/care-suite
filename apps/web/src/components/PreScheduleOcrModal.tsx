@@ -4,6 +4,7 @@ import type { LeaveType, UserProfile } from '@care-suite/shared';
 import { LEAVE_TYPES, LEAVE_TYPE_LABELS } from '@care-suite/shared';
 import { processImageWithGeminiVision, validateImageFile } from '../utils/ocrProcessor';
 import ImageSourcePicker from './ImageSourcePicker';
+import ImageCropModal from './ImageCropModal';
 
 export interface OcrEntry {
   userId: string;
@@ -85,6 +86,8 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
 }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  // 裁剪隊列：揀咗嘅圖先逐張入裁剪 modal（去周邊像素，提升 OCR 準確度），確認先加入
+  const [cropQueue, setCropQueue] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [applying, setApplying] = useState(false);
@@ -97,6 +100,7 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setFiles([]);
+      setCropQueue([]);
       setProcessing(false);
       setProgress(null);
       setApplying(false);
@@ -136,10 +140,27 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
       valid.push(f);
     }
     if (valid.length === 0) return;
-    setFiles(valid);
-    setError(null);
+    // 重新選擇維持取代舊圖；所有圖（拍照/相簿/貼上/連拍）先讀成 dataURL 排入裁剪隊列，
+    // 逐張裁剪確認後先加入 files
+    setFiles([]);
     setRows(null);
+    setError(null);
+    valid.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => setCropQueue((prev) => [...prev, reader.result as string]);
+      reader.onerror = () => setError('無法讀取圖片檔案');
+      reader.readAsDataURL(file);
+    });
   };
+
+  const handleCropConfirm = async (dataUrl: string) => {
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], 'preschedule.jpg', { type: 'image/jpeg' });
+    setFiles((prev) => [...prev, file]);
+    setCropQueue((prev) => prev.slice(1));
+  };
+
+  const handleCropCancel = () => setCropQueue((prev) => prev.slice(1));
 
   const handleRecognize = async () => {
     if (files.length === 0) return;
@@ -430,6 +451,18 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* 裁剪步驟：逐張去除周邊像素後先加入識別 */}
+      {cropQueue.length > 0 && (
+        <ImageCropModal
+          imageSrc={cropQueue[0]}
+          mode="free"
+          title="裁剪預排表圖片"
+          maxOutput={2000}
+          onConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+        />
+      )}
     </div>
   );
 };

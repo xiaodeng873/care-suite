@@ -147,7 +147,7 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
                 圖片上傳
               </label>
               <div className="relative">
-                <ImageSourcePicker onSelect={handlePickerSelect}>
+                <ImageSourcePicker onSelect={handlePickerSelect} continuousCamera={false}>
                   {(openPicker) => (
                     <div
                       onDrop={handleDrop}

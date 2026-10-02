@@ -64,7 +64,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, on
           br: { x: w - insetX, y: h - insetY },
           bl: { x: insetX, y: h - insetY }
         };
-        // 自動偵測文件邊界：偵測到就用 bounding box 四角做初始 quad，失敗先落返全圖
+        // 自動偵測文件邊界：偵測到透視 quad 就用四角，否則用 bounding box 四角，失敗先落返全圖
         let initial = fallback;
         try {
           const dc = document.createElement('canvas');
@@ -75,7 +75,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, on
             dctx.drawImage(image, 0, 0, dc.width, dc.height);
             const bounds = detectDocumentBounds(dc);
             if (bounds) {
-              initial = {
+              initial = bounds.quad ?? {
                 tl: { x: bounds.x, y: bounds.y },
                 tr: { x: bounds.x + bounds.w, y: bounds.y },
                 br: { x: bounds.x + bounds.w, y: bounds.y + bounds.h },

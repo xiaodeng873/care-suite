@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { convexHull, minAreaRect, orderQuad, quadArea, type DocQuad } from './documentQuad';
 export interface DocumentClassification {
   type: 'vaccination' | 'followup' | 'allergy' | 'diagnosis' | 'prescription' | 'unknown';
   confidence: number;
@@ -146,7 +147,7 @@ function readLuma(canvas: HTMLCanvasElement): Uint8Array {
   return luma;
 }
 
-export interface DocumentBounds { x: number; y: number; w: number; h: number; }
+export interface DocumentBounds { x: number; y: number; w: number; h: number; quad?: DocQuad; }
 
 // 白度圖：min(R,G,B)。白紙三通道都高；黃/紅枱面、皮膚 B 通道低即刻被壓低，
 // 比純亮度更能喺彩色背景上分出白紙
@@ -163,8 +164,9 @@ function readWhiteness(canvas: HTMLCanvasElement): Uint8Array {
 
 /**
  * 文件邊界偵測：將圖片切成格網，逐格計平均「白度」（min(R,G,B)），
- * 用 Otsu 分出「紙（白）」同「背景（有色/暗）」，flood fill 取最大連通白區，
- * 返回佢嘅 bounding box（加少少 padding，canvas 像素座標）。
+ * 用 Otsu（clamp [170,240]）分出「紙（白）」同「背景（有色/暗）」，flood fill 取最大連通白區，
+ * 返回佢嘅 bounding box（加少少 padding，canvas 像素座標）；
+ * 同時試算最小面積外接矩形作透視 quad（偵測可靠先附喺 `quad`，否則只有 bbox）。
  * 偵測唔到、或無背景可裁（全幅文件）就返回 null。
  * 注意：要喺灰階化之前嘅彩色圖上跑。
  */
@@ -192,7 +194,9 @@ export function detectDocumentBounds(canvas: HTMLCanvasElement): DocumentBounds 
     }
   }
 
-  // Otsu 分亮/暗格
+  // Otsu 分亮/暗格，再 clamp 到 [170, 240]：白紙 min-channel 白度一般 >180，
+  // 黃枱/木枱/皮膚 min-channel 明顯低於 170，下限保證有色背景一定被剔出；
+  // 上限防全白圖閾值被推得太高。Otsu 搵唔到雙峰（單峰/不均光照）時 fallback 180
   const hist = new Uint32Array(256);
   for (let i = 0; i < cellLuma.length; i++) hist[Math.min(255, Math.round(cellLuma[i]))]++;
   const total = cellLuma.length;
@@ -210,23 +214,24 @@ export function detectDocumentBounds(canvas: HTMLCanvasElement): DocumentBounds 
     const between = wB * wF * (mB - mF) * (mB - mF);
     if (between > bestVariance) { bestVariance = between; threshold = v; }
   }
+  const brightThreshold = Math.min(240, Math.max(170, bestVariance > 0 ? threshold : 180));
   const bright = new Uint8Array(total);
-  for (let i = 0; i < total; i++) bright[i] = cellLuma[i] > threshold ? 1 : 0;
+  for (let i = 0; i < total; i++) bright[i] = cellLuma[i] > brightThreshold ? 1 : 0;
 
-  // flood fill 搵最大連通亮區
+  // flood fill 搵最大連通亮區（鄰居入隊前已標記 visited，唔會重複入隊）
   const visited = new Uint8Array(total);
-  let bestSize = 0;
+  let bestCells: number[] = [];
   let bestBox = { x0: 0, y0: 0, x1: 0, y1: 0 };
   const stack: number[] = [];
   for (let i = 0; i < total; i++) {
     if (!bright[i] || visited[i]) continue;
-    let size = 0;
+    const cells: number[] = [];
     let x0 = gw, y0 = gh, x1 = -1, y1 = -1;
     stack.push(i);
     visited[i] = 1;
     while (stack.length) {
       const c = stack.pop()!;
-      size++;
+      cells.push(c);
       const cx = c % gw, cy = (c / gw) | 0;
       if (cx < x0) x0 = cx;
       if (cx > x1) x1 = cx;
@@ -241,14 +246,14 @@ export function detectDocumentBounds(canvas: HTMLCanvasElement): DocumentBounds 
         stack.push(n);
       }
     }
-    if (size > bestSize) {
-      bestSize = size;
+    if (cells.length > bestCells.length) {
+      bestCells = cells;
       bestBox = { x0, y0, x1, y1 };
     }
   }
 
   // 防呆：亮區太細（偵測失敗）或幾乎全幅（本身已係全幅文件）→ 唔裁
-  const area = bestSize / total;
+  const area = bestCells.length / total;
   if (area < DOC_CROP_MIN_AREA || area > DOC_CROP_MAX_AREA) return null;
 
   const pad = DOC_CROP_PAD_CELLS;
@@ -257,7 +262,40 @@ export function detectDocumentBounds(canvas: HTMLCanvasElement): DocumentBounds 
   const px1 = Math.min(width, Math.ceil((bestBox.x1 + 1 + pad) * cw));
   const py1 = Math.min(height, Math.ceil((bestBox.y1 + 1 + pad) * ch));
   if (px1 - px0 < 32 || py1 - py0 < 32) return null;
-  return { x: px0, y: py0, w: px1 - px0, h: py1 - py0 };
+
+  // 四邊形（透視）偵測：亮區格點 → 凸包 → 最小面積外接矩形 → 四角對映像素座標。
+  // 失敗（凸包頂點 <4、面積異常）就唔出 quad，bbox 照舊（向後兼容）
+  let quad: DocQuad | undefined;
+  const hull = convexHull(bestCells.map(c => ({ x: c % gw, y: (c / gw) | 0 })));
+  if (hull.length >= 4) {
+    const rect = minAreaRect(hull);
+    if (rect) {
+      // 格索引當 cell 中心點，沿遠離質心方向擴 (半格 + padding) 補返邊緣，再 clamp 到圖內
+      const grow = 0.5 + pad;
+      const cenX = rect.corners.reduce((s, p) => s + p.x, 0) / 4;
+      const cenY = rect.corners.reduce((s, p) => s + p.y, 0) / 4;
+      const ordered = orderQuad(rect.corners);
+      const expand = (p: { x: number; y: number }) => {
+        const dx = p.x - cenX, dy = p.y - cenY;
+        const len = Math.hypot(dx, dy) || 1;
+        return {
+          x: Math.min(width, Math.max(0, (p.x + (dx / len) * grow) * cw)),
+          y: Math.min(height, Math.max(0, (p.y + (dy / len) * grow) * ch)),
+        };
+      };
+      const candidate: DocQuad = {
+        tl: expand(ordered.tl),
+        tr: expand(ordered.tr),
+        br: expand(ordered.br),
+        bl: expand(ordered.bl),
+      };
+      // 防呆：quad 面積太細（< 亮區 bbox 55%，即偵測爛咗）就棄用
+      const bboxArea = (bestBox.x1 + 1 - bestBox.x0) * cw * (bestBox.y1 + 1 - bestBox.y0) * ch;
+      if (quadArea(candidate) >= bboxArea * 0.55) quad = candidate;
+    }
+  }
+
+  return { x: px0, y: py0, w: px1 - px0, h: py1 - py0, quad };
 }
 
 // 自動裁切版：偵測到文件邊界就 crop，否則原圖返回（OCR 預處理用）

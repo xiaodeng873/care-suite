@@ -4,6 +4,7 @@ import { processImageWithGeminiVision, validateImageFile } from '../utils/ocrPro
 import { FOLLOWUP_OCR_PROMPT_CORE, DIAGNOSIS_OCR_PROMPT_CORE, VACCINATION_OCR_PROMPT_CORE } from '@care-suite/shared';
 import { usePatientData } from '../context/PatientContext';
 import ImageSourcePicker from './ImageSourcePicker';
+import ImageCropModal from './ImageCropModal';
 
 interface OCRDocumentBlockProps {
   documentType: 'vaccination' | 'diagnosis' | 'followup';
@@ -24,6 +25,8 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
   const [ocrResult, setOcrResult] = useState<any>(null);
   const [showRawText, setShowRawText] = useState(false);
   const [forceRefresh, setForceRefresh] = useState(false);
+  // 裁剪隊列：揀咗嘅圖先逐張入裁剪 modal（去周邊像素，提升 OCR 準確度），確認先加入
+  const [cropQueue, setCropQueue] = useState<string[]>([]);
 
   const titles = {
     vaccination: '智能識別疫苗記錄',
@@ -56,28 +59,14 @@ ${documentPromptCores[documentType]}
     followup: '上傳覆診預約便條圖片，自動識別並填入資料'
   };
 
-  /** 載入單張圖片（拍照/相簿/拖放共用） */
-  const loadFile = (file: File) => {
-    const validation = validateImageFile(file);
-    if (!validation.valid) {
-      onOCRError(validation.error || '無效的圖片檔案');
-      return;
-    }
-
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.onerror = () => {
-      onOCRError('無法讀取圖片檔案');
-      setSelectedFile(null);
-      setImagePreview(null);
-    };
-    reader.readAsDataURL(file);
+  const cropTitles = {
+    vaccination: '裁剪疫苗記錄圖片',
+    diagnosis: '裁剪診斷記錄圖片',
+    followup: '裁剪覆診便條圖片'
   };
 
-  const loadFiles = (files: File[]) => {
+  /** 所有來源（拍照/相簿/拖放/連拍）統一先讀成 dataURL 排入裁剪隊列，逐張裁剪確認後先加入 */
+  const enqueueCrops = (files: File[]) => {
     files.forEach(file => {
       const validation = validateImageFile(file);
       if (!validation.valid) {
@@ -85,14 +74,27 @@ ${documentPromptCores[documentType]}
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedFiles(prev => [...prev, file]);
-        setImagePreviews(prev => [...prev, reader.result as string]);
-      };
+      reader.onloadend = () => setCropQueue(prev => [...prev, reader.result as string]);
       reader.onerror = () => onOCRError('無法讀取圖片檔案');
       reader.readAsDataURL(file);
     });
   };
+
+  const handleCropConfirm = async (dataUrl: string) => {
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], `${documentType}.jpg`, { type: 'image/jpeg' });
+    if (allowMultiple) {
+      setSelectedFiles(prev => [...prev, file]);
+      setImagePreviews(prev => [...prev, dataUrl]);
+    } else {
+      // 單圖類型：裁剪後取代既有選擇
+      setSelectedFile(file);
+      setImagePreview(dataUrl);
+    }
+    setCropQueue(prev => prev.slice(1));
+  };
+
+  const handleCropCancel = () => setCropQueue(prev => prev.slice(1));
 
   const handleRemoveImage = (idx: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
@@ -103,11 +105,11 @@ ${documentPromptCores[documentType]}
   const handlePickerSelect = (files: File[]) => {
     if (isProcessing) return;
     if (allowMultiple) {
-      loadFiles(files);
+      enqueueCrops(files);
       return;
     }
     const file = files[0];
-    if (file) loadFile(file);
+    if (file) enqueueCrops([file]);
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -123,12 +125,12 @@ ${documentPromptCores[documentType]}
 
     if (allowMultiple) {
       const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
-      if (files.length) loadFiles(files);
+      if (files.length) enqueueCrops(files);
       return;
     }
 
     const file = e.dataTransfer.files?.[0];
-    if (file) loadFile(file);
+    if (file) enqueueCrops([file]);
   };
 
   const handleClearImage = () => {
@@ -582,6 +584,18 @@ ${documentPromptCores[documentType]}
             </div>
           </div>
         </div>
+      )}
+
+      {/* 裁剪步驟：逐張去除周邊像素後先加入識別 */}
+      {cropQueue.length > 0 && (
+        <ImageCropModal
+          imageSrc={cropQueue[0]}
+          mode="free"
+          title={cropTitles[documentType]}
+          maxOutput={2000}
+          onConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+        />
       )}
     </div>
   );

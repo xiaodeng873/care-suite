@@ -4,6 +4,7 @@ import { processImageWithGeminiVision, validateImageFile } from '../utils/ocrPro
 import { getUserActivePrompt, getDefaultPrompt } from '../utils/promptManager';
 import { usePatientData } from '../context/PatientContext';
 import ImageSourcePicker from './ImageSourcePicker';
+import ImageCropModal from './ImageCropModal';
 
 interface OCRPrescriptionBlockProps {
   onOCRComplete: (extractedData: any, confidenceScores: Record<string, number>) => void;
@@ -24,6 +25,8 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
   const [processingStage, setProcessingStage] = useState<string>('');
   const [ocrResult, setOcrResult] = useState<any>(null);
   const [showRawText, setShowRawText] = useState(false);
+  // 裁剪隊列：揀咗嘅圖先逐張入裁剪 modal（去周邊像素，提升 OCR 準確度），確認先加入
+  const [cropQueue, setCropQueue] = useState<string[]>([]);
 
   useEffect(() => {
     loadPromptData();
@@ -39,8 +42,8 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
     }
   };
 
-  /** 載入圖片（拍照/相簿/拖放共用，可多張追加） */
-  const loadFiles = (files: File[]) => {
+  /** 所有來源（拍照/相簿/拖放/連拍）統一先讀成 dataURL 排入裁剪隊列，逐張裁剪確認後先加入 */
+  const enqueueCrops = (files: File[]) => {
     files.forEach(file => {
       const validation = validateImageFile(file);
       if (!validation.valid) {
@@ -48,20 +51,27 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedFiles(prev => {
-          const next = [...prev, file];
-          // 單圖流程維持現行 onImageSelected 回調（處方儲存時上傳 Storage）；
-          // 多圖時圖片改由批量核對 modal 處理，這裡回 null
-          onImageSelected?.(next.length === 1 ? file : null);
-          return next;
-        });
-        setImagePreviews(prev => [...prev, reader.result as string]);
-      };
+      reader.onloadend = () => setCropQueue(prev => [...prev, reader.result as string]);
       reader.onerror = () => onOCRError('無法讀取圖片檔案');
       reader.readAsDataURL(file);
     });
   };
+
+  const handleCropConfirm = async (dataUrl: string) => {
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], 'prescription.jpg', { type: 'image/jpeg' });
+    setSelectedFiles(prev => {
+      const next = [...prev, file];
+      // 單圖流程維持現行 onImageSelected 回調（處方儲存時上傳 Storage）；
+      // 多圖時圖片改由批量核對 modal 處理，這裡回 null
+      onImageSelected?.(next.length === 1 ? file : null);
+      return next;
+    });
+    setImagePreviews(prev => [...prev, dataUrl]);
+    setCropQueue(prev => prev.slice(1));
+  };
+
+  const handleCropCancel = () => setCropQueue(prev => prev.slice(1));
 
   const handleRemoveImage = (idx: number) => {
     setSelectedFiles(prev => {
@@ -75,7 +85,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
 
   const handlePickerSelect = (files: File[]) => {
     if (isProcessing) return;
-    loadFiles(files);
+    enqueueCrops(files);
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -92,7 +102,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
     }
 
     const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
-    if (files.length) loadFiles(files);
+    if (files.length) enqueueCrops(files);
   };
 
   const handleClearImages = () => {
@@ -412,6 +422,18 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
             </div>
           </div>
         </div>
+      )}
+
+      {/* 裁剪步驟：逐張去除周邊像素後先加入識別 */}
+      {cropQueue.length > 0 && (
+        <ImageCropModal
+          imageSrc={cropQueue[0]}
+          mode="free"
+          title="裁剪處方圖片"
+          maxOutput={2000}
+          onConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+        />
       )}
     </div>
   );

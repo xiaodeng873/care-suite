@@ -11,6 +11,8 @@ interface ImageSourcePickerProps {
   cameraMultiple?: boolean;
   /** input accept，預設 image/* */
   accept?: string;
+  /** false 時「拍照」直接用原生相機 input 單張拍攝，唔開 in-app 連拍相機（預設 true） */
+  continuousCamera?: boolean;
   /** mount 後自動彈出選擇器（例如相機掃描流程進場即選來源） */
   autoOpen?: boolean;
   /** render-prop：回傳觸發區域，點擊時呼叫 openPicker() 彈出來源選擇 */
@@ -28,6 +30,7 @@ const ImageSourcePicker: React.FC<ImageSourcePickerProps> = ({
   albumMultiple = false,
   cameraMultiple,
   accept = 'image/*',
+  continuousCamera = true,
   autoOpen = false,
   children,
 }) => {
@@ -68,7 +71,7 @@ const ImageSourcePicker: React.FC<ImageSourcePickerProps> = ({
     <>
       {children(openPicker)}
 
-      {/* 拍照 fallback（原生相機，單張）：僅在 in-app 連拍相機不可用時使用 */}
+      {/* 原生相機 input（單張）：in-app 連拍相機不可用時 fallback；continuousCamera=false 時直接使用 */}
       <input
         ref={cameraInputRef}
         type="file"
@@ -110,7 +113,15 @@ const ImageSourcePicker: React.FC<ImageSourcePickerProps> = ({
             <div className="space-y-2">
               <button
                 type="button"
-                onClick={() => setShowCamera(true)}
+                onClick={() => {
+                  if (continuousCamera) {
+                    setShowCamera(true);
+                  } else {
+                    // 唔用連拍相機：直接原生相機 input 單張拍攝
+                    setOpen(false);
+                    cameraInputRef.current?.click();
+                  }
+                }}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
               >
                 <Camera className="h-5 w-5" />
