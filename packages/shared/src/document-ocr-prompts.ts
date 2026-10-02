@@ -63,3 +63,25 @@ export const VACCINATION_OCR_PROMPT_CORE = `疫苗記錄識別規則：
 - 疫苗項目
 - 接種單位
 - records（多筆記錄時使用）`;
+
+export const DISCHARGE_SLIP_OCR_PROMPT_CORE = `出院紙（Discharge Slip）複合文件識別規則：
+1. 院友姓名是最重要的識別欄位，必須反覆尋找，不得留空
+2. 如有英文姓名、身份證號碼或出生日期，必須一併提取（用於識別院友）
+3. 出院日期（Exp. Dis. Date / Discharge Date）必須為YYYY-MM-DD格式，務必填寫文件上實際日期，找不到才留空
+4. 醫院名稱只填醫院名，不要填完整地址
+5. diagnoses 陣列：Diagnosis 段落的每項診斷一個元素，診斷項目保持文件原始辨識文字，不要翻譯、不要附加中文註解或別名；診斷單位填醫院名稱
+6. Medication on Discharge 段落的藥物不需要提取（藥物由處方識別流程處理，出院紙只取診斷、敏感警示與覆診）
+7. allergies 陣列：Allergy / Adverse Drug Reaction / Alert 段落每項一個元素；Allergy → 類型「藥物敏感」；Adverse Drug Reaction → 類型「不良藥物反應」；Alert 中屬感染標記（如 MRSA、VRE、ESBL 等）→ 類型「感染控制」，其餘 Alert → 類型「不良藥物反應」；文件寫 "Nil" / "NKDA" / "無" 時該段回傳空陣列
+8. followups 陣列：Follow up Clinic 段落的每個覆診一個元素；覆診日期必須為YYYY-MM-DD，覆診時間為24小時制HH:MM，覆診地點只填醫院或診所名稱（不要填完整地址），覆診專科填科別
+9. 文件上沒有的段落省略該陣列或回傳空陣列，絕對不要捏造內容
+
+需提取欄位（extracted_data 必須使用以下 exact 鍵名，不要自行改寫或合併欄位）：
+- 院友姓名
+- 英文姓名
+- 身份證號碼
+- 出生日期
+- 出院日期
+- 醫院名稱
+- diagnoses（診斷陣列，每元素：診斷項目、診斷單位）
+- allergies（敏感與警示陣列，每元素：類型（藥物敏感／不良藥物反應／感染控制）、內容）
+- followups（覆診陣列，每元素：覆診日期、覆診時間、覆診地點、覆診專科）`;

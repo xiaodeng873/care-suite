@@ -7,6 +7,7 @@ import FollowUpModal from '../FollowUpModal';
 import FollowUpMultiModal from '../FollowUpMultiModal';
 import PrescriptionModal from '../PrescriptionModal';
 import PrescriptionMultiModal from '../PrescriptionMultiModal';
+import DischargeSlipModal from '../DischargeSlipModal';
 import DiagnosisRecordModal from '../DiagnosisRecordModal';
 import VaccinationRecordModal from '../VaccinationRecordModal';
 import PatientModal from '../PatientModal';
@@ -536,6 +537,18 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
             onClose={handleCloseModal}
           />
         )
+      )}
+      {activeModal?.documentType === 'discharge_slip' && (
+        <DischargeSlipModal
+          extractedData={activeModal.extractedData}
+          matchedPatientId={activeModal.matchedPatient?.院友id ?? null}
+          sourceImagePreviews={
+            activeModal.imageBase64 && activeModal.imageMimeType
+              ? [`data:${activeModal.imageMimeType};base64,${activeModal.imageBase64}`]
+              : undefined
+          }
+          onClose={handleCloseModal}
+        />
       )}
       {activeModal?.documentType === 'diagnosis' && (
         <DiagnosisRecordModal

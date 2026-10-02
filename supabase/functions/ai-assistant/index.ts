@@ -7,7 +7,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { DB_SCHEMA_SUMMARY } from "./schema-summary.ts";
 import { containsBlockedKeywords, involvesBlockedTables, getRequiredPermissions } from "./permissions-map.ts";
 import { PRESCRIPTION_OCR_PROMPT_CORE } from "./_shared/prescription-ocr-prompt.ts";
-import { FOLLOWUP_OCR_PROMPT_CORE, DIAGNOSIS_OCR_PROMPT_CORE, VACCINATION_OCR_PROMPT_CORE } from "./_shared/document-ocr-prompts.ts";
+import { FOLLOWUP_OCR_PROMPT_CORE, DIAGNOSIS_OCR_PROMPT_CORE, VACCINATION_OCR_PROMPT_CORE, DISCHARGE_SLIP_OCR_PROMPT_CORE } from "./_shared/document-ocr-prompts.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -446,12 +446,13 @@ ${hasImage ? `
 根據圖片內容判斷屬於以下哪種類型：
 1. **覆診預約（followup）**— 覆診便條、覆診通知、Appointment Slip、FU紙。關鍵詞：覆診日期、醫院名稱、科別、時間
 2. **處方管理（prescription）**— 藥物標籤、處方箋、藥房單。關鍵詞：藥物名稱、劑量、頻率、用法
-3. **診斷記錄（diagnosis）**— 診斷書、檢查報告、化驗結果。關鍵詞：診斷、Diagnosis、ICD code
-4. **疫苗記錄（vaccination）**— 疫苗注射記錄、疫苗卡。關鍵詞：疫苗名稱、注射日期、批次號
-5. **新增院友 / 身份證（id_card）**— 香港身份證（HKID）正面或反面。關鍵詞：Hong Kong Identity Card、香港身份證、HKID、姓名、出生日期、性別
-6. **監測工作紙（health_worksheet）**— 生命表徵 / 健康監測記錄表，通常是表格形式，每行一位院友。關鍵詞：監測工作紙、生命表徵記錄表、血壓、血糖、脈搏、床號、批量記錄
-7. **院友人像相片（portrait）**— 院友正面人像、大頭照。畫面主要是一個人的面部或半身像，沒有文件或表格文字內容
-8. **其他（other）**— 無法歸類的文件
+3. **出院紙（discharge_slip）**— Discharge Slip、出院紙、出院摘要。關鍵詞：Discharge Slip、出院紙、Medication on Discharge、Admission Date、Allergy、Follow up Clinic。**含 Medication on Discharge 的多段式出院文件優先判為 discharge_slip 而非 prescription**
+4. **診斷記錄（diagnosis）**— 診斷書、檢查報告、化驗結果。關鍵詞：診斷、Diagnosis、ICD code
+5. **疫苗記錄（vaccination）**— 疫苗注射記錄、疫苗卡。關鍵詞：疫苗名稱、注射日期、批次號
+6. **新增院友 / 身份證（id_card）**— 香港身份證（HKID）正面或反面。關鍵詞：Hong Kong Identity Card、香港身份證、HKID、姓名、出生日期、性別
+7. **監測工作紙（health_worksheet）**— 生命表徵 / 健康監測記錄表，通常是表格形式，每行一位院友。關鍵詞：監測工作紙、生命表徵記錄表、血壓、血糖、脈搏、床號、批量記錄
+8. **院友人像相片（portrait）**— 院友正面人像、大頭照。畫面主要是一個人的面部或半身像，沒有文件或表格文字內容
+9. **其他（other）**— 無法歸類的文件
 
 ### 提取規則：
 - 圖片中所有可辨識的文字都要盡量提取
@@ -468,7 +469,7 @@ ${hasImage ? `
 \`\`\`json
 {
   "type": "image_analysis",
-  "document_type": "followup|prescription|diagnosis|vaccination|id_card|health_worksheet|portrait|other",
+  "document_type": "followup|prescription|discharge_slip|diagnosis|vaccination|id_card|health_worksheet|portrait|other",
   "extracted_data": {
     // 根據文件類型提取的結構化資料（見下方各類型欄位）
   },
@@ -485,6 +486,10 @@ ${FOLLOWUP_OCR_PROMPT_CORE}
 
 #### 處方管理 (prescription)（與處方管理智能識別共用 PRESCRIPTION_OCR_PROMPT_CORE）：
 ${PRESCRIPTION_OCR_PROMPT_CORE}
+
+#### 出院紙 (discharge_slip)（複合文件：身份 + 診斷 + 敏感警示 + 覆診，共用 DISCHARGE_SLIP_OCR_PROMPT_CORE）：
+${DISCHARGE_SLIP_OCR_PROMPT_CORE}
+- 此類型不需要 comparison_query，suggested_action 用 "none"（系統會開複合核對視窗由護理人員分段確認寫入）
 
 #### 診斷記錄 (diagnosis)（與診斷管理智能識別共用 DIAGNOSIS_OCR_PROMPT_CORE）：
 ${DIAGNOSIS_OCR_PROMPT_CORE}
@@ -710,7 +715,7 @@ async function handleImageChat(message, imageBase64, imageMimeType, systemPrompt
   // Step 1: Call Gemini with image to analyze and extract data
   let analysisResponse;
   try {
-    const rawResponse = await callGemini(systemPrompt, message, conversationHistory, imageBase64, imageMimeType);
+    const rawResponse = await callGemini(systemPrompt, message, conversationHistory, imageBase64, imageMimeType, 8192);
     if (rawResponse.type === "error") {
       return jsonResponse({
         success: true,
@@ -1150,6 +1155,7 @@ async function buildImageAnalysisResponse(analysisResponse, imageBase64, imageMi
   const docTypeLabels = {
     followup: "覆診預約",
     prescription: "處方管理",
+    discharge_slip: "出院紙",
     diagnosis: "診斷記錄",
     vaccination: "疫苗記錄",
     id_card: "身份證 / 新增院友",
@@ -1329,6 +1335,7 @@ async function handleCorrectionChat(message, correctionContext, systemPrompt, co
   const docTypeLabels = {
     followup: "覆診預約",
     prescription: "處方管理",
+    discharge_slip: "出院紙",
     diagnosis: "診斷記錄",
     vaccination: "疫苗記錄",
     id_card: "身份證 / 新增院友",
@@ -1370,7 +1377,7 @@ ${message || "請重新分析並修正錯誤。"}
 重要：只輸出上述 JSON，不要輸出任何自然語言解釋、問候或自我檢查清單。`;
   let analysisResponse;
   try {
-    const rawResponse = await callGemini(systemPrompt, correctionPrompt, conversationHistory, imageBase64, imageMimeType);
+    const rawResponse = await callGemini(systemPrompt, correctionPrompt, conversationHistory, imageBase64, imageMimeType, 8192);
     if (rawResponse.type === "error") {
       return jsonResponse({
         success: true,

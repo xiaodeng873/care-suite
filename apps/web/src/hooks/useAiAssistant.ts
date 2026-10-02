@@ -39,7 +39,7 @@ export interface PendingMutation {
 }
 
 export interface PrefillData {
-  documentType: 'followup' | 'prescription' | 'diagnosis' | 'vaccination' | 'id_card' | 'health_worksheet' | 'portrait';
+  documentType: 'followup' | 'prescription' | 'discharge_slip' | 'diagnosis' | 'vaccination' | 'id_card' | 'health_worksheet' | 'portrait';
   /** 各類型的提取資料；health_worksheet 為多筆記錄陣列，其餘為物件 */
   extractedData: any;
   matchedPatient: {
@@ -213,6 +213,15 @@ export function useAiAssistant() {
               documentType: resp.documentType,
               extractedData: resp.extractedData || {},
               matchedPatient: resp.matchedPatient || null,
+            };
+          } else if (resp.documentType === 'discharge_slip') {
+            // 出院紙：複合文件（診斷/藥物/敏感警示/覆診）→ 開出院紙核對 modal；extractedData 原樣透傳
+            prefill = {
+              documentType: 'discharge_slip',
+              extractedData: resp.extractedData || {},
+              matchedPatient: resp.matchedPatient || null,
+              imageBase64: respImageBase64,
+              imageMimeType: respImageMimeType,
             };
           } else if (resp.documentType === 'id_card') {
             // 記錄 session 內最近一次身份證分析，供後續人像相片做假設關聯

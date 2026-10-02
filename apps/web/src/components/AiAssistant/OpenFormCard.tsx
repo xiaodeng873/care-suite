@@ -12,6 +12,7 @@ interface OpenFormCardProps {
 const docTypeLabels: Record<string, { label: string; icon: string }> = {
   followup: { label: '覆診預約', icon: '🏥' },
   prescription: { label: '處方記錄', icon: '💊' },
+  discharge_slip: { label: '出院紙', icon: '🧾' },
   diagnosis: { label: '診斷記錄', icon: '📋' },
   vaccination: { label: '疫苗記錄', icon: '💉' },
   id_card: { label: '身份證', icon: '🪪' },
@@ -36,6 +37,17 @@ export const OpenFormCard: React.FC<OpenFormCardProps> = ({ prefillData, onOpenF
       ? prefillData.extractedData.records.length
       : 0;
   const isHypothesis = prefillData.documentType === 'portrait' && prefillData.hypothesis === true;
+  // 出院紙：三段筆數摘要（無該段唔顯示；藥物由處方識別流程處理）
+  const dischargeSummary = (() => {
+    if (prefillData.documentType !== 'discharge_slip' || Array.isArray(prefillData.extractedData)) return '';
+    const ed = prefillData.extractedData;
+    const count = (k: string) => (Array.isArray(ed?.[k]) ? ed[k].length : 0);
+    const parts: string[] = [];
+    if (count('diagnoses')) parts.push(`診斷 ${count('diagnoses')}`);
+    if (count('allergies')) parts.push(`警示 ${count('allergies')}`);
+    if (count('followups')) parts.push(`覆診 ${count('followups')}`);
+    return parts.join(' · ');
+  })();
   // id_card 有匹配院友：按「身份證相片」存檔狀態切換文案（loading 先顯示留檔版並禁用按鈕；查詢失敗當無存檔）
   const isIdCardArchive = prefillData.documentType === 'id_card' && !!patient;
   const hasIdCardPhoto = isIdCardArchive && idCardPhotoStatus === 'has';
@@ -54,7 +66,9 @@ export const OpenFormCard: React.FC<OpenFormCardProps> = ({ prefillData, onOpenF
           ? isHypothesis ? '確認設為院友相片' : '設為院友相片'
           : followupRecordCount > 1
             ? `開啟覆診批量核對（共 ${followupRecordCount} 筆）`
-            : prescriptionRecordCount > 1
+            : prefillData.documentType === 'discharge_slip'
+              ? `開啟出院紙核對${dischargeSummary ? `（${dischargeSummary}）` : ''}`
+              : prescriptionRecordCount > 1
               ? `開啟處方批量核對（共 ${prescriptionRecordCount} 筆）`
               : patient
               ? `開啟${info.label}表單（已預填）`

@@ -12,7 +12,7 @@ import { toMealTimingPayload, type MealTimings } from '../utils/mealTiming';
 import { compressToJpegBlob, uploadImage } from '../utils/storageUpload';
 import { PRESCRIPTION_IMAGES_BUCKET } from '../utils/patientPhotoUpload';
 
-interface PrescriptionEntry {
+export interface PrescriptionEntry {
   tempId: string;
   /** 來源圖片 index（records 來自同一圖則共用該圖）；null = 無來源圖 */
   sourceImageIndex: number | null;
@@ -39,6 +39,8 @@ interface PrescriptionEntry {
   meal_timings: MealTimings;
   is_prn: boolean;
   notes: string;
+  /** 檢測項（預設 []；出院紙條件式指示會預填） */
+  inspection_rules: any[];
 }
 
 interface PrescriptionMultiModalProps {
@@ -100,8 +102,10 @@ const toEntry = (
     meal_timings: m.meal_timings ?? { slots: [], connectors: [] },
     is_prn: m.is_prn ?? false,
     notes: m.notes || '',
+    inspection_rules: [],
   };
 };
+export { toEntry as toPrescriptionEntry };
 
 /** 必填：藥物名稱；「服用份量」與「特殊用法」至少要有一項（與單份表單一致） */
 const missingRequired = (e: PrescriptionEntry): string[] => {
@@ -119,6 +123,111 @@ const summaryOf = (e: PrescriptionEntry): string =>
   ]
     .filter(Boolean)
     .join(' · ');
+
+export { missingRequired as missingPrescriptionRequired, summaryOf as prescriptionEntrySummary };
+
+/** 仿 PrescriptionModal.handleSubmit 的 prescriptionData 組裝（新增處方路徑） */
+export const buildPrescriptionEntryData = (e: PrescriptionEntry, patientId: number): any => {
+  // 劑型連動備藥方式（同單份表單）
+  const immediatePreparationForms = ['藥水', '注射劑', '外用藥膏', '滴劑', '皮膚貼劑'];
+  const preparation_method = immediatePreparationForms.includes(e.dosage_form) ? 'immediate' : 'advanced';
+
+  const estimatedEndDate = computeEstimatedEndDate({
+    prescription_date: e.prescription_date,
+    end_date: e.end_date,
+    medication_quantity: e.medication_quantity,
+    dosage_amount: e.dosage_amount,
+    daily_frequency: e.daily_frequency,
+    medication_time_slots: e.medication_time_slots,
+    frequency_type: e.frequency_type,
+    frequency_value: e.frequency_value === '' ? null : e.frequency_value,
+    specific_weekdays: e.specific_weekdays,
+    is_odd_even_day: e.is_odd_even_day,
+  });
+
+  const data: any = {
+    patient_id: patientId,
+    medication_name: e.medication_name,
+    medication_source: e.medication_source,
+    medication_source_specialty: null,
+    medication_quantity: e.medication_quantity === '' ? null : String(e.medication_quantity),
+    estimated_end_date: estimatedEndDate || null,
+    prescription_date: e.prescription_date,
+    start_date: e.start_date,
+    start_time: e.start_time,
+    end_date: e.end_date || null,
+    end_time: e.end_time || null,
+    last_taken_date: null,
+    show_last_taken_in_record: false,
+    duration_days: e.duration_days === '' ? null : parseInt(e.duration_days, 10),
+    dosage_form: e.dosage_form,
+    administration_route: e.administration_route,
+    dosage_amount: e.dosage_amount === '' ? null : String(e.dosage_amount),
+    dosage_unit: e.dosage_unit,
+    special_dosage_instruction: e.special_dosage_instruction,
+    daily_frequency: e.frequency_type === 'each_time' ? null : e.daily_frequency,
+    frequency_type: e.frequency_type,
+    frequency_value: e.frequency_value === '' ? null : parseInt(String(e.frequency_value), 10),
+    specific_weekdays: e.specific_weekdays,
+    is_odd_even_day: e.is_odd_even_day,
+    medication_time_slots: e.frequency_type === 'each_time' ? [] : e.medication_time_slots,
+    ...toMealTimingPayload(e.meal_timings),
+    is_prn: e.is_prn,
+    preparation_method,
+    status: 'pending_change',
+    notes: e.notes,
+    is_long_term: !e.end_date,
+    inspection_rules: (e.inspection_rules || [])
+      .filter((rule: any) => rule && rule.vital_sign_type && rule.condition_operator && String(rule.condition_value ?? '') !== '')
+      .map((rule: any) => ({ ...rule, condition_value: parseFloat(String(rule.condition_value)) })),
+  };
+  Object.keys(data).forEach(key => {
+    if (data[key] === undefined) delete data[key];
+  });
+  return data;
+};
+
+/** 每筆處方各自上傳來源圖（共用一圖時逐筆上傳同一 File，各自 object，語意最簡單）；失敗唔阻儲存 */
+export const uploadPrescriptionEntryImage = async (
+  e: PrescriptionEntry,
+  sourceImageFiles?: File[],
+  sourceImagePreviews?: string[],
+): Promise<string | null> => {
+  // 無標記來源（例如 AI 助護單圖多藥）但只有一張來源圖時，視為全部來自該圖
+  const idx = e.sourceImageIndex ?? (sourceImagePreviews?.length === 1 ? 0 : null);
+  if (idx == null) return null;
+  const source = sourceImageFiles?.[idx] ?? sourceImagePreviews?.[idx];
+  if (!source) return null;
+  try {
+    const blob = await compressToJpegBlob(source, 1536, 0.9);
+    return await uploadImage(PRESCRIPTION_IMAGES_BUCKET, blob);
+  } catch (err) {
+    console.error('處方圖片上傳失敗:', err);
+    return null;
+  }
+};
+
+/** 儲存單筆處方 entry：組裝資料 → 上傳來源圖 → addPrescription → 記低常用欄位（同單份表單） */
+export const savePrescriptionEntry = async (
+  entry: PrescriptionEntry,
+  patientId: number,
+  addPrescription: (data: any) => Promise<void>,
+  sourceImageFiles?: File[],
+  sourceImagePreviews?: string[],
+): Promise<void> => {
+  const data = buildPrescriptionEntryData(entry, patientId);
+  const imageUrl = await uploadPrescriptionEntryImage(entry, sourceImageFiles, sourceImagePreviews);
+  if (imageUrl) data.image_path = imageUrl;
+  await addPrescription(data);
+  // 同單份表單：成功新增後記低門診日期、開始日期、藥物來源
+  try {
+    localStorage.setItem(LAST_RX_KEY(patientId), JSON.stringify({
+      prescription_date: entry.prescription_date,
+      start_date: entry.start_date,
+      medication_source: entry.medication_source,
+    }));
+  } catch { /* ignore quota errors */ }
+};
 
 /** 服用時間點編輯（chips + time input 新增），每張卡片各自實例 */
 const TimeSlotEditor: React.FC<{
@@ -247,94 +356,8 @@ const PrescriptionMultiModal: React.FC<PrescriptionMultiModalProps> = ({
     return null;
   };
 
-  /** 仿 PrescriptionModal.handleSubmit 的 prescriptionData 組裝（新增處方路徑） */
-  const buildPrescriptionData = (e: PrescriptionEntry): any => {
-    // 劑型連動備藥方式（同單份表單）
-    const immediatePreparationForms = ['藥水', '注射劑', '外用藥膏', '滴劑', '皮膚貼劑'];
-    const preparation_method = immediatePreparationForms.includes(e.dosage_form) ? 'immediate' : 'advanced';
-
-    const estimatedEndDate = computeEstimatedEndDate({
-      prescription_date: e.prescription_date,
-      end_date: e.end_date,
-      medication_quantity: e.medication_quantity,
-      dosage_amount: e.dosage_amount,
-      daily_frequency: e.daily_frequency,
-      medication_time_slots: e.medication_time_slots,
-      frequency_type: e.frequency_type,
-      frequency_value: e.frequency_value === '' ? null : e.frequency_value,
-      specific_weekdays: e.specific_weekdays,
-      is_odd_even_day: e.is_odd_even_day,
-    });
-
-    const data: any = {
-      patient_id: 院友id!,
-      medication_name: e.medication_name,
-      medication_source: e.medication_source,
-      medication_source_specialty: null,
-      medication_quantity: e.medication_quantity === '' ? null : String(e.medication_quantity),
-      estimated_end_date: estimatedEndDate || null,
-      prescription_date: e.prescription_date,
-      start_date: e.start_date,
-      start_time: e.start_time,
-      end_date: e.end_date || null,
-      end_time: e.end_time || null,
-      last_taken_date: null,
-      show_last_taken_in_record: false,
-      duration_days: e.duration_days === '' ? null : parseInt(e.duration_days, 10),
-      dosage_form: e.dosage_form,
-      administration_route: e.administration_route,
-      dosage_amount: e.dosage_amount === '' ? null : String(e.dosage_amount),
-      dosage_unit: e.dosage_unit,
-      special_dosage_instruction: e.special_dosage_instruction,
-      daily_frequency: e.frequency_type === 'each_time' ? null : e.daily_frequency,
-      frequency_type: e.frequency_type,
-      frequency_value: e.frequency_value === '' ? null : parseInt(String(e.frequency_value), 10),
-      specific_weekdays: e.specific_weekdays,
-      is_odd_even_day: e.is_odd_even_day,
-      medication_time_slots: e.frequency_type === 'each_time' ? [] : e.medication_time_slots,
-      ...toMealTimingPayload(e.meal_timings),
-      is_prn: e.is_prn,
-      preparation_method,
-      status: 'pending_change',
-      notes: e.notes,
-      is_long_term: !e.end_date,
-      inspection_rules: [],
-    };
-    Object.keys(data).forEach(key => {
-      if (data[key] === undefined) delete data[key];
-    });
-    return data;
-  };
-
-  /** 每筆處方各自上傳來源圖（共用一圖時逐筆上傳同一 File，各自 object，語意最簡單）；失敗唔阻儲存 */
-  const uploadEntryImage = async (e: PrescriptionEntry): Promise<string | null> => {
-    // 無標記來源（例如 AI 助護單圖多藥）但只有一張來源圖時，視為全部來自該圖
-    const idx = e.sourceImageIndex ?? (sourceImagePreviews?.length === 1 ? 0 : null);
-    if (idx == null) return null;
-    const source = sourceImageFiles?.[idx] ?? sourceImagePreviews?.[idx];
-    if (!source) return null;
-    try {
-      const blob = await compressToJpegBlob(source, 1536, 0.9);
-      return await uploadImage(PRESCRIPTION_IMAGES_BUCKET, blob);
-    } catch (err) {
-      console.error('處方圖片上傳失敗:', err);
-      return null;
-    }
-  };
-
   const saveOne = async (entry: PrescriptionEntry) => {
-    const data = buildPrescriptionData(entry);
-    const imageUrl = await uploadEntryImage(entry);
-    if (imageUrl) data.image_path = imageUrl;
-    await addPrescription(data);
-    // 同單份表單：成功新增後記低門診日期、開始日期、藥物來源
-    try {
-      localStorage.setItem(LAST_RX_KEY(院友id!), JSON.stringify({
-        prescription_date: entry.prescription_date,
-        start_date: entry.start_date,
-        medication_source: entry.medication_source,
-      }));
-    } catch { /* ignore quota errors */ }
+    await savePrescriptionEntry(entry, 院友id!, addPrescription, sourceImageFiles, sourceImagePreviews);
   };
 
   const handleSaveEntry = useCallback(async (entry: PrescriptionEntry) => {
