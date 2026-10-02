@@ -53,6 +53,8 @@ export interface PrefillData {
   imageMimeType?: string;
   /** true = 由 session 內身份證結果假設關聯的 portrait，需人手確認 */
   hypothesis?: boolean;
+  /** 聚合批量卡專用（同院友多張處方/覆診）：全部來源圖 dataURL，配合 entry 的 __sourceImageIndex 對應 */
+  sourceImagePreviews?: string[];
 }
 
 export function useAiAssistant() {
@@ -167,15 +169,25 @@ export function useAiAssistant() {
         }
       }));
 
+      const newMessages: AiMessage[] = [];
+      // 可聚合的 prefill 卡（followup/prescription）：迴圈後按 (documentType, 院友) 分組
+      const groupable: {
+        msgIndex: number;
+        documentType: 'followup' | 'prescription';
+        patientKey: string;
+        imageBase64?: string;
+        imageMimeType?: string;
+      }[] = [];
+
       for (const r of settled) {
         if (!r.ok) {
           // 單張失敗不影響其他圖片的結果
-          setMessages(prev => [...prev, {
+          newMessages.push({
             id: crypto.randomUUID(),
             role: 'assistant',
             content: (total > 1 ? `【第 ${r.index + 1}/${total} 張】` : '') + `抱歉，請求失敗：${r.error}`,
             timestamp: Date.now(),
-          }]);
+          });
           continue;
         }
         const i = r.index;
@@ -285,8 +297,64 @@ export function useAiAssistant() {
             imageMimeType: respImageMimeType,
           } : undefined,
         };
-        setMessages(prev => [...prev, assistantMsg]);
+        if (prefill && (prefill.documentType === 'followup' || prefill.documentType === 'prescription')) {
+          groupable.push({
+            msgIndex: newMessages.length,
+            documentType: prefill.documentType,
+            // 未匹配院友各自獨立成組，不聚合
+            patientKey: prefill.matchedPatient ? `p${prefill.matchedPatient.院友id}` : `msg${newMessages.length}`,
+            imageBase64: respImageBase64,
+            imageMimeType: respImageMimeType,
+          });
+        }
+        newMessages.push(assistantMsg);
       }
+
+      // 同一院友多張處方/覆診 → 聚合為一張批量核對卡（只放喺該組第一則訊息，其餘組員移除 prefill）
+      const groups = new Map<string, typeof groupable>();
+      for (const g of groupable) {
+        const key = `${g.documentType}:${g.patientKey}`;
+        const arr = groups.get(key) || [];
+        arr.push(g);
+        groups.set(key, arr);
+      }
+      for (const members of groups.values()) {
+        // 展開每張的 entry（extractedData.records 有多筆用 records，否則頂層算 1 筆），順序保持
+        const entries: any[] = [];
+        const sourceImagePreviews: string[] = [];
+        for (const m of members) {
+          const ed = newMessages[m.msgIndex].prefillData!.extractedData;
+          const rs = Array.isArray(ed?.records) && ed.records.length > 0 ? ed.records : [ed];
+          const hasImage = !!(m.imageBase64 && m.imageMimeType);
+          const imgIdx = hasImage ? sourceImagePreviews.length : -1;
+          if (hasImage) sourceImagePreviews.push(`data:${m.imageMimeType};base64,${m.imageBase64}`);
+          for (const rec of rs) {
+            entries.push(
+              rec && typeof rec === 'object' && !Array.isArray(rec) && imgIdx >= 0
+                ? { ...rec, __sourceImageIndex: imgIdx }
+                : rec
+            );
+          }
+        }
+        if (entries.length <= 1) continue; // 每組只有 1 筆 → 維持逐張單卡
+        const first = members[0];
+        const firstEd = newMessages[first.msgIndex].prefillData!.extractedData;
+        const { records: _records, ...firstTopLevel } =
+          firstEd && typeof firstEd === 'object' && !Array.isArray(firstEd) ? firstEd : {};
+        newMessages[first.msgIndex].prefillData = {
+          documentType: first.documentType,
+          extractedData: { ...firstTopLevel, records: entries },
+          matchedPatient: newMessages[first.msgIndex].prefillData!.matchedPatient,
+          imageBase64: first.imageBase64,
+          imageMimeType: first.imageMimeType,
+          sourceImagePreviews: sourceImagePreviews.length > 0 ? sourceImagePreviews : undefined,
+        };
+        for (const m of members.slice(1)) {
+          newMessages[m.msgIndex].prefillData = null;
+        }
+      }
+
+      setMessages(prev => [...prev, ...newMessages]);
 
       // 重試時把後續對話接回原順序
       if (tail.length > 0) {

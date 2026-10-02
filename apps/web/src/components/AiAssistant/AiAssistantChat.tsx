@@ -13,6 +13,7 @@ import VaccinationRecordModal from '../VaccinationRecordModal';
 import PatientModal from '../PatientModal';
 import BatchHealthRecordOCRModal from '../BatchHealthRecordOCRModal';
 import ImageSourcePicker from '../ImageSourcePicker';
+import ImageCropModal from '../ImageCropModal';
 import { mapOCRDataToPrescriptionForm } from '../../utils/ocrFieldMapper';
 import { getMedicationSettings } from '../../utils/medicationSettings';
 import { supabase } from '../../lib/supabase';
@@ -182,6 +183,50 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
     if (files.length === 0) return;
     const loaded = (await Promise.all(files.map(readImageFile))).filter((img): img is PendingImage => img !== null);
     if (loaded.length > 0) setImages(prev => [...prev, ...loaded]);
+  };
+
+  /** picker 選/拍完先入裁剪隊列，逐張裁剪確認後先至一次過加入待傳送佇列 */
+  const [cropQueue, setCropQueue] = useState<string[]>([]);
+  const cropCollectedRef = useRef<File[]>([]);
+
+  const enqueueCropFiles = (files: File[]) => {
+    for (const file of files) {
+      if (!VALID_IMAGE_TYPES.includes(file.type)) {
+        alert('不支援的圖片格式，請使用 JPG、PNG 或 WEBP');
+        continue;
+      }
+      if (file.size > MAX_IMAGE_SIZE) {
+        alert('圖片檔案過大，請選擇小於 10MB 的圖片');
+        continue;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') setCropQueue(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  /** 隊列清空時把已確認裁剪的圖一次過送入待傳送佇列（全部取消則不加） */
+  const flushCroppedFiles = () => {
+    if (cropCollectedRef.current.length === 0) return;
+    const files = cropCollectedRef.current;
+    cropCollectedRef.current = [];
+    void addImageFiles(files);
+  };
+
+  const handleCropConfirm = async (dataUrl: string) => {
+    const blob = await (await fetch(dataUrl)).blob();
+    cropCollectedRef.current.push(new File([blob], `crop-${Date.now()}.jpg`, { type: 'image/jpeg' }));
+    const isLast = cropQueue.length === 1;
+    setCropQueue(prev => prev.slice(1));
+    if (isLast) flushCroppedFiles();
+  };
+
+  const handleCropCancel = () => {
+    const isLast = cropQueue.length === 1;
+    setCropQueue(prev => prev.slice(1));
+    if (isLast) flushCroppedFiles();
   };
 
   const handleRemoveImage = (index: number) => {
@@ -462,7 +507,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
           )}
           <div className="flex items-end gap-2">
             <ImageSourcePicker
-              onSelect={addImageFiles}
+              onSelect={enqueueCropFiles}
               albumMultiple
               accept="image/jpeg,image/png,image/webp"
             >
@@ -525,9 +570,11 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
             initialEntries={activeModal.extractedData.records}
             matchedPatientId={activeModal.matchedPatient?.院友id ?? null}
             sourceImagePreviews={
-              activeModal.imageBase64 && activeModal.imageMimeType
-                ? [`data:${activeModal.imageMimeType};base64,${activeModal.imageBase64}`]
-                : undefined
+              activeModal.sourceImagePreviews && activeModal.sourceImagePreviews.length > 0
+                ? activeModal.sourceImagePreviews
+                : activeModal.imageBase64 && activeModal.imageMimeType
+                  ? [`data:${activeModal.imageMimeType};base64,${activeModal.imageBase64}`]
+                  : undefined
             }
             onClose={handleCloseModal}
           />
@@ -580,6 +627,18 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
           initialRecords={Array.isArray(activeModal.extractedData) ? activeModal.extractedData : []}
           onClose={handleCloseModal}
         />
+      )}
+      {/* 上傳前裁剪隊列：wrapper 提升層級，避免被 chat 視窗 z-[9999] 遮蓋 */}
+      {cropQueue.length > 0 && (
+        <div className="relative z-[10001]">
+          <ImageCropModal
+            imageSrc={cropQueue[0]}
+            mode="free"
+            maxOutput={2000}
+            onConfirm={handleCropConfirm}
+            onCancel={handleCropCancel}
+          />
+        </div>
       )}
     </>
   );
