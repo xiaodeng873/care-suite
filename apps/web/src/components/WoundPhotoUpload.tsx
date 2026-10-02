@@ -3,7 +3,7 @@ import { Camera, Upload, Trash2, Eye, X, Plus, Download } from 'lucide-react';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
 import { compressToJpegBlob, uploadImage, deleteImageByUrl, isStorageUrl } from '../utils/storageUpload';
 import { PATIENT_PHOTOS_BUCKET } from '../utils/patientPhotoUpload';
-
+import CameraCaptureModal from './CameraCaptureModal';
 
 interface WoundPhoto {
   id: string;
@@ -28,8 +28,20 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
   const [showCamera, setShowCamera] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<WoundPhoto | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // 壓縮後直接上傳 Storage，base64 欄位存 public URL（渲染位 <img src> 照舊）
+  const uploadOne = async (file: File): Promise<WoundPhoto> => {
+    const blob = await compressToJpegBlob(file, 1536, 0.9);
+    const publicUrl = await uploadImage(PATIENT_PHOTOS_BUCKET, blob, 'jpg', 'wound/');
+
+    return {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      base64: publicUrl,
+      filename: file.name,
+      uploadDate: new Date().toISOString(),
+      description: ''
+    };
+  };
 
   const handleFileUpload = async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -50,18 +62,7 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
     setIsUploading(true);
 
     try {
-      // 壓縮後直接上傳 Storage，base64 欄位存 public URL（渲染位 <img src> 照舊）
-      const blob = await compressToJpegBlob(file, 1536, 0.9);
-      const publicUrl = await uploadImage(PATIENT_PHOTOS_BUCKET, blob, 'jpg', 'wound/');
-
-      const newPhoto: WoundPhoto = {
-        id: Date.now().toString(),
-        base64: publicUrl,
-        filename: file.name,
-        uploadDate: new Date().toISOString(),
-        description: ''
-      };
-
+      const newPhoto = await uploadOne(file);
       onPhotosChange([...photos, newPhoto]);
     } catch (error) {
       console.error('上傳相片失敗:', error);
@@ -77,54 +78,31 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
     }
   };
 
-  const startCamera = async () => {
+  // 連拍相機一次回傳多張，尊重 maxPhotos 上限（超出截斷並提示）
+  const handleCameraConfirm = async (files: File[]) => {
+    setShowCamera(false);
+    const slots = maxPhotos - photos.length;
+    if (slots <= 0) {
+      alert(`最多只能上傳 ${maxPhotos} 張相片`);
+      return;
+    }
+    const selected = files.slice(0, slots);
+
+    setIsUploading(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' } // Use back camera on mobile
-      });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setShowCamera(true);
+      const newPhotos: WoundPhoto[] = [];
+      for (const file of selected) {
+        newPhotos.push(await uploadOne(file));
+      }
+      onPhotosChange([...photos, ...newPhotos]);
+      if (files.length > slots) {
+        alert(`最多只能上傳 ${maxPhotos} 張相片，已加入 ${selected.length} 張，其餘 ${files.length - slots} 張已略過`);
       }
     } catch (error) {
-      console.error('無法開啟攝影機:', error);
-      alert('無法開啟攝影機，請檢查權限設定');
-    }
-  };
-
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const video = videoRef.current;
-      
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-        
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const file = new File([blob], `wound-photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
-            handleFileUpload(file);
-          }
-        }, 'image/jpeg', 0.8);
-      }
-      
-      // Stop camera
-      stopCamera();
-    }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-      setShowCamera(false);
+      console.error('上傳相片失敗:', error);
+      alert('上傳相片失敗，請重試');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -167,7 +145,7 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
         <h4 className="text-sm font-medium text-gray-700">
           傷口相片 ({photos.length}/{maxPhotos})
         </h4>
-        
+
         {photos.length < maxPhotos && (
           <div className="flex flex-wrap gap-2">
             <button
@@ -179,10 +157,10 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
               <Upload className="h-4 w-4" />
               <span>上傳相片</span>
             </button>
-            
+
             <button
               type="button"
-              onClick={startCamera}
+              onClick={() => setShowCamera(true)}
               disabled={isUploading}
               className="btn-secondary text-sm flex items-center space-x-1"
             >
@@ -203,49 +181,16 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
         disabled={isUploading}
       />
 
-      {/* Camera view */}
+      {/* 連拍相機 */}
       {showCamera && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) stopCamera();
+        <CameraCaptureModal
+          onConfirm={handleCameraConfirm}
+          onCancel={() => setShowCamera(false)}
+          onFallback={() => {
+            setShowCamera(false);
+            fileInputRef.current?.click();
           }}
-        >
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">拍攝傷口相片</h3>
-              <button
-                onClick={stopCamera}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="w-full rounded-lg mb-4"
-            />
-            
-            <div className="flex flex-wrap justify-center gap-3">
-              <button
-                onClick={capturePhoto}
-                className="btn-primary flex flex-wrap items-center gap-2"
-              >
-                <Camera className="h-4 w-4" />
-                <span>拍照</span>
-              </button>
-              <button
-                onClick={stopCamera}
-                className="btn-secondary"
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        </div>
+        />
       )}
 
       {/* Photo grid */}
@@ -261,13 +206,13 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
                   onClick={() => setPreviewPhoto(photo)}
                 />
               </div>
-              
+
               <div className="p-2 space-y-2">
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-xs text-gray-500">
                     {formatDisplayDate(photo.uploadDate)}
                   </span>
-                  
+
                   <div className="flex space-x-1">
                     <button
                       type="button"
@@ -320,7 +265,7 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
 
       {/* Photo preview modal */}
       {previewPhoto && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
           onClick={(e) => {
             if (e.target === e.currentTarget) setPreviewPhoto(null);
@@ -336,14 +281,14 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
                 <X className="h-6 w-6" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <img
                 src={previewPhoto.base64}
                 alt={previewPhoto.description || '傷口相片'}
                 className="w-full rounded-lg"
               />
-              
+
               <div className="space-y-2">
                 <div className="text-sm text-gray-600">
                   <p><strong>檔案名稱：</strong>{previewPhoto.filename}</p>
@@ -354,9 +299,6 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
           </div>
         </div>
       )}
-
-      {/* Hidden canvas for camera capture */}
-      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 };

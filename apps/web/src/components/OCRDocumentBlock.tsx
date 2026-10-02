@@ -16,6 +16,9 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const allowMultiple = documentType === 'followup';
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState<string>('');
   const [ocrResult, setOcrResult] = useState<any>(null);
@@ -74,8 +77,35 @@ ${documentPromptCores[documentType]}
     reader.readAsDataURL(file);
   };
 
+  const loadFiles = (files: File[]) => {
+    files.forEach(file => {
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        onOCRError(validation.error || '無效的圖片檔案');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelectedFiles(prev => [...prev, file]);
+        setImagePreviews(prev => [...prev, reader.result as string]);
+      };
+      reader.onerror = () => onOCRError('無法讀取圖片檔案');
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveImage = (idx: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
+    setImagePreviews(prev => prev.filter((_, i) => i !== idx));
+    setOcrResult(null);
+  };
+
   const handlePickerSelect = (files: File[]) => {
     if (isProcessing) return;
+    if (allowMultiple) {
+      loadFiles(files);
+      return;
+    }
     const file = files[0];
     if (file) loadFile(file);
   };
@@ -90,6 +120,12 @@ ${documentPromptCores[documentType]}
     e.stopPropagation();
 
     if (isProcessing) return;
+
+    if (allowMultiple) {
+      const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
+      if (files.length) loadFiles(files);
+      return;
+    }
 
     const file = e.dataTransfer.files?.[0];
     if (file) loadFile(file);
@@ -169,9 +205,95 @@ ${documentPromptCores[documentType]}
     return bestMatchPatientId;
   };
 
+  const handleStartOCRMultiple = async (skipCache: boolean) => {
+    if (!selectedFiles.length) {
+      onOCRError('請先選擇圖片');
+      return;
+    }
+
+    setIsProcessing(true);
+    setOcrResult(null);
+
+    try {
+      const prompt = buildDocumentPrompt();
+      const aggregated: Record<string, unknown>[] = [];
+      let firstExtractedData: any = null;
+      let lastResult: any = null;
+      let lastError: string | null = null;
+
+      for (let i = 0; i < selectedFiles.length; i++) {
+        setProcessingStage(
+          selectedFiles.length > 1
+            ? `正在識別第 ${i + 1}/${selectedFiles.length} 張圖片...`
+            : '正在使用AI視覺識別...'
+        );
+        const result = await processImageWithGeminiVision(selectedFiles[i], prompt, skipCache, undefined);
+        lastResult = result;
+        if (!result.success || !result.extractedData) {
+          lastError = result.error || 'OCR識別失敗';
+          continue;
+        }
+        const ed = result.extractedData;
+        if (!firstExtractedData) firstExtractedData = ed;
+        const recs = Array.isArray(ed.records) ? ed.records : null;
+        if (recs && recs.length > 0) {
+          recs.forEach((r: any) => {
+            if (r && typeof r === 'object') aggregated.push(r);
+          });
+        } else {
+          aggregated.push({
+            覆診日期: ed.覆診日期,
+            覆診時間: ed.覆診時間,
+            覆診地點: ed.覆診地點,
+            覆診專科: ed.覆診專科,
+            出發時間: ed.出發時間,
+            備註: ed.備註,
+          });
+        }
+      }
+
+      if (!firstExtractedData) {
+        setIsProcessing(false);
+        setProcessingStage('');
+        onOCRError(lastError || 'OCR識別失敗');
+        return;
+      }
+
+      setProcessingStage('正在匹配院友資料...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const matchedPatientId = findMatchingPatient(firstExtractedData);
+
+      setIsProcessing(false);
+      setProcessingStage('');
+      setOcrResult(lastResult);
+      setForceRefresh(false);
+
+      if (aggregated.length <= 1) {
+        onOCRComplete({ ...firstExtractedData, patient_id: matchedPatientId });
+      } else {
+        onOCRComplete({
+          ...firstExtractedData,
+          records: aggregated,
+          patient_id: matchedPatientId,
+          imagePreviews,
+        });
+      }
+    } catch (error: any) {
+      setIsProcessing(false);
+      setProcessingStage('');
+      onOCRError(error.message || '處理過程發生錯誤');
+    }
+  };
+
   const handleStartOCR = async (skipCache: boolean = false) => {
     // 防止重複執行（React Strict Mode 或連點防護）
     if (isProcessing) return;
+
+    if (allowMultiple) {
+      await handleStartOCRMultiple(skipCache);
+      return;
+    }
 
     if (!selectedFile) {
       onOCRError('請先選擇圖片');
@@ -259,29 +381,85 @@ ${documentPromptCores[documentType]}
               <div>
                 <label className="form-label">
                   圖片上傳
-                  {selectedFile && (
-                    <span className="ml-2 text-xs text-green-600">
-                      ✓ 已選擇檔案
-                    </span>
+                  {allowMultiple ? (
+                    selectedFiles.length > 0 && (
+                      <span className="ml-2 text-xs text-green-600">
+                        ✓ 已選擇 {selectedFiles.length} 張圖片
+                      </span>
+                    )
+                  ) : (
+                    selectedFile && (
+                      <span className="ml-2 text-xs text-green-600">
+                        ✓ 已選擇檔案
+                      </span>
+                    )
                   )}
                 </label>
                 <div className="relative">
                   <ImageSourcePicker
                     onSelect={handlePickerSelect}
+                    albumMultiple={allowMultiple}
                     accept="image/jpeg,image/jpg,image/png,image/webp"
                   >
                     {(openPicker) => (
                       <div
                         onDragOver={handleDragOver}
                         onDrop={handleDrop}
-                        onClick={imagePreview || isProcessing ? undefined : openPicker}
-                        className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg transition-colors ${
-                          imagePreview
+                        onClick={
+                          allowMultiple
+                            ? (imagePreviews.length > 0 || isProcessing ? undefined : openPicker)
+                            : (imagePreview || isProcessing ? undefined : openPicker)
+                        }
+                        className={`flex flex-col items-center justify-center w-full ${allowMultiple && imagePreviews.length > 0 ? '' : 'h-40'} border-2 border-dashed rounded-lg transition-colors ${
+                          (allowMultiple ? imagePreviews.length > 0 : !!imagePreview)
                             ? 'border-green-300 bg-green-50'
                             : 'border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer'
                         } ${isProcessing ? 'opacity-50' : ''}`}
                       >
-                        {imagePreview ? (
+                        {allowMultiple ? (
+                          imagePreviews.length > 0 ? (
+                            <div className="flex flex-wrap gap-2 p-3 w-full">
+                              {imagePreviews.map((src, i) => (
+                                <div key={i} className="relative w-20 h-20">
+                                  <img
+                                    src={src}
+                                    alt={`圖片${i + 1}`}
+                                    className="w-full h-full object-cover rounded-lg border border-gray-200"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleRemoveImage(i);
+                                    }}
+                                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600"
+                                    disabled={isProcessing}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (!isProcessing) openPicker();
+                                }}
+                                className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500"
+                              >
+                                <Upload className="h-5 w-5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center">
+                              <Upload className="h-10 w-10 text-gray-400 mb-2" />
+                              <p className="text-sm text-gray-600 mb-2">點擊拍照或選擇相簿圖片（相簿支援多張）</p>
+                              <p className="text-xs text-gray-500">支援 JPG、PNG、WEBP 格式，亦可拖放圖片到此</p>
+                            </div>
+                          )
+                        ) : imagePreview ? (
                           <div className="relative w-full h-full p-2">
                             <img
                               src={imagePreview}
@@ -312,7 +490,7 @@ ${documentPromptCores[documentType]}
                     )}
                   </ImageSourcePicker>
                 </div>
-                {selectedFile && (
+                {!allowMultiple && selectedFile && (
                   <p className="text-xs text-gray-600 mt-1">
                     檔案: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
                   </p>
@@ -323,7 +501,7 @@ ${documentPromptCores[documentType]}
                 <button
                   type="button"
                   onClick={() => handleStartOCR(false)}
-                  disabled={!selectedFile || isProcessing}
+                  disabled={(allowMultiple ? selectedFiles.length === 0 : !selectedFile) || isProcessing}
                   className="btn-primary w-full flex flex-wrap items-center justify-center gap-2"
                 >
                   {isProcessing ? (
@@ -343,7 +521,7 @@ ${documentPromptCores[documentType]}
                   <button
                     type="button"
                     onClick={() => handleStartOCR(true)}
-                    disabled={!selectedFile || isProcessing}
+                    disabled={(allowMultiple ? selectedFiles.length === 0 : !selectedFile) || isProcessing}
                     className="w-full px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex flex-wrap items-center justify-center gap-2"
                   >
                     <RefreshCw className="h-4 w-4" />

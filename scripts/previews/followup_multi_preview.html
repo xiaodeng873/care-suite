@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>覆診批量識別核對 — UI 布局預覽</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: "Microsoft JhengHei", "PingFang HK", system-ui, sans-serif; background: #4b5563; }
+  .form-input { width:100%; border:1px solid #d1d5db; border-radius:.5rem; padding:.45rem .6rem; font-size:.875rem; }
+  .form-input:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 1px #3b82f6; }
+  .form-label { display:block; font-size:.75rem; font-weight:500; color:#4b5563; margin-bottom:.25rem; }
+  .btn-primary { background:#2563eb; color:#fff; padding:.5rem 1rem; border-radius:.5rem; font-weight:500; }
+  .btn-secondary { background:#fff; border:1px solid #d1d5db; color:#374151; padding:.5rem 1rem; border-radius:.5rem; font-weight:500; }
+  .annot { position:absolute; background:#fef3c7; border:1px solid #f59e0b; color:#92400e; font-size:11px; padding:2px 8px; border-radius:9999px; z-index:10; white-space:nowrap; }
+</style>
+</head>
+<body class="p-6">
+
+<!-- 設計說明列 -->
+<div class="max-w-6xl mx-auto mb-4 bg-white rounded-lg p-4 text-sm text-gray-700 space-y-1">
+  <p class="font-semibold text-base">新 Modal：覆診批量識別核對（FollowUpMultiModal）— UI 布局預覽</p>
+  <p>觸發時機：OCR 偵測到 <b>多於一項覆診</b>（一份文件多個覆診，或一次上傳多張圖片）→ 開此 modal；只有一項 → 沿用現有單份 FollowUpModal。</p>
+  <p>與單份表單欄位完全一致（院友／覆診日期／覆診時間／出發時間／覆診地點／覆診專科／交通安排／陪診人員／狀態／備註），<b>移除</b>通知訊息模板、WhatsApp 區塊。</p>
+  <p>AI 助護同樣流程：識別結果 &gt;1 筆時，OpenFormCard 按鈕改為「開啟覆診批量核對（共 N 筆）」，打開同一 modal。</p>
+</div>
+
+<!-- ============ Modal ============ -->
+<div class="max-w-6xl mx-auto bg-white rounded-lg shadow-2xl">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between p-5 border-b border-gray-200 relative">
+    <span class="annot" style="top:-10px;left:16px">① Header：標題 + 識別來源圖片縮圖</span>
+    <div class="flex items-center gap-3">
+      <div class="p-2 rounded-lg bg-blue-100">
+        <svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      </div>
+      <div>
+        <h2 class="text-xl font-semibold text-gray-900">覆診批量識別核對</h2>
+        <p class="text-xs text-gray-500">請逐項核對識別結果，修正後儲存；交通／陪診可在此一併安排</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <!-- 來源圖片縮圖（點擊放大對照原圖） -->
+      <div class="flex -space-x-2">
+        <div class="w-10 h-10 rounded border-2 border-white shadow bg-gray-200 flex items-center justify-center text-[10px] text-gray-500">圖1</div>
+        <div class="w-10 h-10 rounded border-2 border-white shadow bg-gray-300 flex items-center justify-center text-[10px] text-gray-500">圖2</div>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600">
+        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="p-5 space-y-5">
+
+    <!-- 院友列 -->
+    <div class="flex flex-wrap items-end gap-4 bg-blue-50 border border-blue-200 rounded-lg p-3 relative">
+      <span class="annot" style="top:-10px;left:16px">② 院友：OCR 自動匹配，全部條目共用；可在個別條目覆寫</span>
+      <div class="flex-1 min-w-[260px]">
+        <label class="form-label">院友（全部條目共用）</label>
+        <input class="form-input bg-white" value="關永安（227-1）" readonly>
+      </div>
+      <div class="text-xs text-blue-700 pb-2">由 OCR 姓名／身份證自動匹配 · 如識別錯誤請在此更正</div>
+    </div>
+
+    <!-- 總覽列 -->
+    <div class="flex items-center justify-between relative">
+      <span class="annot" style="top:-10px;left:0">③ 總覽：偵測數量 + 缺欄位警示</span>
+      <span class="text-sm font-medium text-gray-700">
+        識別結果（共 <b>6</b> 項覆診，可編輯後儲存）
+        <span class="ml-2 text-xs text-red-600 font-normal">⚠ 2 項缺少必填欄位</span>
+      </span>
+      <button class="btn-secondary text-sm flex items-center gap-1">＋ 新增空白項</button>
+    </div>
+
+    <!-- ============ 條目卡片 1（正常，展開） ============ -->
+    <div class="border border-gray-200 rounded-lg relative">
+      <span class="annot" style="top:-10px;left:16px">④ 條目卡片：頂行摘要 + 摺疊；全部單份欄位一個不少</span>
+      <!-- 卡片頂行 -->
+      <div class="flex items-center gap-3 px-4 py-2.5 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+        <span class="text-xs font-bold text-gray-400">#1</span>
+        <span class="text-sm font-medium text-gray-900">2026-10-12 10:15 · 明愛醫院 · 職業治療部（壓力衣治療）</span>
+        <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">尚未安排</span>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">資料完整</span>
+        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+      </div>
+      <!-- 卡片內容 -->
+      <div class="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div><label class="form-label">覆診日期 *</label><input class="form-input" value="2026-10-12"></div>
+        <div><label class="form-label">覆診時間 *</label><input class="form-input" value="10:15"></div>
+        <div><label class="form-label">出發時間</label><input class="form-input" value="09:30"></div>
+        <div><label class="form-label">狀態</label>
+          <select class="form-input"><option>尚未安排</option><option>已安排</option></select>
+        </div>
+        <div class="md:col-span-2"><label class="form-label">覆診地點</label><input class="form-input" value="明愛醫院（職業治療部 懷明樓4樓）"></div>
+        <div class="md:col-span-2"><label class="form-label">覆診專科</label><input class="form-input" value="職業治療（壓力衣治療）"></div>
+        <div><label class="form-label">交通安排</label>
+          <select class="form-input"><option>輪椅的士</option><option>普通的士</option><option>非緊急車</option><option>無需安排</option></select>
+        </div>
+        <div><label class="form-label">陪診人員</label>
+          <select class="form-input"><option>陪診員</option><option>家人</option><option>無需陪診</option></select>
+        </div>
+        <div class="md:col-span-2"><label class="form-label">備註</label><input class="form-input" value="帶備身份證" placeholder="便條上的印刷指示"></div>
+        <div class="md:col-span-4 flex items-center justify-end gap-2">
+          <button class="text-sm text-red-600 hover:text-red-700 px-3 py-1.5">刪除此項</button>
+          <button class="btn-primary text-sm !bg-green-600">儲存此項</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 條目卡片 2（缺欄位，標紅） ============ -->
+    <div class="border-2 border-red-300 rounded-lg relative">
+      <span class="annot" style="top:-10px;left:16px">⑤ 缺必填欄位的條目：紅框 + 警示，不可儲存直至補齊</span>
+      <div class="flex items-center gap-3 px-4 py-2.5 bg-red-50 border-b border-red-200 rounded-t-lg">
+        <span class="text-xs font-bold text-gray-400">#2</span>
+        <span class="text-sm font-medium text-gray-900">2026-10-15 11:30 · 明愛醫院 · 腎移植專科</span>
+        <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">尚未安排</span>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">⚠ 缺覆診時間</span>
+        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+      </div>
+      <div class="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div><label class="form-label">覆診日期 *</label><input class="form-input" value="2026-10-15"></div>
+        <div>
+          <label class="form-label text-red-600">覆診時間 *</label>
+          <input class="form-input !border-red-400" value="">
+          <p class="text-[11px] text-red-600 mt-0.5">⚠ 未能識別，請手動填寫</p>
+        </div>
+        <div><label class="form-label">出發時間</label><input class="form-input" value="10:45"></div>
+        <div><label class="form-label">狀態</label><select class="form-input"><option>尚未安排</option></select></div>
+        <div class="md:col-span-2"><label class="form-label">覆診地點</label><input class="form-input" value="明愛醫院（專科門診 懷明樓3樓）"></div>
+        <div class="md:col-span-2"><label class="form-label">覆診專科</label><input class="form-input" value="腎移植專科 Renal-Transplant"></div>
+        <div><label class="form-label">交通安排</label><select class="form-input"><option>輪椅的士</option></select></div>
+        <div><label class="form-label">陪診人員</label><select class="form-input"><option>陪診員</option></select></div>
+        <div class="md:col-span-2"><label class="form-label">備註</label><input class="form-input" value=""></div>
+        <div class="md:col-span-4 flex items-center justify-end gap-2">
+          <button class="text-sm text-red-600 px-3 py-1.5">刪除此項</button>
+          <button class="btn-primary text-sm !bg-green-600 opacity-50 cursor-not-allowed">儲存此項</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 條目卡片 3-6（已核對，摺疊成一行） ============ -->
+    <div class="space-y-2 relative">
+      <span class="annot" style="top:-10px;left:16px">⑥ 已核對無誤的條目可摺疊成一行，節省高度</span>
+      <div class="flex items-center gap-3 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <span class="text-xs font-bold text-gray-400">#3</span>
+        <span class="text-sm text-gray-800">2026-11-25 14:00 · 明愛醫院 · 青光眼科</span>
+        <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">已安排</span>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">資料完整</span>
+        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <div class="flex items-center gap-3 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <span class="text-xs font-bold text-gray-400">#4</span>
+        <span class="text-sm text-gray-800">2026-12-09 14:00 · 明愛醫院 · 外科（影像尿流動力）</span>
+        <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">尚未安排</span>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">資料完整</span>
+        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <div class="flex items-center gap-3 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <span class="text-xs font-bold text-gray-400">#5</span>
+        <span class="text-sm text-gray-800">2027-01-07 10:30 · 明愛醫院 · 外科泌尿科 Urology</span>
+        <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">尚未安排</span>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">資料完整</span>
+        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <div class="flex items-center gap-3 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <span class="text-xs font-bold text-gray-400">#6</span>
+        <span class="text-sm text-gray-800">2027-02-03 10:00 · 明愛醫院 · 視野檢查 Humphrey</span>
+        <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">尚未安排</span>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">資料完整</span>
+        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Sticky Footer -->
+  <div class="sticky bottom-0 flex items-center justify-between gap-3 px-5 py-4 border-t border-gray-200 bg-white rounded-b-lg relative">
+    <span class="annot" style="top:-10px;left:16px">⑦ Footer：批次儲存；成功項即時從列表移除，失敗項保留並標錯</span>
+    <span class="text-xs text-gray-500">儲存後每項覆診會各自成為一筆覆診記錄（與單份表單寫入同一資料表）</span>
+    <div class="flex gap-2">
+      <button class="btn-secondary text-sm">取消</button>
+      <button class="btn-primary text-sm !bg-green-600 flex items-center gap-2">
+        批量儲存全部（6 項）
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- 對照：明確排除的內容 -->
+<div class="max-w-6xl mx-auto mt-4 bg-gray-800 rounded-lg p-4 text-sm text-gray-300 space-y-1">
+  <p class="font-semibold text-gray-100">此 modal 不包含（與單份表單的差異）：</p>
+  <p>✕ 通知訊息模板區塊（問家人／輪椅的士／陪診員訊息預覽）　✕ WhatsApp 發送按鈕　✕ 圖片上傳區（改由觸發入口處理，modal 頂部只顯示縮圖對照）</p>
+  <p>入口：① FollowUpModal 內智能識別（OCR 區塊支援一次上傳多張圖片）→ 合計識別到多於一項覆診時自動改開此 modal（帶入識別結果）；② AI 助護 OpenFormCard「開啟覆診批量核對（共 N 筆）」。不設獨立「批量識別」入口。</p>
+</div>
+
+</body>
+</html>

@@ -4,6 +4,7 @@ import { usePatientData, type FollowUpAppointment } from '../context/PatientCont
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import OCRDocumentBlock from './OCRDocumentBlock';
+import FollowUpMultiModal from './FollowUpMultiModal';
 import InstitutionAutocomplete from './InstitutionAutocomplete';
 import { getMedicationSettings, getMedicationSettingsFromDB, type MedicationSettingsData } from '../utils/medicationSettings';
 import { getFacilitySettings } from '../utils/facilitySettings';
@@ -17,6 +18,7 @@ import {
   type FollowUpMessageVars,
 } from '../utils/followUpMessageSettings';
 import { getPatientContacts, type PatientContact } from '../lib/database';
+import { isDuplicateFollowUp } from '../utils/followUpDuplicate';
 import { toast } from '../utils/toast';
 import DateInput from './DateInput';
 import TemplateChipEditor, { FOLLOWUP_TOKENS } from './TemplateChipEditor';
@@ -59,6 +61,11 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
   });
 
   const [ocrError, setOcrError] = useState<string>('');
+  const [multiOcr, setMultiOcr] = useState<{
+    records: Record<string, unknown>[];
+    patientId: number | null;
+    imagePreviews?: string[];
+  } | null>(null);
 
   // 通知訊息模板（陪診員／輪椅的士／問家人）：佔位符模板，可修改儲存，做法同疫苗接種訊息
   const { userProfile } = useAuth();
@@ -98,6 +105,15 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
 
   const handleOCRComplete = (extractedData: any) => {
     setOcrError('');
+
+    if (Array.isArray(extractedData.records) && extractedData.records.length > 1) {
+      setMultiOcr({
+        records: extractedData.records,
+        patientId: extractedData.patient_id ?? extractedData.院友id ?? null,
+        imagePreviews: Array.isArray(extractedData.imagePreviews) ? extractedData.imagePreviews : undefined,
+      });
+      return;
+    }
 
     const updates: any = {};
 
@@ -324,6 +340,18 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
       return;
     }
 
+    const dupRaw = appointment as any;
+    const dupExcludeId = dupRaw?.覆診id || dupRaw?.id;
+    if (isDuplicateFollowUp(followUpAppointments, {
+      院友id: parseInt(String(formData.院友id)),
+      覆診日期: formData.覆診日期,
+      覆診時間: formData.覆診時間,
+      覆診地點: formData.覆診地點,
+    }, dupExcludeId ? String(dupExcludeId) : undefined)) {
+      const confirmed = window.confirm(`此覆診已存在（${formData.覆診日期}${formData.覆診時間 ? ` ${formData.覆診時間.slice(0, 5)}` : ''} · ${formData.覆診地點}），仍要新增嗎？`);
+      if (!confirmed) return;
+    }
+
     try {
       const finalStatus = formData.狀態 || (
         (formData.交通安排?.trim() && formData.陪診人員?.trim()) ? '已安排' : '尚未安排'
@@ -376,6 +404,7 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
   };
 
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
@@ -684,5 +713,15 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
         </form>
       </div>
     </div>
+
+    {multiOcr && (
+      <FollowUpMultiModal
+        initialEntries={multiOcr.records}
+        matchedPatientId={multiOcr.patientId}
+        sourceImagePreviews={multiOcr.imagePreviews}
+        onClose={() => setMultiOcr(null)}
+      />
+    )}
+    </>
   );
 }

@@ -13,7 +13,9 @@ export interface BedListBed {
   exclude_from_total?: boolean;  // 隔離病房的床：不計入床位統計（總床位/已入住/未入住）
   patient?: {
     name: string;
+    gender?: string;
     admissionType?: string;
+    careLevel?: string;
     infectionControl?: string[] | null;
   } | null;
 }
@@ -27,6 +29,18 @@ export interface BedListInput {
   facilityName?: string;
   beds: BedListBed[];
   printDate?: string;
+  /** 特別關顧（男/女），從任務表預先計算 */
+  specialCare?: { 男: number; 女: number };
+  /** 入住醫院（男/女） */
+  hospitalized?: { 男: number; 女: number };
+  /** 暫時回家（男/女） */
+  vacation?: { 男: number; 女: number };
+  /** 過去 24 小時統計 */
+  over24h?: { 新收: number; 退住: number; 死亡: number; 當月累積死亡: number };
+  /** 醫療項目人數 */
+  medical?: { 鼻胃飼: number; 尿管: number; 傷口: number; 壓瘡: number; 腹膜透析: number; 吸氧: number; 造口: number; 傳染病隔離: number; 使用約束物品: number };
+  /** 意外事件統計 */
+  incidents?: { 藥物: number; 跌倒: number; 死亡: number };
 }
 
 function typeLabel(t?: string | null): string {
@@ -61,6 +75,12 @@ export function generateBedListHtml(input: BedListInput): string {
     facilityName = DEFAULT_FACILITY_SETTINGS.facilityNameZh,
     beds,
     printDate,
+    specialCare,
+    hospitalized,
+    vacation,
+    over24h,
+    medical,
+    incidents,
   } = input;
 
   /* ── 1. 排序 & 分組 ── */
@@ -75,10 +95,30 @@ export function generateBedListHtml(input: BedListInput): string {
   }
   const rooms = Array.from(roomMap.entries());
 
-  /* ── 2. 版面自適應（欄寬分級字體 + per-row height） ── */
+  /* ── 2. 統計 ── */
+  // 隔離病房的床不計入床位統計；人數統計（入住類型/護理等級）仍計算所有院友
+  const countable = beds.filter(b => !b.exclude_from_total);
+  const totalBeds = countable.length;
+  const occ       = beds.filter(b => b.patient);
+  const reservedN = countable.filter(b => !b.patient && b.reserved).length;
+  // 已入住只計現正佔用床位的院友，暫調院友的原床（reserved）不計入
+  const occupiedN = countable.filter(b => b.patient).length;
+  const emptyN    = totalBeds - occupiedN - reservedN;
+  const privateN  = occ.filter(b => b.patient?.admissionType === '私位').length;
+  const buyN      = occ.filter(b => b.patient?.admissionType === '買位').length;
+  const vouN      = occ.filter(b => b.patient?.admissionType === '院舍券級別0' || b.patient?.admissionType === '院舍券級別1-7').length;
+  const tempN     = occ.filter(b => b.patient?.admissionType === '暫住').length;
+  // 護理 × 性別
+  const care = (lvl: string, g: string) =>
+    occ.filter(b => b.patient?.careLevel === lvl && b.patient?.gender === g).length;
+  const fcM = care('全護理', '男'), fcF = care('全護理', '女');
+  const hcM = care('半護理', '男'), hcF = care('半護理', '女');
+  const scM = care('自理', '男'),   scF = care('自理', '女');
+
+  /* ── 3. 版面自適應（欄寬分級字體 + per-row height） ── */
   const GAP = 1.5;
-  // 表頭 ~20mm + 間距 = ~23mm
-  const AVAIL_H = 197 - 23;
+  // 表頭 ~20mm + 統計欄 ~16mm + 間距 = ~41mm
+  const AVAIL_H = 197 - 41;
   const PAGE_W  = 287;
 
   // 卡片欄寬越窄，字體與列高退回越小；寬卡片才放大
@@ -128,11 +168,11 @@ export function generateBedListHtml(input: BedListInput): string {
     if (totalCardH(c) <= AVAIL_H) break;
   }
 
-  /* ── 3. 列印日期 ── */
+  /* ── 4. 列印日期 ── */
   const today = printDate
     ?? formatDisplayDate(new Date());
 
-  /* ── 4. 渲染床行 ── */
+  /* ── 5. 渲染床行 ── */
   const renderBedRow = (bed: BedListBed, idx: number): string => {
     const alt = idx % 2 === 1 ? ' br-alt' : '';
     const rowH = getBedRowHeight(bed);
@@ -173,13 +213,13 @@ export function generateBedListHtml(input: BedListInput): string {
 </div>`;
   };
 
-  /* ── 5. 渲染房間卡片 ── */
+  /* ── 6. 渲染房間卡片 ── */
   const renderRoom = ([roomId, roomBeds]: [string, BedListBed[]]): string => {
     const rows = roomBeds.map((b, i) => renderBedRow(b, i)).join('');
     return `<div class="rc"><div class="rh">${stripCodePrefix(roomId)}房</div><div class="rbed">${rows}<div class="rsp"></div></div></div>`;
   };
 
-  /* ── 6. 組裝卡片列 ── */
+  /* ── 7. 組裝卡片列 ── */
   const cardRowsHtml: string[] = [];
   for (let i = 0; i < rooms.length; i += cols) {
     const rowRooms = rooms.slice(i, i + cols);
@@ -190,7 +230,80 @@ export function generateBedListHtml(input: BedListInput): string {
     );
   }
 
-  /* ── 7. 完整 HTML ── */
+  /* ── 8. 統計欄 HTML（6 區塊） ── */
+  const dash = '—';
+  const nv = (v?: number) => v != null ? String(v) : dash;
+  const mkRow = (label: string, val: string | number) =>
+    `<div class="sr"><span class="sl">${label}</span><span class="sv">${val}</span></div>`;
+  const mkCareRow2 = (label: string, mf?: { 男: number; 女: number } | null) =>
+    `<div class="sr-c2"><span class="sc-l2">${label}</span><span class="sc-v2">${mf ? `男${mf.男}/女${mf.女}` : dash}</span></div>`;
+
+  const statsHtml = `
+  <div class="stats-grid">
+    <div class="sg-block">
+      <div class="sg-title">床位統計</div>
+      ${mkRow('總床位', totalBeds)}
+      ${mkRow('已入住', occupiedN)}
+      ${mkRow('未入住', emptyN)}
+    </div>
+    <div class="sg-block">
+      <div class="sg-title">入住類型</div>
+      ${mkRow('私位', privateN)}
+      ${mkRow('買位', buyN)}
+      ${mkRow('院舍券（0/1-7）', vouN)}
+      ${mkRow('暫住', tempN)}
+    </div>
+    <div class="sg-block">
+      <div class="sg-title">過去 24 小時</div>
+      ${mkRow('新收', nv(over24h?.新收))}
+      ${mkRow('退住', nv(over24h?.退住))}
+      ${mkRow('死亡', nv(over24h?.死亡))}
+      ${mkRow('月累積死亡', nv(over24h?.當月累積死亡))}
+    </div>
+    <div class="sg-block">
+      <div class="sg-title">護理統計</div>
+      <div class="sg-2col">
+        <div class="sg-sub">
+          ${mkCareRow2('全護理', { 男: fcM, 女: fcF })}
+          ${mkCareRow2('半護理', { 男: hcM, 女: hcF })}
+          ${mkCareRow2('自理', { 男: scM, 女: scF })}
+        </div>
+        <div class="sg-sub">
+          ${mkCareRow2('特別關顧', specialCare ?? null)}
+          ${mkCareRow2('入住醫院', hospitalized ?? null)}
+          ${mkCareRow2('暫時回家', vacation ?? null)}
+        </div>
+      </div>
+    </div>
+    <div class="sg-block">
+      <div class="sg-title">醫療項目</div>
+      <div class="sg-3col">
+        <div class="sg-sub">
+          ${mkRow('鼻胃飼', nv(medical?.鼻胃飼))}
+          ${mkRow('尿管', nv(medical?.尿管))}
+          ${mkRow('傷口', nv(medical?.傷口))}
+        </div>
+        <div class="sg-sub">
+          ${mkRow('壓瘡', nv(medical?.壓瘡))}
+          ${mkRow('腹膜透析', nv(medical?.腹膜透析))}
+          ${mkRow('吸氧', nv(medical?.吸氧))}
+        </div>
+        <div class="sg-sub">
+          ${mkRow('造口', nv(medical?.造口))}
+          ${mkRow('傳染病隔離', nv(medical?.傳染病隔離))}
+          ${mkRow('約束物品', nv(medical?.使用約束物品))}
+        </div>
+      </div>
+    </div>
+    <div class="sg-block">
+      <div class="sg-title">意外事件</div>
+      ${mkRow('藥物', nv(incidents?.藥物))}
+      ${mkRow('跌倒', nv(incidents?.跌倒))}
+      ${mkRow('死亡', nv(incidents?.死亡))}
+    </div>
+  </div>`;
+
+  /* ── 9. 完整 HTML ── */
   return `<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -211,6 +324,32 @@ body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-se
 .facility { font-size:15px; font-weight:bold; color:#1f2937; letter-spacing:.5px; }
 .tbl-title { font-size:10px; color:#6b7280; margin-top:1.5px; }
 .hdr-right { font-size:8.5px; color:#6b7280; text-align:right; white-space:nowrap; line-height:2; }
+
+/* 統計欄（6 區塊 grid） */
+.stats-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr 2.2fr 3fr 1fr;
+  border:1.5px solid #94a3b8;
+  border-radius:4px;
+  overflow:hidden;
+  flex-shrink:0;
+  background:#fff;
+}
+.sg-block { padding:2.5px 5px 3px; border-right:1px solid #d1d5db; display:flex; flex-direction:column; gap:0.5px; }
+.sg-block:last-child { border-right:none; }
+.sg-title { font-size:8px; font-weight:700; color:#334155; letter-spacing:.3px; border-bottom:1px solid #e5e7eb; padding-bottom:1.5px; margin-bottom:1.5px; }
+.sr { display:flex; justify-content:space-between; align-items:center; padding:0.5px 0; }
+.sl { font-size:7.5px; color:#64748b; }
+.sv { font-size:9.5px; font-weight:700; color:#1e293b; }
+/* 護理統計 & 醫療項目 內部子欄 */
+.sg-2col { display:flex; flex:1; gap:4px; align-items:stretch; }
+.sg-3col { display:flex; flex:1; gap:2px; align-items:stretch; }
+.sg-sub { flex:1; display:flex; flex-direction:column; gap:0.5px; min-width:0; }
+.sg-sub + .sg-sub { border-left:1px solid #e5e7eb; padding-left:3px; }
+/* 護理統計 compact care row（標籤 + 男X/女Y） */
+.sr-c2 { display:flex; align-items:center; justify-content:space-between; padding:0.5px 0; }
+.sc-l2 { font-size:7px; color:#64748b; flex-shrink:0; white-space:nowrap; }
+.sc-v2 { font-size:7.5px; font-weight:700; color:#1e293b; white-space:nowrap; }
 
 /* 卡片區 */
 .card-area { flex:1; display:flex; flex-direction:column; gap:${GAP}mm; overflow:hidden; min-height:0; }
@@ -279,6 +418,7 @@ body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-se
     </div>
     <div class="hdr-right">列印日期<br>${today}</div>
   </div>
+  ${statsHtml}
   <div class="card-area">
     ${cardRowsHtml.join('\n    ')}
   </div>

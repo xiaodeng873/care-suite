@@ -15,7 +15,9 @@ for (let r = 202; r <= 237; r++) {
     if (ni % 13 === 7) { beds.push({ bed_number: bedNum }); ni++; continue; }
     const p = {
       name: names[ni % names.length],
+      gender: ni % 2 ? '女' : '男',
       admissionType: types[ni % 4],
+      careLevel: ['全護理','半護理','自理'][ni % 3],
       infectionControl: ni % 7 === 3 ? ['MRSA'] : null,
     };
     const bed = { bed_number: bedNum, patient: p };
@@ -25,11 +27,22 @@ for (let r = 202; r <= 237; r++) {
   }
 }
 
+// 統計欄樣本數據
+const statsSample = {
+  specialCare: { 男: 3, 女: 2 },
+  hospitalized: { 男: 1, 女: 2 },
+  vacation: { 男: 0, 女: 1 },
+  over24h: { 新收: 1, 退住: 0, 死亡: 0, 當月累積死亡: 2 },
+  medical: { 鼻胃飼: 4, 尿管: 2, 傷口: 5, 壓瘡: 2, 腹膜透析: 0, 吸氧: 3, 造口: 1, 傳染病隔離: 6, 使用約束物品: 4 },
+  incidents: { 藥物: 0, 跌倒: 1, 死亡: 0 },
+};
+
 writeFileSync('.tmp/bed_list_dense.html', generateBedListHtml({
   stationName: '福群C站',
   facilityName: '善頤(福群)護老院',
   printDate: '02/10/2026',
   beds,
+  ...statsSample,
 }));
 
 // 稀疏樣本：3 房
@@ -38,12 +51,13 @@ writeFileSync('scripts/previews/bed_list_preview.html', generateBedListHtml({
   facilityName: '善頤(福群)護老院',
   printDate: '05/07/2026',
   beds: [
-    { bed_number: 'C101-1', patient: { name: '陳大文', admissionType: '買位' } },
-    { bed_number: 'C101-2', patient: { name: '李小明', admissionType: '私位' } },
+    { bed_number: 'C101-1', patient: { name: '陳大文', gender: '男', admissionType: '買位', careLevel: '全護理' } },
+    { bed_number: 'C101-2', patient: { name: '李小明', gender: '男', admissionType: '私位', careLevel: '半護理' } },
     { bed_number: 'C101-3' },
-    { bed_number: 'C102-1', patient: { name: '王美玲', admissionType: '院舍券級別0' } },
+    { bed_number: 'C102-1', patient: { name: '王美玲', gender: '女', admissionType: '院舍券級別0', careLevel: '自理' } },
     { bed_number: 'C102-2' },
-    { bed_number: 'C103-1', patient: { name: '黃志強', admissionType: '暫住', infectionControl: ['傳染病隔離'] } },
+    { bed_number: 'C103-1', patient: { name: '黃志強', gender: '男', admissionType: '暫住', careLevel: '全護理', infectionControl: ['傳染病隔離'] } },
   ],
+  ...statsSample,
 }));
 console.log('written, dense beds =', beds.length);

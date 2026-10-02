@@ -4,7 +4,9 @@ import { usePatientData } from '../../context/PatientContext';
 import { MessageBubble } from './MessageBubble';
 import { NurseIcon } from './NurseIcon';
 import FollowUpModal from '../FollowUpModal';
+import FollowUpMultiModal from '../FollowUpMultiModal';
 import PrescriptionModal from '../PrescriptionModal';
+import PrescriptionMultiModal from '../PrescriptionMultiModal';
 import DiagnosisRecordModal from '../DiagnosisRecordModal';
 import VaccinationRecordModal from '../VaccinationRecordModal';
 import PatientModal from '../PatientModal';
@@ -503,16 +505,37 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
 
       {/* Modal rendering based on prefill data */}
       {activeModal?.documentType === 'followup' && (
-        <FollowUpModal
-          appointment={buildFollowUpAppointment(activeModal) as any}
-          onClose={handleCloseModal}
-        />
+        Array.isArray(activeModal.extractedData?.records) && activeModal.extractedData.records.length > 1 ? (
+          <FollowUpMultiModal
+            initialEntries={activeModal.extractedData.records}
+            matchedPatientId={activeModal.matchedPatient?.院友id ?? null}
+            onClose={handleCloseModal}
+          />
+        ) : (
+          <FollowUpModal
+            appointment={buildFollowUpAppointment(activeModal) as any}
+            onClose={handleCloseModal}
+          />
+        )
       )}
       {activeModal?.documentType === 'prescription' && (
-        <PrescriptionModal
-          prescription={buildPrescription(activeModal)}
-          onClose={handleCloseModal}
-        />
+        Array.isArray(activeModal.extractedData?.records) && activeModal.extractedData.records.length > 1 ? (
+          <PrescriptionMultiModal
+            initialEntries={activeModal.extractedData.records}
+            matchedPatientId={activeModal.matchedPatient?.院友id ?? null}
+            sourceImagePreviews={
+              activeModal.imageBase64 && activeModal.imageMimeType
+                ? [`data:${activeModal.imageMimeType};base64,${activeModal.imageBase64}`]
+                : undefined
+            }
+            onClose={handleCloseModal}
+          />
+        ) : (
+          <PrescriptionModal
+            prescription={buildPrescription(activeModal)}
+            onClose={handleCloseModal}
+          />
+        )
       )}
       {activeModal?.documentType === 'diagnosis' && (
         <DiagnosisRecordModal

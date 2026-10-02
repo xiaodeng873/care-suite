@@ -1065,7 +1065,10 @@ async function buildImageAnalysisResponse(analysisResponse, imageBase64, imageMi
       }
     } else if (docType === "prescription") {
       const medName = ed.藥物名稱 || ed.medication_name || "";
-      if (medName) {
+      const recs = Array.isArray(ed.records) ? ed.records : null;
+      if (recs && recs.length > 1) {
+        // 多藥處方（records > 1）：不自動 INSERT，走 prefill 讓用戶開「處方批量核對」modal 人工核對
+      } else if (medName) {
         const cols = ["patient_id", "medication_name"];
         const vals = [`${patientId}`, `'${medName.replace(/'/g, "''")}'`];
         if (ed.藥物來源) { cols.push("medication_source"); vals.push(`'${ed.藥物來源.replace(/'/g, "''")}'`); }

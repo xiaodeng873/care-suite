@@ -4,6 +4,7 @@ import { usePatientData } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import DrugAutocomplete from './DrugAutocomplete';
 import OCRPrescriptionBlock from './OCRPrescriptionBlock';
+import PrescriptionMultiModal from './PrescriptionMultiModal';
 import { mapOCRDataToPrescriptionForm, getConfidenceColor, getConfidenceIcon } from '../utils/ocrFieldMapper';
 import { getMedicationSettings, getMedicationSettingsFromDB, INSTITUTION_GROUPS, type MedicationSettingsData } from '../utils/medicationSettings';
 import { computeEstimatedEndDate } from '../utils/estimatedEndDate';
@@ -145,6 +146,13 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
   const [fieldConfidences, setFieldConfidences] = useState<Record<string, number>>({});
   // OCR 區塊揀咗嘅處方圖片（儲存時先上傳 Storage）
   const [prescriptionImageFile, setPrescriptionImageFile] = useState<File | null>(null);
+  // OCR 識別出多種藥物（records > 1）時，疊加批量核對 modal
+  const [ocrMultiData, setOcrMultiData] = useState<{
+    records: Record<string, unknown>[];
+    patientId: number | null;
+    imagePreviews?: string[];
+    imageFiles?: File[];
+  } | null>(null);
   const [validationError, setValidationError] = useState<string>('');
   // 用戶明確揀咗「作為新藥物來源」：放行唔喺清單嘅來源（唔寫入藥物設定）
   const [customSourcePicked, setCustomSourcePicked] = useState(false);
@@ -379,6 +387,18 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
   };
 
   const handleOCRComplete = (extractedData: any, confidenceScores: Record<string, number>) => {
+    // 多種藥物（多圖或一圖多藥）：開批量核對 modal，唔做單份回填
+    const recs = Array.isArray(extractedData?.records) ? extractedData.records : null;
+    if (recs && recs.length > 1) {
+      setOcrMultiData({
+        records: recs,
+        patientId: extractedData.patient_id ?? null,
+        imagePreviews: extractedData.imagePreviews,
+        imageFiles: extractedData.imageFiles,
+      });
+      return;
+    }
+
     const { formData: mappedData, confidences } = mapOCRDataToPrescriptionForm(
       extractedData,
       confidenceScores,
@@ -1770,6 +1790,16 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         </form>
       </div>
 
+      {/* 處方批量識別核對 Modal（OCR records > 1） */}
+      {ocrMultiData && (
+        <PrescriptionMultiModal
+          initialEntries={ocrMultiData.records}
+          matchedPatientId={ocrMultiData.patientId}
+          sourceImagePreviews={ocrMultiData.imagePreviews}
+          sourceImageFiles={ocrMultiData.imageFiles}
+          onClose={() => setOcrMultiData(null)}
+        />
+      )}
       {/* 處方矛盾提醒 Modal */}
       {showContradictionModal && (
         <div

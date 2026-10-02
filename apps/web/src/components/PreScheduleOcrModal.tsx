@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { Image as ImageIcon, X } from 'lucide-react';
 import type { LeaveType, UserProfile } from '@care-suite/shared';
 import { LEAVE_TYPES, LEAVE_TYPE_LABELS } from '@care-suite/shared';
 import { processImageWithGeminiVision, validateImageFile } from '../utils/ocrProcessor';
+import ImageSourcePicker from './ImageSourcePicker';
 
 export interface OcrEntry {
   userId: string;
@@ -82,9 +83,10 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
   month,
   onApply,
 }) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [applying, setApplying] = useState(false);
   const [rows, setRows] = useState<PreviewRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,8 +96,9 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
   // 開關時重置狀態
   useEffect(() => {
     if (isOpen) {
-      setFile(null);
+      setFiles([]);
       setProcessing(false);
+      setProgress(null);
       setApplying(false);
       setRows(null);
       setError(null);
@@ -104,14 +107,14 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
 
   // 圖片預覽 URL
   useEffect(() => {
-    if (!file) {
-      setPreviewUrl(null);
+    if (files.length === 0) {
+      setPreviewUrls([]);
       return;
     }
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setPreviewUrls(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [files]);
 
   if (!isOpen) return null;
 
@@ -122,35 +125,59 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
     return users.find((u) => (u.name_zh ?? '').replace(/\s+/g, '') === stripped);
   };
 
-  const handleFile = (f: File | null | undefined) => {
-    if (!f) return;
-    const v = validateImageFile(f);
-    if (!v.valid) {
-      setError(v.error ?? '圖片無效');
-      return;
+  const handleFiles = (incoming: File[]) => {
+    const valid: File[] = [];
+    for (const f of incoming) {
+      const v = validateImageFile(f);
+      if (!v.valid) {
+        setError(v.error ?? '圖片無效');
+        return;
+      }
+      valid.push(f);
     }
-    setFile(f);
+    if (valid.length === 0) return;
+    setFiles(valid);
     setError(null);
     setRows(null);
   };
 
   const handleRecognize = async () => {
-    if (!file) return;
+    if (files.length === 0) return;
     setProcessing(true);
     setError(null);
+    // 多圖時順序逐張識別，結果按姓名合併（同一日期的項目以先識別者為準）
+    const merged: { rawName: string; entries: PreviewEntry[] }[] = [];
     try {
-      const result = await processImageWithGeminiVision(file, buildPrompt(year, month));
-      if (!result.success) {
-        setError(result.error ?? '識別失敗，請重試');
-        return;
+      for (let i = 0; i < files.length; i++) {
+        setProgress({ current: i + 1, total: files.length });
+        const result = await processImageWithGeminiVision(files[i], buildPrompt(year, month));
+        if (!result.success) {
+          setError(
+            files.length > 1
+              ? `第 ${i + 1}/${files.length} 張識別失敗：${result.error ?? '請重試'}`
+              : result.error ?? '識別失敗，請重試',
+          );
+          return;
+        }
+        const parsed = parseRows(result.extractedData, daysInMonth);
+        for (const row of parsed) {
+          const existing = merged.find((m) => m.rawName === row.rawName);
+          if (existing) {
+            for (const e of row.entries) {
+              if (!existing.entries.some((x) => x.day === e.day)) existing.entries.push(e);
+            }
+            existing.entries.sort((a, b) => a.day - b.day);
+          } else {
+            merged.push(row);
+          }
+        }
       }
-      const parsed = parseRows(result.extractedData, daysInMonth);
-      if (parsed.length === 0) {
+      if (merged.length === 0) {
         setError('未能從圖片識別任何預排資料，請重拍更清晰的相片或改用手動輸入。');
         return;
       }
       setRows(
-        parsed.map((r) => {
+        merged.map((r) => {
           const m = matchUser(r.rawName);
           return { ...r, userId: m?.id ?? null, matched: !!m };
         }),
@@ -159,6 +186,7 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
       setError(err instanceof Error ? err.message : '識別失敗');
     } finally {
       setProcessing(false);
+      setProgress(null);
     }
   };
 
@@ -229,8 +257,8 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4"
       onPaste={(e) => {
-        const f = e.clipboardData?.files?.[0];
-        if (f) handleFile(f);
+        const pasted = Array.from(e.clipboardData?.files ?? []);
+        if (pasted.length > 0) handleFiles(pasted);
       }}
     >
       <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
@@ -254,20 +282,37 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               手寫預排表相片
             </label>
-            <input
-              type="file"
+            <ImageSourcePicker
+              onSelect={handleFiles}
+              albumMultiple
               accept="image/jpeg,image/jpg,image/png,image/webp"
-              onChange={(e) => handleFile(e.target.files?.[0])}
-              className="block w-full text-sm text-gray-600 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:rounded-lg file:bg-gray-50 file:text-sm file:text-gray-700 hover:file:bg-gray-100"
-            />
+            >
+              {(openPicker) => (
+                <button
+                  type="button"
+                  onClick={openPicker}
+                  className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100"
+                >
+                  <ImageIcon className="h-4 w-4 text-gray-500" />
+                  {files.length > 0 ? `重新選擇（已選 ${files.length} 張）` : '拍照或從相簿選擇'}
+                </button>
+              )}
+            </ImageSourcePicker>
             <p className="text-xs text-gray-500 mt-1">
-              支援 JPG / PNG / WEBP（最大 10MB），亦可直接在此視窗貼上剪貼簿圖片。
+              支援 JPG / PNG / WEBP（每張最大 10MB），可連拍或一次選多張，亦可直接在此視窗貼上剪貼簿圖片。
             </p>
           </div>
 
-          {previewUrl && (
-            <div className="border border-gray-200 rounded-lg p-2 bg-gray-50">
-              <img src={previewUrl} alt="預排表預覽" className="max-h-56 mx-auto rounded" />
+          {previewUrls.length > 0 && (
+            <div className="border border-gray-200 rounded-lg p-2 bg-gray-50 flex flex-wrap gap-2 justify-center">
+              {previewUrls.map((url, i) => (
+                <img
+                  key={url}
+                  src={url}
+                  alt={`預排表預覽 ${i + 1}`}
+                  className="max-h-56 rounded"
+                />
+              ))}
             </div>
           )}
 
@@ -275,10 +320,14 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
             <button
               type="button"
               onClick={handleRecognize}
-              disabled={!file || processing || applying}
+              disabled={files.length === 0 || processing || applying}
               className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-50"
             >
-              {processing ? '識別中，請稍候...' : '開始識別'}
+              {processing
+                ? progress
+                  ? `識別中（第 ${progress.current}/${progress.total} 張）...`
+                  : '識別中，請稍候...'
+                : '開始識別'}
             </button>
           </div>
 

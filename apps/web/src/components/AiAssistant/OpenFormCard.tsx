@@ -23,6 +23,18 @@ export const OpenFormCard: React.FC<OpenFormCardProps> = ({ prefillData, onOpenF
   const info = docTypeLabels[prefillData.documentType] || { label: '記錄', icon: '📄' };
   const patient = prefillData.matchedPatient;
   const recordCount = Array.isArray(prefillData.extractedData) ? prefillData.extractedData.length : 0;
+  const followupRecordCount =
+    prefillData.documentType === 'followup' &&
+    !Array.isArray(prefillData.extractedData) &&
+    Array.isArray(prefillData.extractedData?.records)
+      ? prefillData.extractedData.records.length
+      : 0;
+  const prescriptionRecordCount =
+    prefillData.documentType === 'prescription' &&
+    !Array.isArray(prefillData.extractedData) &&
+    Array.isArray(prefillData.extractedData?.records)
+      ? prefillData.extractedData.records.length
+      : 0;
   const isHypothesis = prefillData.documentType === 'portrait' && prefillData.hypothesis === true;
   // id_card 有匹配院友：按「身份證相片」存檔狀態切換文案（loading 先顯示留檔版並禁用按鈕；查詢失敗當無存檔）
   const isIdCardArchive = prefillData.documentType === 'id_card' && !!patient;
@@ -40,9 +52,13 @@ export const OpenFormCard: React.FC<OpenFormCardProps> = ({ prefillData, onOpenF
         ? `開啟監測記錄核對（已預填 ${recordCount} 筆）`
         : prefillData.documentType === 'portrait'
           ? isHypothesis ? '確認設為院友相片' : '設為院友相片'
-          : patient
-            ? `開啟${info.label}表單（已預填）`
-            : `開啟${info.label}表單（未匹配院友，請手選）`;
+          : followupRecordCount > 1
+            ? `開啟覆診批量核對（共 ${followupRecordCount} 筆）`
+            : prescriptionRecordCount > 1
+              ? `開啟處方批量核對（共 ${prescriptionRecordCount} 筆）`
+              : patient
+              ? `開啟${info.label}表單（已預填）`
+              : `開啟${info.label}表單（未匹配院友，請手選）`;
 
   return (
     <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-gray-800">

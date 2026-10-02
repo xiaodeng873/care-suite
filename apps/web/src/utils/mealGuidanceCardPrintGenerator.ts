@@ -204,18 +204,18 @@ body {
   padding: 0 3mm;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 3mm;
   border-bottom: 1pt solid #000;
 }
 .mg-bed {
-  font-size: 24pt;
+  font-size: 28pt;
   font-weight: bold;
   white-space: nowrap;
 }
 .mg-name {
-  font-size: 24pt;
+  font-size: 28pt;
   font-weight: bold;
-  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

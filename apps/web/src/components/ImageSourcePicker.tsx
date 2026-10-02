@@ -1,11 +1,14 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, Image as ImageIcon, X } from 'lucide-react';
+import CameraCaptureModal from './CameraCaptureModal';
 
 interface ImageSourcePickerProps {
-  /** 使用者選完圖片後回呼（拍照固定單張；相簿是否多選由 albumMultiple 決定） */
+  /** 使用者選完圖片後回呼（拍照經連拍相機可回傳多張；相簿是否多選由 albumMultiple 決定） */
   onSelect: (files: File[]) => void;
-  /** 相簿是否允许多選（拍照永遠單張） */
+  /** 相簿是否允许多選 */
   albumMultiple?: boolean;
+  /** 文件說明用：連拍相機本身永遠允許多張，caller 自行決定取用幾張（預設 = albumMultiple） */
+  cameraMultiple?: boolean;
   /** input accept，預設 image/* */
   accept?: string;
   /** mount 後自動彈出選擇器（例如相機掃描流程進場即選來源） */
@@ -16,17 +19,21 @@ interface ImageSourcePickerProps {
 
 /**
  * 統一的圖片來源選擇器：點擊觸發區後先彈出「拍照 / 相簿 / 取消」action sheet，
- * 選定來源才開對應的 hidden file input（camera 帶 capture="environment"）。
+ * 拍照走 in-app 連拍相機（CameraCaptureModal，可連拍多張），相簿開 hidden file input。
+ * 連拍相機不可用（無相機 / 拒絕權限）時 fallback 到原生相機 input（capture="environment"）。
  * 所有智能識別（OCR/AI）上傳點共用此元件。
  */
 const ImageSourcePicker: React.FC<ImageSourcePickerProps> = ({
   onSelect,
   albumMultiple = false,
+  cameraMultiple,
   accept = 'image/*',
   autoOpen = false,
   children,
 }) => {
+  void cameraMultiple;
   const [open, setOpen] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const albumInputRef = useRef<HTMLInputElement>(null);
 
@@ -45,11 +52,23 @@ const ImageSourcePicker: React.FC<ImageSourcePickerProps> = ({
     if (files.length > 0) onSelect(files);
   };
 
+  const handleCameraConfirm = (files: File[]) => {
+    setShowCamera(false);
+    setOpen(false);
+    if (files.length > 0) onSelect(files);
+  };
+
+  const handleCameraFallback = () => {
+    // in-app 連拍相機不可用時，退回原生相機 input（單張）
+    setShowCamera(false);
+    cameraInputRef.current?.click();
+  };
+
   return (
     <>
       {children(openPicker)}
 
-      {/* 拍照（單張，原生相機） */}
+      {/* 拍照 fallback（原生相機，單張）：僅在 in-app 連拍相機不可用時使用 */}
       <input
         ref={cameraInputRef}
         type="file"
@@ -91,7 +110,7 @@ const ImageSourcePicker: React.FC<ImageSourcePickerProps> = ({
             <div className="space-y-2">
               <button
                 type="button"
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={() => setShowCamera(true)}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
               >
                 <Camera className="h-5 w-5" />
@@ -115,6 +134,15 @@ const ImageSourcePicker: React.FC<ImageSourcePickerProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* in-app 連拍相機（z-[10001]，高過 action sheet） */}
+      {showCamera && (
+        <CameraCaptureModal
+          onConfirm={handleCameraConfirm}
+          onCancel={() => setShowCamera(false)}
+          onFallback={handleCameraFallback}
+        />
       )}
     </>
   );

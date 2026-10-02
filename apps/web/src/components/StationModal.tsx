@@ -2,34 +2,46 @@ import React, { useState } from 'react';
 import { X, Building2 } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 
-/** 色輪：色相 0–359°（HSL 100% 飽和、50% 明度的純色）→ hex */
-function hueToHex(h: number): string {
-  const x = 1 - Math.abs(((h / 60) % 2) - 1);
+/** 色輪：HSL → hex（飽和固定 78%，明度可調；黑字在各色上都清晰） */
+function hslToHex(h: number, sPct: number, lPct: number): string {
+  const s = sPct / 100, l = lPct / 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
   let r = 0, g = 0, b = 0;
-  if (h < 60) [r, g, b] = [1, x, 0];
-  else if (h < 120) [r, g, b] = [x, 1, 0];
-  else if (h < 180) [r, g, b] = [0, 1, x];
-  else if (h < 240) [r, g, b] = [0, x, 1];
-  else if (h < 300) [r, g, b] = [x, 0, 1];
-  else [r, g, b] = [1, 0, x];
-  const to2 = (v: number) => Math.round(v * 255).toString(16).padStart(2, '0');
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const to2 = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
   return `#${to2(r)}${to2(g)}${to2(b)}`;
 }
 
-/** hex → 色輪位置（任何顏色都可推出色相，供滑桿定位） */
-function hexToHue(hex: string): number {
+const SWATCH_SAT = 78;
+const DEFAULT_LIGHTNESS = 62;
+/** 快速色票：色相全譜 16 色 × 明度 3 階 = 48 色 */
+const SWATCH_HUES = Array.from({ length: 16 }, (_, i) => Math.round(i * (359 / 15)));
+const SWATCH_LIGHTNESS = [70, 62, 54];
+
+/** hex → HSL 分量（任何顏色都可推出色相/明度，供滑桿定位） */
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return 0;
+  if (!m) return { h: 0, s: SWATCH_SAT, l: DEFAULT_LIGHTNESS };
   const n = parseInt(m[1], 16);
   const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
   const max = Math.max(r, g, b), min = Math.min(r, g, b);
   const d = max - min;
-  if (d === 0) return 0;
-  let h: number;
-  if (max === r) h = 60 * (((g - b) / d) % 6);
-  else if (max === g) h = 60 * ((b - r) / d + 2);
-  else h = 60 * ((r - g) / d + 4);
-  return Math.round((h + 360) % 360);
+  const l = (max + min) / 2;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = 60 * (((g - b) / d) % 6);
+    else if (max === g) h = 60 * ((b - r) / d + 2);
+    else h = 60 * ((r - g) / d + 4);
+  }
+  return { h: Math.round((h + 360) % 360), s: Math.round(s * 100), l: Math.round(l * 100) };
 }
 
 interface StationModalProps {
@@ -46,6 +58,14 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
     description: station?.description || '',
     color: station?.color || ''
   });
+
+  // 飽和度 / 明度維度：色票/滑桿共用，改色相時沿用目前數值
+  const [saturation, setSaturation] = useState(() =>
+    station?.color ? hexToHsl(station.color).s : SWATCH_SAT
+  );
+  const [lightness, setLightness] = useState(() =>
+    station?.color ? hexToHsl(station.color).l : DEFAULT_LIGHTNESS
+  );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -161,10 +181,10 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
                 min={0}
                 max={359}
                 step={1}
-                value={formData.color ? hexToHue(formData.color) : 0}
-                onChange={(e) => setFormData(prev => ({ ...prev, color: hueToHex(Number(e.target.value)) }))}
+                value={formData.color ? hexToHsl(formData.color).h : 0}
+                onChange={(e) => setFormData(prev => ({ ...prev, color: hslToHex(Number(e.target.value), saturation, lightness) }))}
                 className="hue-slider flex-1"
-                title="色輪（0–359°）"
+                title="色相（0–359°）"
               />
               <span
                 className={`w-8 h-8 shrink-0 rounded-full border-2 ${formData.color ? 'border-gray-900' : 'border-dashed border-gray-300'}`}
@@ -172,8 +192,78 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
                 title={formData.color || '無顏色'}
               />
               <span className="text-xs text-gray-600 w-16 shrink-0 tabular-nums">
-                {formData.color ? `${hexToHue(formData.color)}° ${formData.color}` : '無顏色'}
+                {formData.color ? `${hexToHsl(formData.color).h}° ${formData.color}` : '無顏色'}
               </span>
+            </div>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="w-8 shrink-0" />
+              <input
+                type="range"
+                min={30}
+                max={100}
+                step={1}
+                value={formData.color ? hexToHsl(formData.color).s : saturation}
+                onChange={(e) => {
+                  const s = Number(e.target.value);
+                  setSaturation(s);
+                  const hsl = formData.color ? hexToHsl(formData.color) : { h: 0, s, l: lightness };
+                  setFormData(prev => ({ ...prev, color: hslToHex(hsl.h, s, hsl.l) }));
+                }}
+                className="flex-1"
+                style={{ background: `linear-gradient(to right, ${hslToHex(formData.color ? hexToHsl(formData.color).h : 0, 30, formData.color ? hexToHsl(formData.color).l : lightness)}, ${hslToHex(formData.color ? hexToHsl(formData.color).h : 0, 100, formData.color ? hexToHsl(formData.color).l : lightness)})` }}
+                title="飽和度（30–100%）"
+              />
+              <span className="w-8 shrink-0" />
+              <span className="text-xs text-gray-600 w-16 shrink-0 tabular-nums">
+                飽和 {formData.color ? hexToHsl(formData.color).s : saturation}%
+              </span>
+            </div>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="w-8 shrink-0" />
+              <input
+                type="range"
+                min={50}
+                max={76}
+                step={1}
+                value={formData.color ? hexToHsl(formData.color).l : lightness}
+                onChange={(e) => {
+                  const l = Number(e.target.value);
+                  setLightness(l);
+                  const h = formData.color ? hexToHsl(formData.color).h : 0;
+                  setFormData(prev => ({ ...prev, color: hslToHex(h, saturation, l) }));
+                }}
+                className="flex-1"
+                style={{ background: 'linear-gradient(to right, #8a8a8a, #f5f5f5)' }}
+                title="明度（50–76%）"
+              />
+              <span className="w-8 shrink-0" />
+              <span className="text-xs text-gray-600 w-16 shrink-0 tabular-nums">
+                明度 {formData.color ? hexToHsl(formData.color).l : lightness}%
+              </span>
+            </div>
+            <div className="mt-2 pl-11 space-y-1.5">
+              {SWATCH_LIGHTNESS.map(l => (
+                <div key={l} className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-gray-500 w-6 shrink-0">{l === 70 ? '淺' : l === 62 ? '中' : '深'}</span>
+                  {SWATCH_HUES.map(hue => {
+                    const hex = hslToHex(hue, saturation, l);
+                    const selected = formData.color?.toLowerCase() === hex;
+                    return (
+                      <button
+                        key={hue}
+                        type="button"
+                        onClick={() => {
+                          setLightness(l);
+                          setFormData(prev => ({ ...prev, color: selected ? '' : hex }));
+                        }}
+                        className={`w-6 h-6 rounded-full border-2 ${selected ? 'border-gray-900' : 'border-gray-300 hover:border-gray-500'}`}
+                        style={{ backgroundColor: hex }}
+                        title={`${hue}° 飽和${saturation}% 明度${l}% ${hex}`}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
 

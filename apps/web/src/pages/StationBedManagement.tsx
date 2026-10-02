@@ -426,7 +426,7 @@ const StationBedManagement: React.FC = () => {
       supabase.from('health_assessments').select('patient_id, treatment_items, bowel_bladder_control').in('patient_id', stationPatientIds),
       supabase.from('wound_assessments').select('patient_id, wound_details').in('patient_id', stationPatientIds),
       supabase.from('incident_reports').select('patient_id, incident_type, incident_nature, incident_date').in('patient_id', stationPatientIds).gte('incident_date', todayStr),
-      supabase.from('patient_restraint_assessments').select('patient_id').in('patient_id', stationPatientIds),
+      supabase.from('patient_restraint_assessments').select('patient_id').in('patient_id', stationPatientIds).not('doctor_signature_date', 'is', null),
     ]);
 
     const taskRows: any[] = taskResult.data ?? [];
