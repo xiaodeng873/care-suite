@@ -28,31 +28,32 @@ describe('nextDoseTime', () => {
 describe('lastDoseDateTime', () => {
   const slots = ['08:00', '12:00', '16:00'];
 
-  it('服用日數優先：開始日 + 日數 - 1，時間點取最後一次', () => {
+  it('服用日數優先：開始日 + 日數 - 1，時間點取最後日最早一次', () => {
     expect(lastDoseDateTime({
       startDate: '2026-10-01',
       slots,
       dailyFrequency: 3,
       durationDays: 7,
-    })).toEqual({ date: '2026-10-07', time: '16:00' });
+    })).toEqual({ date: '2026-10-07', time: '08:00' });
   });
 
-  it('每日次數少於時間點數量時，取第 N 個時間點', () => {
+  it('用戶例子：29/9 20:00 首服、每日 8A/8P、服用 4 日 → 2/10 08:00', () => {
     expect(lastDoseDateTime({
-      startDate: '2026-10-01',
-      slots,
+      startDate: '2026-09-29',
+      startTime: '20:00',
+      slots: ['08:00', '20:00'],
       dailyFrequency: 2,
-      durationDays: 7,
-    })).toEqual({ date: '2026-10-07', time: '12:00' });
+      durationDays: 4,
+    })).toEqual({ date: '2026-10-02', time: '08:00' });
   });
 
-  it('無服用日數時用結束日期', () => {
+  it('無服用日數時用結束日期，時間點取最早一次', () => {
     expect(lastDoseDateTime({
       startDate: '2026-10-01',
       slots,
       dailyFrequency: 3,
       endDate: '2026-10-05',
-    })).toEqual({ date: '2026-10-05', time: '16:00' });
+    })).toEqual({ date: '2026-10-05', time: '08:00' });
   });
 
   it('最後一日即開始日時，由開始時間起計', () => {
@@ -62,7 +63,7 @@ describe('lastDoseDateTime', () => {
       slots,
       dailyFrequency: 3,
       durationDays: 1,
-    })).toEqual({ date: '2026-10-01', time: '16:00' });
+    })).toEqual({ date: '2026-10-01', time: '12:00' });
   });
 
   it('開始時間晚於全部時間點時 fallback 用全部時間點', () => {

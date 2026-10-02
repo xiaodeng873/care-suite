@@ -295,6 +295,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
   // 智能預填開始時間：新增時取最接近而家的下次服用時間點（用戶改過後不再覆蓋）
   const startTimeTouchedRef = React.useRef(false);
   const endTimeTouchedRef = React.useRef(false);
+  const endDateTouchedRef = React.useRef(false);
   const isNewPrescription = !prescription?.id;
 
   useEffect(() => {
@@ -305,9 +306,9 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     }
   }, [formData.medication_time_slots, isNewPrescription]);
 
-  // 智能預填結束時間：新增時取最後一次服用的時間點（用戶改過後不再覆蓋）
+  // 智能預填結束日期/時間：新增時按服用日數推算最後一次服用（用戶改過後不再覆蓋）
   useEffect(() => {
-    if (!isNewPrescription || endTimeTouchedRef.current) return;
+    if (!isNewPrescription) return;
     const last = lastDoseDateTime({
       startDate: formData.start_date,
       startTime: formData.start_time,
@@ -316,9 +317,17 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       durationDays: formData.duration_days,
       endDate: formData.end_date,
     });
-    if (last && last.time !== formData.end_time) {
-      setFormData(prev => ({ ...prev, end_time: last.time }));
-    }
+    if (!last) return;
+    setFormData(prev => ({
+      ...prev,
+      // 有服用日數先自動計結束日期；用戶手動改過就唔再覆蓋
+      ...(String(prev.duration_days ?? '') !== '' && !endDateTouchedRef.current && last.date !== prev.end_date
+        ? { end_date: last.date }
+        : {}),
+      ...(!endTimeTouchedRef.current && last.time !== prev.end_time
+        ? { end_time: last.time }
+        : {}),
+    }));
   }, [formData.start_date, formData.start_time, formData.medication_time_slots, formData.daily_frequency, formData.duration_days, formData.end_date, isNewPrescription]);
 
   useEffect(() => {
@@ -451,6 +460,12 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
 
     if (!formData.patient_id || !formData.medication_name) {
       setValidationError('請填寫院友和藥物名稱');
+      return;
+    }
+
+    // 服用份量 / 特殊用法至少要有一項（唔可以兩個都空）
+    if (String(formData.dosage_amount ?? '').trim() === '' && String(formData.special_dosage_instruction ?? '').trim() === '') {
+      setValidationError('「服用份量」與「特殊用法」至少要填寫一項');
       return;
     }
 
@@ -1025,7 +1040,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 <DateInput
                   name="end_date"
                   value={formData.end_date}
-                  onChange={(value) => setFormData(prev => ({ ...prev, end_date: value }))}
+                  onChange={(value) => {
+                    endDateTouchedRef.current = true;
+                    setFormData(prev => ({ ...prev, end_date: value }));
+                  }}
                   className="form-input"
                 />
               </div>

@@ -3254,7 +3254,7 @@ const MedicationWorkflow: React.FC = () => {
                                   style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
                                 >
                                   <div className="space-y-0.5">
-                                    {/* 次序同藥紙統一：途徑 → 需要時 → 時段 → 頻率 → 特殊用法 → 每次劑量 */}
+                                    {/* 次序同藥紙統一：途徑 → 需要時 → 時段 → 特殊用法 → 頻率 → 每次劑量 */}
                                     {prescription.administration_route && (
                                       <div>{prescription.administration_route}</div>
                                     )}
@@ -3267,6 +3267,19 @@ const MedicationWorkflow: React.FC = () => {
                                         ? formatMealTimingsWithPrefix(mt, prescription.daily_frequency || prescription.medication_time_slots?.length || 1)
                                         : formatMealTimingFrom(prescription);
                                       return mealLabel ? <div className="whitespace-pre-line">{mealLabel}</div> : null;
+                                    })()}
+                                    {(() => {
+                                      const parts: string[] = [];
+                                      if ((prescription as any).special_dosage_instruction) {
+                                        parts.push((prescription as any).special_dosage_instruction);
+                                      }
+                                      if (prescription.dosage_amount) {
+                                        const amt = String(prescription.dosage_amount);
+                                        const unit = prescription.dosage_unit ?? '';
+                                        const dosage = /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + unit : amt;
+                                        parts.push(`每次${dosage}`);
+                                      }
+                                      return parts.length > 0 ? <div>{parts.join(' / ')}</div> : null;
                                     })()}
                                     {(() => {
                                       // 「取代前綴」勾選咗嘅時段已嵌入次數，唔再顯示獨立頻率行
@@ -3298,19 +3311,6 @@ const MedicationWorkflow: React.FC = () => {
                                         case 'daily':
                                         default: return <div>每日{perDay}次</div>;
                                       }
-                                    })()}
-                                    {(() => {
-                                      const parts: string[] = [];
-                                      if ((prescription as any).special_dosage_instruction) {
-                                        parts.push((prescription as any).special_dosage_instruction);
-                                      }
-                                      if (prescription.dosage_amount) {
-                                        const amt = String(prescription.dosage_amount);
-                                        const unit = prescription.dosage_unit ?? '';
-                                        const dosage = /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + unit : amt;
-                                        parts.push(`每次${dosage}`);
-                                      }
-                                      return parts.length > 0 ? <div>{parts.join(' / ')}</div> : null;
                                     })()}
                                   </div>
                                 </td>

@@ -113,7 +113,8 @@ export function mapOCRDataToPrescriptionForm(
     confidences.administration_route = confidenceScores['服用途徑'] || 0.85;
   }
 
-  const specialInstructions = ['搽患處', '貼在皮膚上', '適量', '薄薄一層', '按需要使用', '按照醫生指示用'];
+  const specialInstructions = ['搽患處', '貼在皮膚上', '適量', '薄薄一層', '按需要使用', '按照醫生指示用',
+  '洗頭', '漱口', '塞肛', '沖洗', '浸浴', '滴眼', '滴耳'];
 
   // 服用份量 / 服用單位：優先使用「服用份量」，也接受「服用劑量」別名
   // 特殊用法與份量/單位不再互斥，兩者可同時並存
@@ -213,12 +214,33 @@ export function mapOCRDataToPrescriptionForm(
       }
       while (connectors.length < Math.max(0, slots.length - 1)) connectors.push('或');
     }
+    // 「取代前綴」：「早上2次」「臨睡前1次」式寫法 → 拆開時段同次數，標記 replacePrefix
+    const cnNum: Record<string, number> = { 一: 1, 二: 2, 兩: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+    const replacePrefix: boolean[] = [];
+    let prefixCount: number | null = null;
+    slots = slots.map((s) => {
+      const m = String(s).trim().match(/^(早上|上午|中午|下午|晚上|臨睡前|睡前|午夜)(?:(\d+)|([一二兩三四五六七八九]))?次$/);
+      if (!m) {
+        replacePrefix.push(false);
+        return s;
+      }
+      replacePrefix.push(true);
+      const n = m[2] ? parseInt(m[2], 10) : (cnNum[m[3]] ?? null);
+      if (n) prefixCount = n;
+      return m[1];
+    });
     if (slots.length > 0) {
       mappedData.meal_timings = {
         slots: slots.map(s => snapMealTiming(s, mealTimingOptions)),
         connectors,
+        replacePrefix,
       };
       confidences.meal_timings = confidenceScores['服用時段'] || 0.8;
+      // 次數來自「時段+次數」寫法時，直接作為每日服用次數
+      if (prefixCount) {
+        mappedData.daily_frequency = prefixCount;
+        confidences.daily_frequency = (confidenceScores['服用時段'] || 0.8) * 0.9;
+      }
     }
   }
 
@@ -240,11 +262,22 @@ export function mapOCRDataToPrescriptionForm(
       confidences.duration_days = confidenceScores['服用日數'] || 0.85;
 
       if (ocrData.處方日期 && days > 0) {
-        const startDate = new Date(parseDate(ocrData.處方日期) || new Date());
-        const endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + days);
-        mappedData.end_date = endDate.toISOString().split('T')[0];
-        confidences.end_date = (confidenceScores['服用日數'] || 0.85) * 0.9;
+        const startIso = parseDate(ocrData.處方日期);
+        if (startIso) {
+          const [y, m, d] = startIso.split('-').map(Number);
+          const end = new Date(y, m - 1, d);
+          // 服用日數 = 開始日起計嘅日數：結束日 = 開始日 + 日數 - 1
+          end.setDate(end.getDate() + days - 1);
+          const pad = (n: number) => String(n).padStart(2, '0');
+          mappedData.end_date = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
+          confidences.end_date = (confidenceScores['服用日數'] || 0.85) * 0.9;
+          // 結束時間 = 最後一日最早嘅服用時間點
+          const slots = [...(mappedData.medication_time_slots || [])].sort();
+          if (slots.length > 0) {
+            mappedData.end_time = slots[0];
+            confidences.end_time = confidences.end_date;
+          }
+        }
       }
     }
   }

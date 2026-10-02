@@ -61,7 +61,8 @@ export interface LastDoseDateTime {
  * 最後一次服用日期時間：
  * 1. 最後服用日：服用日數（開始日 + 日數 - 1）優先；否則用結束日期
  * 2. 開始日當日由開始時間起計（只計 >= 開始時間的時間點）
- * 3. 最後服用時間點 = 最後服用日內第 min(每日次數, 可用時間點) 個時間點
+ * 3. 最後服用時間點 = 最後服用日內最早嘅時間點（例如 29/9 20:00 首服、
+ *    每日 8A/8P、服用 4 日 → 最後日 2/10，時間點取 08:00）
  */
 export function lastDoseDateTime(input: LastDoseInput): LastDoseDateTime | null {
   const slots = (input.slots || [])
@@ -83,7 +84,7 @@ export function lastDoseDateTime(input: LastDoseInput): LastDoseDateTime | null 
   }
   if (!finalDate) return null;
 
-  // 2. 開始日當日只計開始時間或之後的時間點
+  // 2. 最後一日即開始日時，由開始時間起計
   const startTime = normalizeHHMM(input.startTime);
   let candidates = slots;
   if (startDate && finalDate === startDate && startTime) {
@@ -91,8 +92,6 @@ export function lastDoseDateTime(input: LastDoseInput): LastDoseDateTime | null 
     candidates = filtered.length > 0 ? filtered : slots;
   }
 
-  // 3. 每日次數內的最後一個時間點
-  const freq = Number(input.dailyFrequency);
-  const doseCount = Number.isFinite(freq) && freq >= 1 ? Math.min(Math.round(freq), candidates.length) : candidates.length;
-  return { date: finalDate, time: candidates[doseCount - 1] };
+  // 3. 取最後服用日內最早嘅時間點
+  return { date: finalDate, time: candidates[0] };
 }

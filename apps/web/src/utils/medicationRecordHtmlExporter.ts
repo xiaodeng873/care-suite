@@ -1315,7 +1315,7 @@ export const renderPrescriptionBlock = (
         ? `<div class="mr-med-source">藥物來源：${escapeHtml(sourceParts.join(' / '))}</div>`
         : '';
     })();
-  // 途徑 / 次數：route、PRN、meal timing、頻率、特殊用法、劑量各佔一行
+  // 途徑 / 次數：route、PRN、meal timing、特殊用法、頻率、劑量各佔一行
   // 每日服用次數為「無」(0) 或頻率類型為「每次」時，不顯示頻率類型；
   // hourly（每N小時）嘅次數由「每N小時」表達，唔受「無」壓制
   const suppressFrequency = prescription.frequency_type === 'each_time' ||
@@ -1334,8 +1334,8 @@ export const renderPrescriptionBlock = (
     prescription.administration_route ?? '',
     prescription.is_prn ? '需要時' : '',
     mealTimingLabel,
-    frequencyLine,
     specialLine || '',
+    frequencyLine,
     dosageLine,
   ]
     .filter((line) => line != null && String(line).trim() !== '')

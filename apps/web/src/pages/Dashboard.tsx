@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback } from 'react';
 import { usePatientData, useFilteredPatients, type Patient, type PatientHealthTask, type FollowUpAppointment } from '../context/PatientContext';
 import { useDashboardReady } from '../context/DashboardReadyContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -244,8 +244,17 @@ const Dashboard: React.FC = () => {
     const freshTimes = new Map<string, number[]>();
     recordTimes.forEach((v, k) => freshTimes.set(k, v));
     let freshDateRecords: Awaited<ReturnType<typeof getHealthRecordsForPatientDate>> = [];
+    // 今日嘅記錄用預載（零等待）；其他日期（逾期補錄）先逐次向 DB 拉
+    const prefetched = effectiveDate === formatLocalDate(new Date())
+      ? prefetchedTodayRecords.filter(r => String(r.院友id) === task.patient_id.toString())
+      : null;
+    if (prefetched) {
+      freshDateRecords = prefetched;
+    }
     try {
-      freshDateRecords = await getHealthRecordsForPatientDate(task.patient_id, effectiveDate);
+      if (!prefetched) {
+        freshDateRecords = await getHealthRecordsForPatientDate(task.patient_id, effectiveDate);
+      }
       freshDateRecords.forEach(r => {
         const normalizedTime = normalizeTime(r.記錄時間);
         const pidStr = r.院友id?.toString() || '';
@@ -274,29 +283,26 @@ const Dashboard: React.FC = () => {
     const remainingTasks = candidateTasks.filter(t => !isTaskCompletedForDate(t, effectiveDate, freshLookup, freshTimes));
     const tasksForModal = remainingTasks.length > 0 ? remainingTasks : candidateTasks;
     const primaryTask = tasksForModal[0];
-    let selectedTime: string | undefined;
-    if (primaryTask.specific_times && primaryTask.specific_times.length > 0) {
-      const recordPredicate = (r: { 任務id?: string | null; 院友id: number | string; 監測類型: string; 記錄日期: string }) => {
-        if (r.任務id && r.任務id === primaryTask.id) {
-          return r.記錄日期 === effectiveDate;
-        }
-        return r.院友id.toString() === primaryTask.patient_id.toString() &&
-               taskRecordVitalTypes(primaryTask.health_record_type).includes(r.監測類型) &&
-               r.記錄日期 === effectiveDate;
-      };
-      const dateRecords = [...healthRecords.filter(recordPredicate), ...freshDateRecords.filter(recordPredicate)];
-      const completedTimes = new Set(dateRecords.map(r => normalizeTime(r.記錄時間)));
-      selectedTime = primaryTask.specific_times.find(time => !completedTimes.has(normalizeTime(time)));
-    }
-    // [增量輸入] 計算該日期（同時間點，如有）尚未完成嘅監測類型，modal 只顯示呢啲輸入框。
-    // 語義同 isTaskCompletedForDate 一致：有時間點用 ±30 分鐘容差（hasRecordWithinTolerance），
-    // 冇時間點就用當日存在鍵；只用 院友+類型 鍵（每條記錄必定產生，合併任務可逐項判定）
+    // [增量輸入] 計算該日期尚未完成嘅監測類型，modal 只顯示呢啲輸入框。
+    // 語義同 isTaskCompletedForDate 一致：有指定時間點 → 每個類型要全部時間點都有
+    // ±30 分鐘容差記錄先算完成（欠任何一個時間點都彈出）；冇時間點就用當日存在鍵。
+    // 只用 院友+類型 鍵（每條記錄必定產生，合併任務可逐項判定）
     const primaryPidStr = primaryTask.patient_id?.toString() || '';
-    const missingTypes = taskRecordVitalTypes(primaryTask.health_record_type).filter(tp => {
-      const dateKey = `${primaryPidStr}_${tp}_${effectiveDate}`;
-      if (selectedTime) return !hasFreshRecordWithinTolerance([dateKey], selectedTime);
-      return !freshLookup.has(dateKey);
-    });
+    const vitalTypes = taskRecordVitalTypes(primaryTask.health_record_type);
+    const specificTimes = (primaryTask.specific_times || []).map(normalizeTime).filter(Boolean);
+    let selectedTime: string | undefined;
+    let missingTypes: string[];
+    if (specificTimes.length > 0) {
+      const typeMissingAt = (tp: string, time: string): boolean => {
+        const dateKey = `${primaryPidStr}_${tp}_${effectiveDate}`;
+        return !hasFreshRecordWithinTolerance([dateKey], time);
+      };
+      // 類型欠項 = 至少一個指定時間點冇記錄；預設時間 = 第一個仲有欠項嘅時間點
+      missingTypes = vitalTypes.filter(tp => specificTimes.some(t => typeMissingAt(tp, t)));
+      selectedTime = specificTimes.find(t => vitalTypes.some(tp => typeMissingAt(tp, t)));
+    } else {
+      missingTypes = vitalTypes.filter(tp => !freshLookup.has(`${primaryPidStr}_${tp}_${effectiveDate}`));
+    }
     const initialDataForModal = {
       patient: patient ? {
         院友id: patient.院友id,
@@ -366,6 +372,28 @@ const Dashboard: React.FC = () => {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
+
+  // [預載] 入 Dashboard 時一次過拉晒今日監測任務院友嘅健康記錄，
+  // 撳卡時即開 modal 唔使等逐次網絡 roundtrip；儲存後/任務刷新後重新預載
+  const [prefetchedTodayRecords, setPrefetchedTodayRecords] = useState<any[]>([]);
+  const monitoringPatientIdsKey = useMemo(() =>
+    [...new Set((patientHealthTasks || []).filter(t => isMonitoringTask(t.health_record_type)).map(t => t.patient_id))].filter(Boolean).join(','),
+    [patientHealthTasks]);
+  const prefetchTodayRecords = useCallback(async () => {
+    try {
+      const ids = monitoringPatientIdsKey.split(',').filter(Boolean);
+      if (ids.length === 0) { setPrefetchedTodayRecords([]); return; }
+      const today = formatLocalDate(new Date());
+      const { data } = await supabase
+        .from('健康監測記錄')
+        .select('院友id,監測類型,記錄日期,記錄時間,任務id')
+        .in('院友id', ids)
+        .eq('記錄日期', today);
+      setPrefetchedTodayRecords(data || []);
+    } catch { /* 預載失敗唔阻開卡；handleTaskClick 會 fallback 逐次拉 */ }
+  }, [monitoringPatientIdsKey]);
+  useEffect(() => { prefetchTodayRecords(); }, [prefetchTodayRecords]);
+
   // [效能優化+修復可能性3] 建立健康記錄的快速查找表 (Set)
   // 解決 "速度沒有變快" 的核心：將 O(N) 查找轉為 O(1)
   // [修正] 支持時間點區分：記錄格式改為包含時間
@@ -1011,6 +1039,8 @@ const Dashboard: React.FC = () => {
         // 唔刷新嘅話，啱啱輸入嘅血壓/脈搏會唔存在於查找表，
         // 再開同一張卡時 missingTypes 會將已完成項目重複彈出
         await refreshHealthData();
+        // 預載今日記錄同步更新，下一張卡先有用最新資料即開
+        prefetchTodayRecords();
       } catch (error) {
         console.error('同步失敗:', error);
       }
