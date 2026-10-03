@@ -67,6 +67,9 @@ const getHongKongTime = () => {
 
 const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v));
 
+/** 藥名正規化（大寫、去空白），用於藥物資料庫同名查詢 */
+const normalizeDrugName = (s: string): string => s.toUpperCase().replace(/\s+/g, '');
+
 const toEntry = (
   r: Record<string, unknown>,
   mealTimingOptions: string[],
@@ -292,7 +295,7 @@ const PrescriptionMultiModal: React.FC<PrescriptionMultiModalProps> = ({
   sourceImagePreviews,
   sourceImageFiles,
 }) => {
-  const { addPrescription, patients } = usePatientData();
+  const { addPrescription, patients, drugDatabase } = usePatientData();
 
   const [medSettings, setMedSettings] = useState<MedicationSettingsData>(() => getMedicationSettings());
   useEffect(() => { getMedicationSettingsFromDB().then(setMedSettings).catch(() => {}); }, []);
@@ -302,6 +305,23 @@ const PrescriptionMultiModal: React.FC<PrescriptionMultiModalProps> = ({
     initialMappedRef.current = initialEntries.map(r => toEntry(r, getMedicationSettings().服用時段));
   }
   const [entries, setEntries] = useState<PrescriptionEntry[]>(initialMappedRef.current);
+
+  // 藥物資料庫載入後（含初始化時已載入）：entry 劑型為空且庫內同名藥有預設劑型 → 預填（可編輯）
+  useEffect(() => {
+    if (!drugDatabase?.length) return;
+    setEntries(prev => {
+      let changed = false;
+      const next = prev.map(e => {
+        if (e.dosage_form.trim() || !e.medication_name.trim()) return e;
+        const key = normalizeDrugName(e.medication_name);
+        const drug = drugDatabase.find((d: any) => normalizeDrugName(d.drug_name || '') === key);
+        if (!drug?.dosage_form) return e;
+        changed = true;
+        return { ...e, dosage_form: drug.dosage_form };
+      });
+      return changed ? next : prev;
+    });
+  }, [drugDatabase]);
   // 未提供 matchedPatientId 時，用第一筆的院友姓名經現行 mapper 匹配邏輯補匹配
   const [院友id, set院友id] = useState<number | null>(() => {
     if (matchedPatientId != null) return matchedPatientId;

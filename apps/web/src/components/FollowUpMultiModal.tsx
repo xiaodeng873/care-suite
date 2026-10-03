@@ -45,7 +45,8 @@ const toEntry = (r: Record<string, unknown>): FollowUpEntry => ({
   交通安排: '',
   陪診人員: '',
   狀態: '',
-  備註: str(r['備註']),
+  // OCR 備註不自動預填（印刷指示易誤抄），由用戶需要時手填
+  備註: '',
 });
 
 const deriveStatus = (e: FollowUpEntry): string =>

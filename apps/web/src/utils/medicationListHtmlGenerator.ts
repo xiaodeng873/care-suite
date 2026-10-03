@@ -4,6 +4,8 @@ import shortTermTemplate from '../../../../upload/doc_html/院友服用藥物一
 import longTermTemplate from '../../../../upload/doc_html/院友服用藥物一覽表（長期藥）.html?raw';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 import { getPrintBedNumber } from './bedTransferUtils';
+import { injectPageLogo, getFacilityLogoSrc } from './printPageLogo';
+import { LOGO_EDGE_MM } from './printUtils';
 
 
 interface MedicationPrescription {
@@ -609,6 +611,8 @@ export async function generateMedicationListHtml(
     allowBlankPage?: boolean;
     /** 指定只產生短期或長期藥；未指定則兩者都產生 */
     termType?: MedicationTermType;
+    /** 每頁右上角院舍 logo（fixed 定位，同 patientPrintBundle 基準）；未提供則唔注入（列印綜合文件路徑會自行注入） */
+    pageLogoSrc?: string;
   } = {}
 ): Promise<string> {
   const facility = await getFacilitySettings();
@@ -665,7 +669,8 @@ export async function generateMedicationListHtml(
     }
   }
 
-  return assembleDocument(pages, usedTemplates);
+  const doc = assembleDocument(pages, usedTemplates);
+  return options.pageLogoSrc ? injectPageLogo(doc, options.pageLogoSrc) : doc;
 }
 
 export async function exportMedicationListToHtml(
@@ -675,7 +680,9 @@ export async function exportMedicationListToHtml(
     endDate?: string;
   } = {}
 ): Promise<void> {
-  const html = await generateMedicationListHtml(patients, options);
+  // 每頁右上角院舍 logo（同列印綜合文件基準：院舍設定 logo，冇就用 public sc-logo.png）
+  const pageLogoSrc = await getFacilityLogoSrc();
+  const html = await generateMedicationListHtml(patients, { ...options, pageLogoSrc });
   if (!html) {
     alert('沒有符合條件的藥物記錄');
     return;
@@ -712,7 +719,8 @@ function scopeCssForAttachment(css: string): string {
     + `
 /* Attachment overrides to match standalone medication-list rendering */
 .medication-attachment .header-section { position: relative; }
-.medication-attachment .long-term-box {
+.medication-attachment .long-term-box,
+.medication-attachment .short-term-box {
   position: absolute;
   left: 0;
   top: 0;
@@ -722,9 +730,20 @@ function scopeCssForAttachment(css: string): string {
   font-size: 22px;
   font-weight: bold;
 }
-.medication-attachment .title-box { margin-right: 0 !important; }
+.medication-attachment .title-box { margin-right: 0 !important; text-align: center; }
+.medication-attachment .title-box h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+.medication-attachment .title-box h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
 .medication-attachment .col-drug { width: 45% !important; }
 .medication-attachment .col-notice { width: 11% !important; }
+.medication-attachment .db-text-div {
+  width: 100%; border: none; background: transparent;
+  font-family: inherit; font-size: 13px; text-align: left;
+  padding: 2px 4px; box-sizing: border-box;
+  white-space: pre-wrap; word-break: break-word; line-height: 1.25;
+}
+.medication-attachment .page-num { font-size: 24px !important; }
+.medication-attachment .doc-code { font-size: 11px !important; align-self: flex-end; }
+/* 體檢頁框可印寬度（180mm）比獨立列印（约197mm）窄，敏感底線維持 250px 避免溢出 */
 .medication-attachment .allergy-textarea {
   width: 250px !important;
   margin-right: 20px !important;
@@ -751,7 +770,9 @@ function scopeCssForAttachment(css: string): string {
 
 export async function generateMedicationListAttachment(
   patient: PatientForMedicationList,
-  prescriptions: MedicationPrescription[]
+  prescriptions: MedicationPrescription[],
+  /** 每頁右上角院舍 logo；未提供則唔顯示 */
+  logoSrc?: string
 ): Promise<{ css: string; pages: string[] }> {
   const facility = await getFacilitySettings();
   const facilityNameZh = facility.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
@@ -763,10 +784,18 @@ export async function generateMedicationListAttachment(
   const metrics = await measureListLayout(template, patient, 'long', facilityNameZh, null, realRowsHtml);
   const pageGroups = paginateListRows(sorted, metrics);
   const totalPages = pageGroups.length;
+  // logo 用 absolute 定位（相對嵌入頁框 .page，padding box = 紙張），
+  // 距紙邊 LOGO_EDGE_MM、闊 32mm——同基準 injectPageLogo 嘅紙上位置一致
+  const logoImg = logoSrc
+    ? `<img class="attachment-page-logo" src="${escapeAttr(logoSrc)}" alt="院舍標誌">`
+    : '';
   const pages: string[] = [];
   for (let i = 0; i < totalPages; i++) {
-    pages.push(renderPage(template, patient, pageGroups[i].items, 'long', i + 1, totalPages, facilityNameZh, null, pageGroups[i].padRows));
+    pages.push(logoImg + renderPage(template, patient, pageGroups[i].items, 'long', i + 1, totalPages, facilityNameZh, null, pageGroups[i].padRows));
   }
 
-  return { css: scopeCssForAttachment(extractTemplateCss(template)), pages };
+  const logoCss = logoSrc
+    ? `\n.medication-attachment .attachment-page-logo {\n  position: absolute;\n  top: ${LOGO_EDGE_MM}mm;\n  right: ${LOGO_EDGE_MM}mm;\n  width: 32mm;\n  height: auto;\n  z-index: 10;\n}\n`
+    : '';
+  return { css: scopeCssForAttachment(extractTemplateCss(template)) + logoCss, pages };
 }

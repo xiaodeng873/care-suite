@@ -5,6 +5,7 @@
  */
 import { AnnualHealthCheckup, parseMentalStateAssessment } from './annualHealthCheckupHelper';
 import { generateMedicationListAttachment } from './medicationListHtmlGenerator';
+import { getFacilityLogoSrc } from './printPageLogo';
 import { supabase } from '../lib/supabase';
 
 
@@ -93,13 +94,7 @@ export const generateMedicalExaminationFormHTML = async (
   prescriptions: MedicationPrescription[]
 ): Promise<string> => {
   const mentalState = parseMentalStateAssessment(checkup.mental_state_assessment);
-  const adaptedPrescriptions = prescriptions.map(p => ({
-    ...p,
-    medication_time_slots: p.medication_time_slots && p.medication_time_slots.length > 0
-      ? p.medication_time_slots
-      : Array.from({ length: p.daily_frequency || 1 }, (_, i) => `${i + 1}`)
-  }));
-  const medicationAttachment = await generateMedicationListAttachment(patient, adaptedPrescriptions);
+  const medicationAttachment = await generateMedicationListAttachment(patient, prescriptions, await getFacilityLogoSrc());
   const seriousIllnessDisplay = checkup.serious_illness_details || '';
 
   const medicationPages = medicationAttachment.pages.map((page, index) => {
@@ -579,90 +574,4 @@ export const printMedicalExaminationForm = async (
     console.error('Error generating medical examination form:', error);
     alert('生成體檢報告書失敗，請重試');
   }
-};
-
-// ===== 個人藥物記錄獨立 HTML 匯出（改用藥物一覽表範式）=====
-
-interface PatientForPml {
-  中文姓名?: string;
-  中文姓氏?: string;
-  中文名字?: string;
-  床號?: string;
-  身份證號碼?: string;
-  性別?: string;
-  出生日期?: string;
-  藥物敏感?: string[];
-}
-
-export const generatePersonalMedicationListHtml = async (
-  patients: Array<{ patient: PatientForPml; prescriptions: MedicationPrescription[] }>
-): Promise<string> => {
-  const cssParts: string[] = [];
-  const pageParts: string[] = [];
-  for (const { patient, prescriptions } of patients) {
-    const adapted = prescriptions.map(p => ({
-      ...p,
-      medication_time_slots: p.medication_time_slots && p.medication_time_slots.length > 0
-        ? p.medication_time_slots
-        : Array.from({ length: p.daily_frequency || 1 }, (_, i) => `${i + 1}`)
-    }));
-    const attachment = await generateMedicationListAttachment(patient, adapted);
-    if (!cssParts.includes(attachment.css)) {
-      cssParts.push(attachment.css);
-    }
-    pageParts.push(...attachment.pages);
-  }
-  const pages = pageParts.map((page, index) => {
-    const isLast = index === pageParts.length - 1;
-    return `<div class="print-page" style="page-break-after: ${isLast ? 'auto' : 'always'};"><div class="medication-attachment">${page}</div></div>`;
-  }).join('\n');
-  return `<!DOCTYPE html>
-<html lang="zh-HK">
-<head>
-  <meta charset="UTF-8">
-  <title>院友服用藥物一覽表</title>
-  <style>
-    @page { size: A4; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: "Times New Roman", "PMingLiU", "新細明體", serif; font-size: 10pt; line-height: 1.4; background: #fff; }
-    .print-page { width: 100%; box-sizing: border-box; padding: 8mm 15mm 8mm 15mm; position: relative; page-break-after: always; overflow: hidden; }
-    .print-page:last-child { page-break-after: auto; }
-    ${cssParts.join('\n')}
-    @media print { .print-page { margin: 0; } }
-  </style>
-</head>
-<body>
-${pages}
-</body>
-</html>`;
-};
-
-export const exportPersonalMedicationListToHtmlWindow = async (
-  patients: Array<{ patient: PatientForPml; prescriptions: MedicationPrescription[] }>
-): Promise<void> => {
-  const html = await generatePersonalMedicationListHtml(patients);
-  if (!html) {
-    alert('沒有符合條件的藥物記錄');
-    return;
-  }
-  const iframe = document.createElement('iframe');
-  iframe.setAttribute('aria-hidden', 'true');
-  iframe.style.position = 'fixed';
-  iframe.style.left = '-10000px';
-  iframe.style.top = '0';
-  iframe.style.width = '794px';
-  iframe.style.height = '1123px';
-  iframe.style.border = '0';
-  document.body.appendChild(iframe);
-  const cleanup = (): void => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); };
-  const doc = iframe.contentWindow?.document;
-  if (!doc) { cleanup(); return; }
-  doc.open();
-  doc.write(html);
-  doc.close();
-  const win = iframe.contentWindow!;
-  win.addEventListener('afterprint', () => setTimeout(cleanup, 200));
-  const trigger = (): void => { window.setTimeout(() => { win.focus(); win.print(); }, 400); };
-  if (doc.readyState === 'complete') { trigger(); }
-  else { win.addEventListener('load', trigger); }
 };
