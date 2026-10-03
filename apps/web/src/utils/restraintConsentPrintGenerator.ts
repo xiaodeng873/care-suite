@@ -8,11 +8,11 @@
  *  身份證號碼     → patient.身份證號碼
  *  房／床號       → (patient).床號
  *  上次評估日期   → assessment.doctor_signature_date
- *  下次評估日期   → 留空（不 mapping，供手寫）
+ *  下次評估日期   → 留空，供列印後手寫
  *  (一) 住客情況  → assessment.risk_factors (boolean map)
  *  (二) 折衷辦法  → assessment.alternatives (boolean map)；勾選項目嘅「評估日期」（`${選項}_評估日期`，modal 勾選時預填今日）同「備註」（`${選項}_備註`）會映射；有效/無效留空
  *  (三) 約束物品  → assessment.suggested_restraints (per-item object)
- *  (四)–(七)      → 全部留空，供列印後手寫簽名；護士簽名列「日期」→ assessment.doctor_signature_date（上次評估日期）
+ *  (四)–(七)      → 全部留空，供列印後手寫簽名（護士簽名列「日期」亦留空）
  */
 
 import type { Patient, PatientRestraintAssessment } from '../lib/database';
@@ -149,7 +149,7 @@ export const generateRestraintConsentPrintHtml = (
       ? `<input type="checkbox" class="db-checkbox"${chk(isChecked)}>其他，請註明：<div style="flex-grow:1;"><input type="text" class="db-input" style="border-bottom:1px solid black;"${val(a['其他說明'] ?? '')}></div>`
       : `<input type="checkbox" class="db-checkbox"${chk(isChecked)}>${esc(opt)}`;
     const tdStyle = isOtherOpt ? ' style="display:flex; align-items:flex-end; border:none;"' : '';
-    // 評估日期／備註：modal 勾選嗰項先映射（modal 勾選時已預填今日）
+    // 評估日期：modal 勾選時預填今日；舊記錄冇獨立日期 → fallback 記錄嘅評估/簽署日期
     const assessDate = isChecked ? fmtDate(a[`${opt}_評估日期`]) : '';
     const remark = isChecked ? (a[`${opt}_備註`] ?? '') : '';
     return `<tr>
@@ -543,7 +543,7 @@ table.main-table th, table.main-table td {
       <td style="padding:2px 6px;">
         <div style="display:flex; align-items:flex-end; font-size:14px; font-family:inherit;">
           <span style="white-space:nowrap; flex-shrink:0;">日期</span>
-          <input type="text" style="flex:1; min-width:0; border:none; border-bottom:1px solid black; background:transparent; font-family:inherit; font-size:14px; outline:none; padding:0 2px;"${val(lastAssessDate)}>
+          <input type="text" style="flex:1; min-width:0; border:none; border-bottom:1px solid black; background:transparent; font-family:inherit; font-size:14px; outline:none; padding:0 2px;">
         </div>
       </td>
     </tr>

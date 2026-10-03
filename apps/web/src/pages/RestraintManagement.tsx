@@ -31,7 +31,7 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compar
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { exportRestraintObservationsRangeHtml } from '../utils/restraintObservationHtmlExporter';
-import { printRestraintConsentForms } from '../utils/restraintConsentPrintGenerator';
+import { printRestraintConsentForm, printRestraintConsentForms } from '../utils/restraintConsentPrintGenerator';
 import { printRestraintUsageRecords } from '../utils/restraintUsageRecordPrintGenerator';
 import { printRestraintSummary } from '../utils/restraintSummaryPrintGenerator';
 import PatientPrintModal from '../components/PatientPrintModal';
@@ -540,6 +540,15 @@ const RestraintManagement: React.FC = () => {
     await printRestraintConsentForms(items);
   };
 
+  const handlePrintConsent = async (assessment: PatientRestraintAssessment) => {
+    const patient = patients.find(p => p.院友id === assessment.patient_id);
+    if (!patient) {
+      alert('找不到對應院友資料');
+      return;
+    }
+    await printRestraintConsentForm(assessment, patient);
+  };
+
   const handlePrintSummary = async () => {
     if (selectedRows.size === 0) {
       alert('請先勾選院友');
@@ -1045,6 +1054,14 @@ const RestraintManagement: React.FC = () => {
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-shrink-0 gap-2">
+                          <button
+                            onClick={() => handlePrintConsent(assessment)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                            title="列印約束物品同意書"
+                            disabled={deletingIds.has(assessment.id)}
+                          >
+                            <Printer className="h-4 w-4" />
+                          </button>
                           <button
                             onClick={() => handleEdit(assessment)}
                             className="text-blue-600 hover:text-blue-900"
